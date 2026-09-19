@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 - 2026-09-19
+
+- Ctrl+N opens New session: a notice with the folder and a Choose folder button, a list of ways to start Claude (new conversation, continue the last conversation, choose a conversation to resume, plan mode, edits accepted without asking) and Custom for Claude Code's own command line arguments, one or more on each line. Enter stops the current session and starts the new one; Restart Claude keeps the choice. Change folder stays in the Project menu, above New session, without a shortcut.
+- Sounds: a high ping when Claude is ready, a low note when a message is sent, three rising notes when Claude starts replying, the same notes falling when the whole turn is done, two equal notes when Claude needs an answer, and a soft tick for every new line that arrives from Claude. Options, "Click for each new line from Claude" turns the tick off, and "Play sounds: ready, sent, replying, done, question" the chimes, which replace the Windows Asterisk sound.
+- Claude continues the last conversation in the folder by default: AxClaude starts it with `--continue` unless the command line says otherwise (`axclaude --` alone starts a new conversation), and New session preselects "Continue the last conversation". A folder with no earlier conversation starts a new one after Claude's own "No conversation found" line. When AxClaude starts, the exchanges Claude replays get their own Input and Output lines, marked "from previous session"; new messages count from 1 as before. Restart Claude keeps the conversation as it is, without a replay under it.
+- Backspace in the conversation goes back to the line you were on before the last jump, and again for the jump before that, so a stray `p` or `h` is undone in one press.
+- Enter on a conversation line now ends the copied block with the line "_ start of comment on the copied line _" and moves you into the message field, with the caret under it, ready to type the comment.
+- `p` and Shift+P jump to the next and previous paragraph, the first line after a blank line. The prompt jump on `p` and the blank-line jump on `b` are gone.
+- Session, "Send the waiting message now" (Ctrl+Shift+S) sends Claude's Ctrl+X Ctrl+S, so a message sent while Claude works is taken up at once instead of after its current step. "No message waiting" when there is none.
+- Up and Down in the message field no longer bring back earlier messages; they only move through the text you are typing. Earlier messages are in the conversation under their "# Input" lines, and Enter on a line copies it into the message field.
+
 ## 1.0.2 - 2026-09-19
 
 - Ctrl+1 goes to the message field and Ctrl+2 to the conversation. When you are there already, the key says where you are.
