@@ -1,0 +1,9 @@
+# Normalise line endings: LF in the repository, native on checkout.
+* text=auto
+
+# Recorded terminal streams are binary: they contain control bytes and must never be normalised.
+*.vt binary
+
+*.png binary
+*.ico binary
+*.wav binary

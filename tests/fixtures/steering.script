@@ -1,0 +1,36 @@
+# A slow tool call, then a second message sent while Claude is still working (steering), then a
+# two-line message typed with a lone newline write between the lines (Ctrl+J), never bracketed paste.
+mark
+wait 8000 Yes, I trust this folder
+iffound send y
+iffound sleep 150
+iffound send \r
+wait 6000 Keep xhigh
+iffound send n
+iffound sleep 150
+iffound send \r
+quiet 2500 30000
+send Use the Bash tool to run the command: sleep 20. After it finishes reply with exactly OK DONE.
+sleep 150
+send \r
+sleep 7000
+send Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.
+sleep 150
+send \r
+mark
+wait 120000 \x07
+quiet 4000 60000
+send Reply with the number of lines in this message and the text of its last line.
+sleep 100
+send \n
+sleep 100
+send This is the second line.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 3000 30000
+send /exit
+sleep 150
+send \r
+exit 15000

@@ -1,0 +1,80 @@
+# AxClaude (working name)
+
+Accessible Windows front end for the Claude Code CLI, built for a blind developer who uses the NVDA screen reader. The app hosts `claude --ax-screen-reader` inside a ConPTY pseudo console and presents everything Claude prints as a line-by-line transcript with NVDA-style single-key navigation, plus a plain input field at the bottom.
+
+`SPEC.md` is the source of truth for scope, behaviour and the phased plan. When behaviour changes, update the spec in the same commit.
+
+## Stack and constraints
+
+- .NET 10 (LTS), C#, WinForms. WinForms is deliberate: its controls are native Win32 controls (EDIT, menus, status bar) that NVDA reads reliably. Do not switch to WPF, Avalonia or a web view.
+- No third-party runtime dependencies. ConPTY is called through P/Invoke; `tools/PtyCapture/Program.cs` is the reference implementation to copy from.
+- Everything that does not need a window lives in `src/AxClaude.Core` and is unit tested with recorded fixtures under `tests/fixtures`.
+- Development runs with `dotnet run`. Self-contained single-file publishing comes later (see SPEC.md, milestone M4).
+
+## Commands
+
+```
+.\run.ps1 "C:\path\to\project"          # build and start the app (see run.ps1 for -NoBuild, -Test, -- claude args)
+dotnet build AxClaude.sln
+dotnet test AxClaude.sln
+AXCLAUDE_UPDATE_EXPECTED=1 dotnet test   # regenerate tests/fixtures/*.expected.txt after a deliberate parser change; review the diff
+dotnet run --project tools/PtyCapture -- --out session.vt --script demo.script -- claude --ax-screen-reader
+dotnet run --project tools/PtyCapture -- --dump session.vt
+.\run.ps1 "C:\path" -- --continue     # pick the last conversation up again after restarting the app
+.\publish.ps1 -NoInstall              # self-contained exe + install.ps1 + guide into publish\win-x64 and publish\AxClaude-<version>-win-x64.zip
+.\publish.ps1                         # the same, then install for this user (Start menu, Explorer entry, axclaude command)
+.\install.ps1 -Uninstall              # remove the installation (from the repo root or the installed folder)
+.\tools\make-icon.ps1                 # redraw src/AxClaude/AxClaude.ico
+```
+
+The app records the same format with `--record file.vt` or Options → Record raw stream. While the app is running it locks `src/AxClaude/bin`, so build somewhere else to check a change (`dotnet build src/AxClaude -o <scratch dir>`) and ask the user to restart the app for a real run. The dialogs and menus can be checked without disturbing the user by constructing the forms off screen from a small probe project that references the scratch build (constructors, `CreateControl`, bounds, menu items); do not activate windows or send keys while the user is working.
+
+## Where things are
+
+- `src/AxClaude.Core/Vt`: `VtParser` (byte stream to print/control/CSI/OSC), `Screen` (cells, cursor, scroll region; rows carry their transcript `Line`), `Wcwidth`.
+- `src/AxClaude.Core/Transcript`: `SessionModel` (frames to lines: chrome hiding, classification, the wrapped-row join flag, markers around the `you:` echo, status), `LineClassifier` (labels, chrome patterns, heading heuristic), `Line`, `TranscriptMirror` (visible lines to edit-control edits with `\r\n` or space separators, where the caret belongs afterwards, display line numbers, the find search).
+- `src/AxClaude.Core/Pty`: `PtyHost` (ConPTY), `ClaudeLauncher` (find claude and list the places tried, install command, command line, environment), `StreamRecorder` (raw stream to a `.vt` file plus chunk index, the PtyCapture format).
+- `src/AxClaude.Core/AppSettings.cs`: the settings file (SPEC.md Appendix C).
+- `src/AxClaude`: `MainForm` (window, menus, timers, sending, find, save, announcements, fonts, process lifecycle), `TranscriptView` (applies the mirror's edits to the TextBox, quick keys, find, announcements, the hold after a key press), `StatusLayout` (keeps both status labels inside the strip), `StartupOptions`, `OverlayPanel` (the notices: every dialog of the app's own, drawn inside the window in place of the conversation and the message field, SPEC.md D23), `HelpText` (the F1 shortcuts, the embedded `docs/user-guide.md`, the Claude-not-found text), `Log` (diagnostic log), `Program` (crash handler, `--help`, `--version`).
+- `docs/user-guide.md`: the guide for users; embedded in the executable (`AxClaude.csproj`) and shipped as `README.md` in the zip. `docs/nvda-test-plan.md`: the manual test plan.
+- `install.ps1` (shipped in the zip, per-user install and `-Uninstall`), `publish.ps1` (build, zip, install), `tools/make-icon.ps1` (draws `src/AxClaude/AxClaude.ico`).
+- `tests/AxClaude.Tests`: golden-file and chunking tests over `tests/fixtures/*.vt` (the golden files show joined wrapped rows, as the reader sees them), chunk-by-chunk replays with the app's send timing (`ReplayTests`, using `*.vt.chunks.txt`), session model, mirror and settings tests.
+
+## Rules that matter in this repository
+
+1. Accessibility first. Every control gets an `AccessibleName`. Every action in the SPEC.md keyboard table works without a mouse. Never move the user's caret in the transcript except as the direct result of the user's own navigation command. Announce the result of a navigation jump through a UI Automation notification.
+2. Never block the UI thread on the pseudo console. Reads happen on a background thread; transcript updates are marshalled to the UI thread and batched.
+3. The VT stream to transcript conversion is pure code in `AxClaude.Core`. When you change it, add or update a fixture-based test. New fixtures are recorded with `tools/PtyCapture` and reviewed for personal data (account name, paths, session ids) before they are committed.
+4. Keep the app small. Do not add NuGet packages without recording the reason in the decisions section of SPEC.md.
+5. Git hygiene: small commits with imperative subject lines; never commit `bin/`, `obj/`, ad-hoc captures, or `.claude/settings.local.json`.
+6. No second window of the app's own. Questions, errors and help texts are notices shown through `MainForm.ShowNotice` (`OverlayPanel`), never a `Form` or a `MessageBox`: the user loses popup windows (SPEC.md D23). The Windows folder, file and font pickers are the only separate windows.
+
+## Windows gotchas already learned (do not rediscover)
+
+- Clear this process's standard handles around `CreateProcess` when attaching a child to a pseudo console (see `PtySession.Start` in `tools/PtyCapture/Program.cs`). Otherwise a child started from a process with redirected stdio inherits those pipes, sees no TTY, and Claude Code silently switches to non-interactive print mode.
+- Strip every `CLAUDE*` environment variable from the child's environment so a nested Claude Code session is not detected, and set `TERM=xterm-256color`.
+- Enter is always a separate `\r` write: `text\r` in one write becomes a pasted two-line draft. Do not wrap the user's own words in bracketed-paste markers (`ESC[200~ … ESC[201~`): Claude then treats them as pasted material and may not act on instructions in them. Multi-line messages use single `\n` writes (Ctrl+J) between lines.
+- Startup can show dialogs before the prompt (workspace trust, one-time onboarding questions). They are flat `y/n` or numbered prompts in screen reader mode; the app must simply show them and let the user answer.
+- Frames are bracketed by `ESC[?25l` and `ESC[?25h`. Chrome, finality and announcements are evaluated at frame end. Rows below the cursor row are chrome (autocomplete list, dialog hints). Only the cursor row may be treated as the `$` prompt; reply and tool rows can start with `$ ` too.
+- Screen reader mode emits no SGR styling. Markdown headings arrive as plain short rows, and the first block of a reply shares the `claude:` row. Heading detection is structural (SPEC.md §7.6).
+- Claude echoes `you:` for messages but not for slash commands or dialog answers. `BEL` and `ESC]133;C/D` arrive just before the final frame of a turn, so "Claude is done" is announced after a short quiet period.
+- A message sent while Claude works is drawn *inside* the working block as `you: …` over `ctrl+x ctrl+s to send now`, on rows that shift every frame; it is not the echo. The real echo is the `you:` row left behind when the hint disappears (see the `steering` fixture and SPEC.md FR-4.7). Never attach markers or hidden flags to rows inside the working block: the echo matcher skips chrome rows, and the markers of such a message wait for the echo (the user wants the message out of the conversation until Claude takes it up, SPEC.md D16).
+- Claude hard-wraps long reply rows at the console width; the join rule (FR-3.2a) lives in `SessionModel.JoinWrappedRows` and the mirror renders the join. A labelled row (`claude:`, `tool:`) starts with a lowercase letter too, which is why only `Plain` rows inside a reply or echo block may join.
+- `FindForm` is not a usable class name in a `Form`: it hides `Control.FindForm()`.
+- `Control.Visible` is false for every child while the form itself is not shown, and `Button.PerformClick` does nothing then (`CanSelect` is false). The notice state is therefore a flag in `MainForm` (`_noticeOpen`), not the panel's `Visible`, and the off-screen probe reads each control's own state (`Control.GetState(States.Visible)` by reflection) and fires clicks through `OnClick`.
+- A form's `AcceptButton` and `CancelButton` are the way to make Enter and Escape reach a notice's buttons from a read-only multi-line `TextBox` (`AcceptsReturn` off) and from the single-line field; Enter on a focused button presses that button, as in a real dialog. The window's own shortcuts and the menu's are skipped by returning from `ProcessCmdKey` without calling the base while a notice shows; Alt and F10 alone are `WM_SYSCOMMAND` `SC_KEYMENU` with a zero low word of `lParam`, swallowed in `WndProc`.
+- Ctrl+Escape is a Windows system key (Start menu) and never reaches the app; Alt+Escape and Ctrl+Shift+Escape are taken too. The app's interrupt key is Shift+Escape, and plain Escape in the message field is a guard that only announces it (FR-2.3, D20).
+- Windows PowerShell 5.1: `$PSScriptRoot` is empty while parameter defaults are evaluated, and a function that returns a byte array unrolls it unless written `return , $bytes` (see `tools/make-icon.ps1`).
+- The draft is printed without a cursor hide/show bracket; a lone `\n` write is Ctrl+J (newline in the draft), verified in the `steering` fixture. Text plus `\n` in one write is a paste.
+- The default mode line is `manual mode on` with no `(shift+tab to cycle)` hint. Mode changes and similar confirmations appear for one frame as a bracketed row under the prompt (`[accept edits on]`) with the cursor parked on it; the app speaks those.
+- Ctrl+O reaches Claude, but in screen reader mode it does not expand already printed tool output: it toggles the detailed transcript view, whose status row replaces the prompt and swallows typed messages until Ctrl+O is pressed again (SPEC.md §4.4 item 17; the app announces it). Ctrl+Enter sends, Enter is a new line; Shift+Tab in the message field cycles Claude's mode. Claude's own history recall lands on the hidden prompt row, so the message field keeps its own history.
+- NVDA reads the caret line in several messages after a key press (the caret, then its line, then the text). An edit-control change between those messages makes it read the wrong line, and replacing the line the caret is in used to throw the caret back to the line start (heard as repeated text while a reply streams). The view maps the caret by line identity (`TranscriptMirror.MapPosition`) and holds output for 250 ms after a key press while it has focus. Keep it that way.
+- A `ToolStripStatusLabel` that does not fit the strip (or has `Spring`) is not exposed to UI Automation; `StatusLayout` gives both labels fixed widths when their texts do not fit.
+- WinForms' `TextBoxBase.ScrollToCaret` (and every `Text` read) copies the whole edit-control text first: about 1 ms per call at 20 000 lines, on every frame while the message field has the focus. The view sends `EM_SCROLLCARET` itself. An edit near the top of a word-wrapped EDIT control re-wraps everything below it (0.7 s at 20 000 lines); streaming edits land at the bottom and cost nothing, so keep it that way and keep the transcript cap.
+- `TranscriptMirror.Update` reuses its lists between frames: a frame that changes nothing visible (a spinner tick) must not allocate, and a 20 000-entry list goes to the large object heap. The update it returns is valid until the next call.
+- `SessionModel.EndFrame` walks the whole transcript several times per frame. A lambda inside one of those loops that captures a local declared in the loop body makes the compiler allocate a closure on every iteration (that was 700 KB a frame in `HandleEchoes`); keep such work in a separate method called only for the rare line. The steady state is 0.12 ms and zero allocation at 18 000 lines; measure with a scratch console app against `AxClaude.Core` before and after touching that path.
+- The Bash tool in this environment mangles backslashes inside heredocs. Use the Write tool for source files.
+
+## Manual verification
+
+Any change to focus handling, key handling, announcements or the transcript view must be checked with NVDA running, following `docs/nvda-test-plan.md`.

@@ -1,0 +1,66 @@
+# Full scripted session against: claude --ax-screen-reader
+# Every Enter is a separate write: a chunk that contains text plus CR is treated as a paste.
+mark
+wait 8000 Yes, I trust this folder
+iffound send y
+iffound sleep 150
+iffound send \r
+wait 6000 Keep xhigh
+iffound send n
+iffound sleep 150
+iffound send \r
+quiet 2500 30000
+
+# Question 1: plain
+send What is 2+2? Answer in one short line.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+
+# Question 2: markdown structure
+send Write a short markdown answer with two level-2 headings and a three item bullet list about the color blue.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+
+# Tool use; may trigger a permission prompt
+send Create a file named hello.txt in this folder containing the single word hi.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+wait 500 Enter selection
+iffound send 1
+iffound sleep 150
+iffound send \r
+iffound mark
+iffound wait 90000 \x07
+quiet 2000 20000
+wait 500 Enter y/n
+iffound send y
+iffound sleep 150
+iffound send \r
+iffound mark
+iffound wait 90000 \x07
+quiet 2000 20000
+
+# Multi-line input via bracketed paste, then Enter separately
+send \e[200~Reply with the word RECEIVED and say how many lines this message has.\nThis is the second line.\e[201~
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+
+# Bare Enter on an empty prompt, then exit
+send \r
+sleep 500
+send /exit
+sleep 150
+send \r
+exit 15000

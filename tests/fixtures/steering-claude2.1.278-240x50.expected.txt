@@ -1,0 +1,21 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.278
+Fable 5.1 with xhigh effort · Claude Max
+C:\Temp\axclaude-fixture
+you: Use the Bash tool to run the command: sleep 20. After it finishes reply with exactly OK DONE.
+claude: Running the sleep command now.
+tool: Bash (sleep 20)
+(No output)
+(timeout 1m)
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.
+claude: OK DONE
+HELLO
+Worked for 25s · done 9:42 PM
+you: Reply with the number of lines in this message and the text of its last line.
+This is the second line.
+claude: The message has 2 lines. The last line reads:
+
+This is the second line.
+Brewed for 2s · done 9:42 PM
+Resume this session with:
+claude --resume 3cda2ba3-3f74-47ea-8784-c7653b98dfa8

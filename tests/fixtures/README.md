@@ -1,0 +1,20 @@
+# Parser fixtures
+
+Each `*.vt` file is the raw byte stream that ConPTY emitted while running `claude --ax-screen-reader`, recorded with `tools/PtyCapture`. The files are binary (control bytes, UTF-8 text) and are marked as such in `.gitattributes`. Never edit them by hand: cursor positions inside the stream depend on the exact text lengths.
+
+`*.expected.txt` next to a recording is the transcript the parser must produce for it, as the reader sees it: one logical line per line, chrome lines omitted, and reply rows that Claude hard-wrapped at the console width joined on one line (FR-3.2a). Tests fail when the two disagree.
+
+Naming: `<topic>-claude<version>-<cols>x<rows>.vt`.
+
+Review every recording before committing it: the session header names the account plan and the model, folder paths include the user name, and replies may quote files. Re-record from a neutral scratch folder rather than redacting bytes.
+
+| File | Recorded | Claude Code | Script | Shows |
+| :-- | :-- | :-- | :-- | :-- |
+| `conversation-claude2.1.277-240x50.vt` | 2026-09-18 from `C:\Temp\axclaude-fixture` | 2.1.277 | `conversation.script` | Workspace trust y/n dialog answered with `y`; two plain questions; a markdown reply (plain-text headings, blank lines, `- ` list); a Bash tool call in auto mode (no permission prompt) with the collapsed `(ctrl+o to expand)` summary; a two-line message sent with bracketed paste (Claude treated it as pasted text); a bare Enter; `/exit` with the autocomplete list below the prompt and the `claude --resume <id>` hint. Contains the plan name from the header, a session id and the names of installed skills; no user paths. |
+
+| `conversation-claude2.1.277-120x40.vt` | 2026-09-18 from `C:\Temp\axclaude-fixture` (folder already trusted, so no trust dialog) | 2.1.277 | `conversation.script` | Same conversation at a narrow width: Claude hard-wraps reply lines and the tool command at 120 columns, the autocomplete list scrolls the screen, and the pasted two-line message is again treated as pasted text. Useful for the wrapped-line join heuristic and for scrolling. |
+
+| `long-message-claude2.1.278-240x50.vt` | 2026-09-18 from `C:\Temp\axclaude-fixture` | 2.1.278 | `long-message.script` | Two single-line messages longer than the console width, sent the way the app sends them (text, pause, Enter as its own write). Shows the draft printed without a frame bracket and the `you:` echo wrapped over three rows. Same personal-data profile as the conversation fixtures. |
+| `steering-claude2.1.278-240x50.vt` | 2026-09-18 from `C:\Temp\axclaude-fixture` | 2.1.278 | `steering.script` | A `sleep 20` Bash tool call; a second message sent while the tool runs (Claude draws it inside the working block as `you: …` over `ctrl+x ctrl+s to send now`, redrawn on shifting rows, then takes it up in the same turn); and a two-line message typed with a lone `\n` write (Ctrl+J) between the lines, which Claude treats as typed text, not a paste. Also shows the `Running…  (3s · timeout 1m)` and `(ctrl+b to run in background)` rows of a running Bash tool. |
+
+`*.vt.chunks.txt` next to a recording lists the chunk boundaries (`offset length elapsedMs`); `ReplayTests` use it to replay a recording with the app's timing and its `Send` calls.

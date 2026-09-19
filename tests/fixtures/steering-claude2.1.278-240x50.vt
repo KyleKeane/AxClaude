@@ -1,0 +1,180 @@
+[?9001h[?1004h[?25l[2J[m[H]0;claude[?25h[Screen Reader Mode: on via flag]
+[?2004h[?2031h[?1004h]0;✳ Claude Code[>0q[?uClaude Code v2.1.278
+Fable 5.1 with xhigh effort · Claude Max
+C:\Temp\axclaude-fixture
+auto mode on (shift+tab to cycle)
+effort: xhigh · /effort
+$[?25l[6;1H$[K
+[K[6;2H[?25h  Use the Bash tool to run the command: sleep 20. After it finishes reply with exactly OK DONE.]133;A;redraw=0]0;◐ Claude Code[?25l[5;1Hyou: Use the Bash tool to run the command: sleep 20. After it finishes reply with exactly OK DONE.[K
+Bloviating…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◐ Sleep 20 command]0;◑ Sleep 20 command[?25l[6;1HInfusing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[6;1Hclaude: Running the sleep command now.[K
+Infusing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[?25h[?25l[7;1Htool: Bash (sleep 20)[K
+Running…[K
+Infusing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◑ Sleep 20 command]0;◐ Sleep 20 command]0;◑ Sleep 20 command]0;◐ Sleep 20 command]0;◑ Sleep 20 command[?25l[8;1HRunning…  (3s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[?25h[?25l[11;1Hauto mode on (shift+tab to cycle)[K
+$  Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K[?25h[?25l[11;1Hyou: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (4s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (5s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (6s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (7s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (8s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (9s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (10s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (11s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (12s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (13s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (14s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (15s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (16s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (17s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (18s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Sleep 20 command[?25l[8;1HRunning…  (19s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◐ Sleep 20 command[?25l[8;1HRunning…  (20s · timeout 1m)[K
+(ctrl+b to run in background)[K
+Infusing…[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+ctrl+x ctrl+s to send now[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h[?25l[8;1H(No output)[K
+(timeout 1m)[K
+you: Second message sent while you were busy: after OK DONE also write the word HELLO on its own line.[K
+Infusing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K
+[K[13;2H[?25h]0;◑ Sleep 20 command]133;C]133;D]0;✳ Sleep 20 command[?25l[11;1Hclaude: OK DONE[K
+HELLO[K
+Worked for 25s · done 9:42 PM[K
+auto mode on (shift+tab to cycle)
+$[?25h  Reply with the number of lines in this message and the text of its last line.ctrl+g to edit in Notepad[K
+$  Reply with the number of lines in this message and the text of its last line.
+This is the second line.]133;A;redraw=0]0;◑ Sleep 20 command[?25l[14;1Hyou: Reply with the number of lines in this message and the text of its last line.[K
+This is the second line.[K
+Waddling…[K
+Tip: Run tasks in the cloud while you keep coding locally · clau.de/web[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◐ Sleep 20 command]0;◑ Sleep 20 command]133;C]133;D]0;✳ Sleep 20 command[?25l[16;1Hclaude: The message has 2 lines. The last line reads:[K
+[K
+This is the second line.[K
+Brewed for 2s · done 9:42 PM[K
+auto mode on (shift+tab to cycle)
+$[?25h[?25l[20;1H/exit                               Exit the CLI[K
+/context                            Visualize current context usage as a colored grid[K
+/anthropic-skills:pptx              Use this skill any time a .pptx or .potx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations as PowerPoint (.pptx) files;
+                                    reading, parsing, or extracting text from any .pptx or .potx file (even if the extracted content will be used elsewhere, like in an email, summary, or creating a different type of slide deck); editin…
+/usage-credits                      Configure usage credits or request them from your admin when you hit a limit
+/doctor                             Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH,
+                                    unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead we…
+/anthropic-skills:skill-creator     Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a
+                                    skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. (claude.ai sync)
+/anthropic-skills:pdf               Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart,
+                                    rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf fi…
+/anthropic-skills:docs              docs (living docs people share, comment on and edit; use only when the user asks for one: names a doc, document, page, memo, spec, PRD, runbook or write-up, asks for somewhere to share or keep editing
+                                    something, or says yes to your doc offer; a plan, comparison, summary or notes asked in chat stays in chat (at most a one-line doc offer); a report, status update, recap or "something I can send them…
+/claude-in-chrome                   Automates your Chrome browser to interact with web pages - clicking elements, filling forms, capturing screenshots, reading console logs, and navigating sites. Opens pages in new tabs within your
+                                    existing Chrome session. Requires site-level permissions before executing (configured in the extension).
+/anthropic-skills:docx              Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx) or Word templates (.dotx). Triggers include: any mention of 'Word doc', 'word document', '.docx',
+                                    '.dotx', or requests to produce professional documents with formatting like tables of contents, page numbers, or letterheads. Also use when extracting or reorganizing content from .docx or .dotx file…
+/anthropic-skills:xlsx              Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .xltx, .csv, or .tsv file
+                                    (e.g., adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigg…
+/verify                             Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing
+                                    nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change t…
+/artifact-capabilities              Runtime capabilities a published Artifact page can be granted — behavior static HTML cannot provide on its own, such as the page reading live or connected data, remembering what people do on it (a
+                                    poll, a sign-up sheet, a checklist, a document edited in place — it saves new versions of itself), keeping state shared across viewers, knowing who is viewing, asking Claude a question of its own, st…
+/agents                             (removed) Ask Claude to create/manage subagents, or edit .claude/agents/
+/memory                             Edit CLAUDE.md files and memory settings
+$  /exit[?25h]133;A;redraw=0]133;C]133;D[?1006l[?1003l[?1002l[?1000l[>4m[?2031l[?2004l[?1016l[2m
+Resume this session with:
+claude --resume 3cda2ba3-3f74-47ea-8784-c7653b98dfa8
+]0;[?9001l[?1004l[22m

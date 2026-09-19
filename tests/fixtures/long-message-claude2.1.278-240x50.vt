@@ -1,0 +1,59 @@
+[?9001h[?1004h[?25l[2J[m[H]0;claude[?25h[Screen Reader Mode: on via flag]
+[?2004h[?2031h[?1004h]0;✳ Claude Code[>0q[?uClaude Code v2.1.278
+Fable 5.1 with xhigh effort · Claude Max
+C:\Temp\axclaude-fixture
+auto mode on (shift+tab to cycle)
+effort: xhigh · /effort
+$[?25l[6;1H$[K
+[K[6;2H[?25h$  Please reply with exactly the two words OK DONE and nothing else. The rest of this message is filler so that it is longer than one console row of two hundred and forty columns: alpha bravo charlie delta echo foxtrot golf hotel india     
+juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango
+uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu end of filler.]133;A;redraw=0]0;◐ Claude Code[?25l[5;1Hyou: Please reply with exactly the two words OK DONE and nothing else. The rest of this message is filler so that it is longer than one console row of two hundred and forty columns: alpha bravo charlie delta echo foxtrot golf hotel india   
+juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform 
+victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu end of filler.[K
+Pondering…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◐ Session naming]0;◑ Session naming]0;◐ Session naming[?25l[8;1HManifesting…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+$[K[?25h]0;◑ Session naming]133;C]133;D]0;✳ Session naming[?25l[8;1Hclaude: OK DONE[K
+Worked for 3s · done 9:36 PM[K
+auto mode on (shift+tab to cycle)[K
+$[?25h$  Second message, also long, reply again with exactly OK DONE. Filler: one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree     
+twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix
+fortyseven fortyeight fortynine fifty end of filler.]133;A;redraw=0]0;◑ Session naming[?25l[10;1Hyou: Second message, also long, reply again with exactly OK DONE. Filler: one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree   
+twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix    
+fortyseven fortyeight fortynine fifty end of filler.[K
+Tempering…[K
+Tip: Send messages to Claude while it works to steer Claude in real-time
+auto mode on (shift+tab to cycle)  ·  esc to interrupt
+$[?25h]0;◐ Session naming]0;◑ Session naming]133;C]133;D]0;✳ Session naming[?25l[13;1Hclaude: OK DONE[K
+Cogitated for 2s · done 9:36 PM[K
+auto mode on (shift+tab to cycle)[K
+$[K[?25h[?25l[15;1H/exit                               Exit the CLI[K
+/context                            Visualize current context usage as a colored grid[K
+/anthropic-skills:pptx              Use this skill any time a .pptx or .potx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations as PowerPoint (.pptx) files;
+                                    reading, parsing, or extracting text from any .pptx or .potx file (even if the extracted content will be used elsewhere, like in an email, summary, or creating a different type of slide deck); editin…
+/usage-credits                      Configure usage credits or request them from your admin when you hit a limit
+/doctor                             Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH,
+                                    unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead we…
+/anthropic-skills:skill-creator     Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a
+                                    skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. (claude.ai sync)
+/anthropic-skills:pdf               Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart,
+                                    rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf fi…
+/anthropic-skills:docs              docs (living docs people share, comment on and edit; use only when the user asks for one: names a doc, document, page, memo, spec, PRD, runbook or write-up, asks for somewhere to share or keep editing
+                                    something, or says yes to your doc offer; a plan, comparison, summary or notes asked in chat stays in chat (at most a one-line doc offer); a report, status update, recap or "something I can send them…
+/claude-in-chrome                   Automates your Chrome browser to interact with web pages - clicking elements, filling forms, capturing screenshots, reading console logs, and navigating sites. Opens pages in new tabs within your
+                                    existing Chrome session. Requires site-level permissions before executing (configured in the extension).
+/anthropic-skills:docx              Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx) or Word templates (.dotx). Triggers include: any mention of 'Word doc', 'word document', '.docx',
+                                    '.dotx', or requests to produce professional documents with formatting like tables of contents, page numbers, or letterheads. Also use when extracting or reorganizing content from .docx or .dotx file…
+/anthropic-skills:xlsx              Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .xltx, .csv, or .tsv file
+                                    (e.g., adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigg…
+/verify                             Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing
+                                    nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change t…
+/artifact-capabilities              Runtime capabilities a published Artifact page can be granted — behavior static HTML cannot provide on its own, such as the page reading live or connected data, remembering what people do on it (a
+                                    poll, a sign-up sheet, a checklist, a document edited in place — it saves new versions of itself), keeping state shared across viewers, knowing who is viewing, asking Claude a question of its own, st…
+/agents                             (removed) Ask Claude to create/manage subagents, or edit .claude/agents/
+/memory                             Edit CLAUDE.md files and memory settings
+$  /exit[?25h]0;◑ Session naming]133;A;redraw=0]133;C]133;D[?1006l[?1003l[?1002l[?1000l[>4m[?2031l[?2004l[?1016l[2m
+Resume this session with:
+claude --resume 16247dc2-9571-4c40-86b8-93ae17abd9d1
+]0;[22m]0;✳ Session naming[?9001l[?1004l

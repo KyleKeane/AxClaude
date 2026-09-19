@@ -1,0 +1,28 @@
+## Build output
+bin/
+obj/
+publish/
+artifacts/
+*.binlog
+
+## IDE and editor state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.swp
+*.DotSettings.user
+
+## Test results
+TestResults/
+*.trx
+
+## Local Claude Code state (machine specific)
+.claude/settings.local.json
+CLAUDE.local.md
+
+## Ad-hoc ConPTY recordings. Reviewed fixtures live under tests/fixtures and are committed.
+captures/
+*.vt.chunks.txt
+!tests/fixtures/*.vt.chunks.txt

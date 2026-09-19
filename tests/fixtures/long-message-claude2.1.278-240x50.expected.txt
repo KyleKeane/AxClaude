@@ -1,0 +1,12 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.278
+Fable 5.1 with xhigh effort · Claude Max
+C:\Temp\axclaude-fixture
+you: Please reply with exactly the two words OK DONE and nothing else. The rest of this message is filler so that it is longer than one console row of two hundred and forty columns: alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu end of filler.
+claude: OK DONE
+Worked for 3s · done 9:36 PM
+you: Second message, also long, reply again with exactly OK DONE. Filler: one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix fortyseven fortyeight fortynine fifty end of filler.
+claude: OK DONE
+Cogitated for 2s · done 9:36 PM
+Resume this session with:
+claude --resume 16247dc2-9571-4c40-86b8-93ae17abd9d1

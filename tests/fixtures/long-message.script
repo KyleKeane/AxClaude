@@ -1,0 +1,27 @@
+# Long single-line message sent the way the app sends it: text, pause, then Enter as its own write.
+mark
+wait 8000 Yes, I trust this folder
+iffound send y
+iffound sleep 150
+iffound send \r
+wait 6000 Keep xhigh
+iffound send n
+iffound sleep 150
+iffound send \r
+quiet 2500 30000
+send Please reply with exactly the two words OK DONE and nothing else. The rest of this message is filler so that it is longer than one console row of two hundred and forty columns: alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu end of filler.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+send Second message, also long, reply again with exactly OK DONE. Filler: one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix fortyseven fortyeight fortynine fifty end of filler.
+sleep 150
+send \r
+mark
+wait 90000 \x07
+quiet 2000 20000
+send /exit
+sleep 150
+send \r
+exit 15000
