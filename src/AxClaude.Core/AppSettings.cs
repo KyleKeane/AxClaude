@@ -45,9 +45,15 @@ public sealed class AppSettings
 
     public bool FontBold { get; set; }
     public bool AnnounceBell { get; set; } = true;
+
+    /// <summary>The chimes when a message is sent and when Claude replies, finishes and asks (FR-7.3). The key keeps its 1.0 name.</summary>
     public bool SoundOnBell { get; set; } = true;
+
     public bool FlashTaskbar { get; set; } = true;
     public bool SpeakReplies { get; set; }
+
+    /// <summary>A tick whenever a line from Claude arrives (FR-7.8).</summary>
+    public bool ClickOnNewLine { get; set; } = true;
 
     /// <summary>Time of sending in the You and Response markers (FR-4.6).</summary>
     public bool MarkerTimeStamps { get; set; }

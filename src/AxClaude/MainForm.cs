@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Media;
 using System.Runtime.InteropServices;
 using System.Text;
 using AxClaude.Core;
@@ -76,7 +75,14 @@ internal sealed class MainForm : Form
             TimeStamps = settings.MarkerTimeStamps,
         };
         _model.Changed += OnModelChanged;
-        _model.ResponseStarted += () => Announce("Claude is responding", false);
+        _model.ResponseStarted += () =>
+        {
+            Announce("Claude is responding", false);
+            if (_settings.SoundOnBell)
+            {
+                Sounds.Responding();
+            }
+        };
         _model.Announcement += text => Announce(text, false);
         _model.Bell += () =>
         {
@@ -336,7 +342,8 @@ internal sealed class MainForm : Form
 
         var options = new ToolStripMenuItem("&Options");
         options.DropDownItems.Add(Toggle("&Announce when Claude is done", _settings.AnnounceBell, v => _settings.AnnounceBell = v));
-        options.DropDownItems.Add(Toggle("Play a &sound when Claude is done", _settings.SoundOnBell, v => _settings.SoundOnBell = v));
+        options.DropDownItems.Add(Toggle("Play &sounds: ready, sent, replying, done, question", _settings.SoundOnBell, v => _settings.SoundOnBell = v));
+        options.DropDownItems.Add(Toggle("Cl&ick for each new line from Claude", _settings.ClickOnNewLine, v => _settings.ClickOnNewLine = v));
         options.DropDownItems.Add(Toggle("&Flash the taskbar button when Claude is done", _settings.FlashTaskbar, v => _settings.FlashTaskbar = v));
         options.DropDownItems.Add(Toggle("Speak &replies as they arrive", _settings.SpeakReplies, v => _settings.SpeakReplies = v));
         options.DropDownItems.Add(Toggle("Show the &time in the Input and Output lines", _settings.MarkerTimeStamps, v =>
@@ -541,6 +548,10 @@ internal sealed class MainForm : Form
         }
 
         Announce(answer ? "Answer sent" : queued ? "Message waiting" : "Message sent", false);
+        if (_settings.SoundOnBell)
+        {
+            Sounds.Sent();
+        }
     }
 
     private void PumpWrites()
@@ -577,6 +588,7 @@ internal sealed class MainForm : Form
     {
         _transcript.Sync(_model.Lines);
         UpdateStatus();
+        PlayFrameSounds();
 
         if (_model.PromptPending)
         {
@@ -595,12 +607,41 @@ internal sealed class MainForm : Form
         {
             _readyAnnounced = true;
             Announce("Claude is ready", false);
+            if (_settings.SoundOnBell)
+            {
+                Sounds.Ready();
+            }
         }
 
         if (_settings.SpeakReplies)
         {
             SpeakNewReplyLines();
         }
+    }
+
+    /// <summary>
+    /// The tick when a frame added a line from Claude (FR-7.8), counted without allocating. The chimes hang on the
+    /// send, the first reply line and the bell (FR-7.3), never on the working status, which flickers between steps.
+    /// </summary>
+    private void PlayFrameSounds()
+    {
+        var lines = _model.Lines;
+        var content = 0;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            if (!line.Hidden && !line.IsMarker)
+            {
+                content++;
+            }
+        }
+
+        if (content > _contentLines && _settings.ClickOnNewLine)
+        {
+            Sounds.Click();
+        }
+
+        _contentLines = content;
     }
 
     /// <summary>Speaks reply lines once they are final: committed, followed by another line, or Claude is idle (FR-7.4).</summary>
@@ -667,7 +708,7 @@ internal sealed class MainForm : Form
             {
                 _promptAnnounced = true;
                 Announce("Claude needs your answer", false);
-                Signal();
+                Signal(question: true);
             }
         }
         else if (_bellPending)
@@ -677,18 +718,25 @@ internal sealed class MainForm : Form
                 Announce("Claude is done", false);
             }
 
-            Signal();
+            Signal(question: false);
         }
 
         _bellPending = false;
     }
 
-    /// <summary>The sound and the taskbar flash that go with an attention announcement.</summary>
-    private void Signal()
+    /// <summary>The chime (two equal notes for a question, three falling notes when Claude is done, FR-7.3) and the taskbar flash that go with an attention announcement.</summary>
+    private void Signal(bool question)
     {
         if (_settings.SoundOnBell)
         {
-            SystemSounds.Asterisk.Play();
+            if (question)
+            {
+                Sounds.Question();
+            }
+            else
+            {
+                Sounds.Done();
+            }
         }
 
         if (_settings.FlashTaskbar && !ContainsFocus && IsHandleCreated)
