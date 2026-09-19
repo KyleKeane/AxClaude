@@ -35,7 +35,9 @@ The first time Claude Code sees a folder it asks whether you trust it. Questions
 From top to bottom: the menu bar (press Alt), the conversation, the message field, the status bar. Focus starts in the message field.
 
 - The **message field** is called "Message to Claude". Enter starts a new line. Ctrl+Enter sends. Ctrl+Enter on an empty field sends a plain Enter, which is how you confirm a dialog.
-- The **conversation** is a read-only text called "Conversation". Every line Claude prints is a line here. Arrow keys, Home, End, Page Up, Page Down and your screen reader's reading commands all work. Ctrl+Tab (or F6) switches between the message field and the conversation. Escape in the conversation goes back to the message field.
+- The **conversation** is a read-only text called "Conversation". Every line Claude prints is a line here. Arrow keys, Home, End, Page Up, Page Down and your screen reader's reading commands all work. Ctrl+1 goes to the message field and Ctrl+2 to the conversation; when you are there already, the key says so, which helps when you have lost track of where you are. Ctrl+Tab (or F6) switches between the two. Escape in the conversation goes back to the message field.
+- While Claude is still writing a line and you are on it, Down Arrow reads only what has arrived since you last heard it, so you can follow a long reply as it comes without hearing anything twice. Once you move on, the line reads as one line again.
+- To copy from the conversation: Shift with the arrow keys selects text, Ctrl+C copies it and says "Copied". While text is selected, new output waits until you press a plain arrow key. Escape clears the selection; a second Escape goes to the message field.
 - The **status bar** (NVDA+End) says what Claude is doing (starting, ready, working, waiting for your answer, stopped), how many messages are waiting, the permission mode, the session name and the project folder.
 
 AxClaude never opens a second window. Its questions, errors and help texts are **notices** that take the place of the conversation and the message field, so nothing can hide behind the window. Your screen reader reads the title and the first line; Down Arrow reads the rest. Tab moves to the buttons, Enter chooses the main button, Escape closes the notice. Only the Windows folder, file and font pickers are separate windows.
@@ -80,7 +82,7 @@ In the conversation, these keys move to a line and speak it. Add Shift to go bac
 - `l`: says where you are, like "Line 12 of 340". Nothing else ever speaks line numbers.
 - Page Up and Page Down move one screen at a time.
 - Ctrl+F opens Find. Type the text and press Enter; F3 and Shift+F3 find the next and previous match. "Not found" means there is none.
-- Enter copies the line into the message field, under a line that says it was copied from the conversation, so you can reply to it. You stay in the conversation, so you can copy several lines before you go down and write.
+- Enter copies the line into the message field, under a line that says it was copied from the conversation and a line with its number, so you can reply to it. You stay in the conversation, so you can copy several lines before you go down and write.
 - `m` drops a bookmark on the line you are on: a line that says `Bookmark 1` appears just above it, and AxClaude says "Bookmark 1 added". `m` on the same line takes it away again. `k` and Shift+K go to the next and previous bookmark and read the bookmarked line with it. Bookmarks are lines in the conversation, so Ctrl+S saves them with it, and they go when the conversation goes. The Navigate menu has the same commands, and Ctrl+Shift+K bookmarks the line from anywhere in the window.
 
 Long paragraphs are shown as one line. Claude Code's screen decorations (the mode line, spinners, tips) are not shown; they feed the status bar instead. Text that arrives while you read never moves your place and is never spoken on its own. Options, "Speak replies as they arrive" speaks each reply line when it is complete, if you prefer listening.
@@ -120,3 +122,9 @@ The Help menu always shows the version you have ("Installed: AxClaude 1.0.0"), t
 ## About AxClaude
 
 AxClaude is made by Dr. Kyle Keane, www.kylekeane.com. It is free under the MIT licence: use it, change it and pass it on, as long as the note that says who made it stays with it (the `LICENSE` file next to the program).
+
+## Disclaimer
+
+AxClaude is free software offered under the MIT licence. It is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to the implied warranties of merchantability, fitness for a particular purpose, title and non-infringement. The developer has no obligation to provide support, maintenance, updates or corrections. To the fullest extent permitted by law, the developer is not liable for any claim, damages or other liability, whether in contract, tort or otherwise, arising from or in connection with the software or its use, including loss of data or work and anything done, said or charged by Claude Code or the services behind it. You use AxClaude at your own risk.
+
+Everything you type goes to Claude Code and, through it, to Anthropic under Anthropic's own terms; the developer has no access to it. Claude Code can create, change and delete files and run commands in your project folder: what you allow it to do is your responsibility. AxClaude is an independent project, not affiliated with or endorsed by Anthropic. Claude and Claude Code are products of Anthropic.

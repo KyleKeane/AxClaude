@@ -241,6 +241,12 @@ internal sealed class MainForm : Form
                 }
 
                 return true;
+            case Keys.Control | Keys.D1:
+                GoTo(_input);
+                return true;
+            case Keys.Control | Keys.D2:
+                GoTo(_transcript);
+                return true;
             case Keys.Control | Keys.Return:
                 SendInput();
                 return true;
@@ -310,8 +316,8 @@ internal sealed class MainForm : Form
         session.DropDownItems.Add(new ToolStripMenuItem("Send Do&wn", null, (_, _) => Write("\x1b[B")) { ShortcutKeyDisplayString = "Ctrl+Down in the message field" });
 
         var navigate = new ToolStripMenuItem("&Navigate");
-        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &message field", null, (_, _) => _input.Focus()) { ShortcutKeyDisplayString = "Ctrl+Tab" });
-        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &conversation", null, (_, _) => _transcript.Focus()) { ShortcutKeyDisplayString = "Ctrl+Tab" });
+        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &message field", null, (_, _) => GoTo(_input)) { ShortcutKeyDisplayString = "Ctrl+1" });
+        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &conversation", null, (_, _) => GoTo(_transcript)) { ShortcutKeyDisplayString = "Ctrl+2" });
         navigate.DropDownItems.Add(new ToolStripMenuItem("&Latest response", null, (_, _) => _transcript.JumpToLatestResponse()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.O });
         navigate.DropDownItems.Add(new ToolStripSeparator());
         navigate.DropDownItems.Add(new ToolStripMenuItem("&Find...", null, (_, _) => FindDialog()) { ShortcutKeyDisplayString = "Ctrl+F" });
@@ -512,14 +518,15 @@ internal sealed class MainForm : Form
     private const string QuoteMarker = "_ start of copied line from conversation history _";
 
     /// <summary>
-    /// Enter on a conversation line appends the line to the message under the marker, separated from what is there
-    /// by a blank line, and leaves the message caret on a fresh line after it for the comment (FR-2.9). Focus and the
-    /// conversation caret stay where they are, so several lines can be collected before replying.
+    /// Enter on a conversation line appends the line to the message under the marker and a line naming its number,
+    /// separated from what is there by a blank line, and leaves the message caret on a fresh line after it for the
+    /// comment (FR-2.9). Focus and the conversation caret stay where they are, so several lines can be collected
+    /// before replying.
     /// </summary>
     private void QuoteLineInMessage(int number, int count, string text)
     {
         var existing = _input.Text.TrimEnd('\r', '\n');
-        var quote = $"{QuoteMarker}\r\nLine {number} of {count}: {text}\r\n";
+        var quote = $"{QuoteMarker}\r\nLine {number} of {count}:\r\n{text}\r\n";
         _input.Text = existing.Length == 0 ? quote : existing + "\r\n\r\n" + quote;
         _input.Select(_input.TextLength, 0);
         _historyIndex = -1;
@@ -796,6 +803,21 @@ internal sealed class MainForm : Form
     {
         var name = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         return name.Length > 0 ? name : folder;
+    }
+
+    /// <summary>
+    /// Ctrl+1, Ctrl+2 and the Navigate menu (FR-6.5): the control takes the focus, and NVDA announces the change. When it
+    /// has the focus already, its name is spoken instead, so the key also answers "where am I".
+    /// </summary>
+    private void GoTo(Control control)
+    {
+        if (control.Focused)
+        {
+            Announce(control.AccessibleName ?? string.Empty, true);
+            return;
+        }
+
+        control.Focus();
     }
 
     /// <summary>Speaks without moving the focus; from the notice while one shows, since the conversation is hidden then.</summary>
@@ -1088,6 +1110,7 @@ internal sealed class MainForm : Form
         var text = string.Join("\r\n",
         [
             $"AxClaude {Program.Version} on .NET {Environment.Version}, {Environment.OSVersion}",
+            $"Program: {Environment.ProcessPath ?? "(unknown)"} (process {Environment.ProcessId})",
             $"Claude: {claude ?? "(not found)"}",
             $"Project folder: {_folder ?? "(none)"}",
             $"Console size: {_model.Columns}x{_model.Rows}",
@@ -1577,7 +1600,8 @@ internal sealed class MainForm : Form
     private void ShowAbout() =>
         ShowText("About AxClaude",
             $"AxClaude {Program.Version}\nA screen reader friendly window for Claude Code.\nMade by Dr. Kyle Keane, www.kylekeane.com. Free under the MIT licence.\n\n" +
-            $"Latest release on GitHub: {_latestState}\nClaude Code documentation: https://code.claude.com/docs\nSettings: {AppSettings.DefaultPath}\nLog: {Log.FilePath}");
+            $"Latest release on GitHub: {_latestState}\nClaude Code documentation: https://code.claude.com/docs\nSettings: {AppSettings.DefaultPath}\nLog: {Log.FilePath}\n\n" +
+            HelpText.Disclaimer);
 
     /// <summary>The release notes with Update now, Open release page and Later (FR-1.10).</summary>
     private void ShowUpdateNotice(ReleaseInfo release)

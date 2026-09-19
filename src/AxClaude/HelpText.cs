@@ -6,8 +6,16 @@ namespace AxClaude;
 /// <summary>The texts the window shows as notices: the keyboard shortcuts (F1), the user guide, and the help when Claude Code is missing.</summary>
 internal static class HelpText
 {
+    /// <summary>Shown in About and at the end of the user guide. The LICENSE file is the binding text; this repeats it in full words.</summary>
+    public const string Disclaimer = """
+        Disclaimer
+        AxClaude is free software offered under the MIT licence. It is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to the implied warranties of merchantability, fitness for a particular purpose, title and non-infringement. The developer has no obligation to provide support, maintenance, updates or corrections. To the fullest extent permitted by law, the developer is not liable for any claim, damages or other liability, whether in contract, tort or otherwise, arising from or in connection with the software or its use, including loss of data or work and anything done, said or charged by Claude Code or the services behind it. You use AxClaude at your own risk.
+        Everything you type goes to Claude Code and, through it, to Anthropic under Anthropic's own terms; the developer has no access to it. Claude Code can create, change and delete files and run commands in your project folder: what you allow it to do is your responsibility. AxClaude is an independent project, not affiliated with or endorsed by Anthropic. Claude and Claude Code are products of Anthropic.
+        """;
+
     public const string Shortcuts = """
         Anywhere
+          Ctrl+1: go to the message field. Ctrl+2: go to the conversation. Both say where you are, also when you are there already
           Ctrl+Tab, Ctrl+Shift+Tab or F6: switch between the message field and the conversation
           Ctrl+Enter: send the message (an empty field sends a plain Enter)
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
@@ -50,7 +58,8 @@ internal static class HelpText
           m: bookmark this line (a "Bookmark 1" line appears above it), or take the bookmark away again
           k and Shift+K: next and previous bookmark, read together with the line it marks
           Enter: copy the line into the message field, to reply to it
-          Escape: go to the message field
+          Shift with the arrow keys: select text. Ctrl+C: copy the selection. New output waits while text is selected
+          Escape: clear the selection, or go to the message field
 
         Notices
           AxClaude's questions, errors and help texts appear inside the window, in place of the conversation.

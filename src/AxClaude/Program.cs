@@ -18,7 +18,8 @@ internal static class Program
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             Log.Error("Unhandled exception on a background thread", e.ExceptionObject as Exception);
 
-        Log.Info($"AxClaude {Version} starting on .NET {Environment.Version}, arguments: {string.Join(" ", args)}");
+        // The program path tells a development build from the installed one when both write to the same log.
+        Log.Info($"AxClaude {Version} starting on .NET {Environment.Version} from {Environment.ProcessPath ?? "(unknown)"} as process {Environment.ProcessId}, arguments: {string.Join(" ", args)}");
 
         if (args.Length == 1 && args[0] is "--help" or "-h" or "-?" or "/?")
         {

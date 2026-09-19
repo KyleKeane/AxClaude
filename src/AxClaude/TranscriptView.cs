@@ -54,6 +54,7 @@ internal sealed class TranscriptView : TextBox
     private readonly TranscriptMirror _mirror = new();
     private readonly System.Windows.Forms.Timer _hold = new();
     private IReadOnlyList<Line>? _pending;
+    private IReadOnlyList<Line>? _lines;
     private long _lastKeyTick = long.MinValue / 2;
 
     public TranscriptView()
@@ -165,16 +166,19 @@ internal sealed class TranscriptView : TextBox
     /// <summary>
     /// Brings the control in line with the model's visible lines using as few edits as possible. Right after a key
     /// press in the focused view the update waits until the keys stop, so that the screen reader reads a line that
-    /// holds still (see <see cref="NavigationHoldMs"/>); the lines are the model's live list, so nothing is lost.
+    /// holds still (see <see cref="NavigationHoldMs"/>), and while text is selected it waits until the selection is
+    /// gone, so that what is read or copied never changes underneath (FR-3.11); the lines are the model's live list,
+    /// so nothing is lost.
     /// </summary>
     public void Sync(IReadOnlyList<Line> lines)
     {
+        _lines = lines;
         var sinceKey = Environment.TickCount64 - _lastKeyTick;
-        if (Focused && sinceKey < NavigationHoldMs)
+        if (Focused && (sinceKey < NavigationHoldMs || SelectionLength > 0))
         {
             _pending = lines;
             _hold.Stop();
-            _hold.Interval = (int)Math.Max(1, NavigationHoldMs - sinceKey);
+            _hold.Interval = (int)Math.Clamp(NavigationHoldMs - sinceKey, 1, NavigationHoldMs);
             _hold.Start();
             return;
         }
@@ -183,6 +187,15 @@ internal sealed class TranscriptView : TextBox
         var selectionStart = SelectionStart;
         var selectionEnd = selectionStart + SelectionLength;
         var focused = Focused || KeepCaret;
+        if (focused)
+        {
+            PlaceReadingBreak(selectionStart);
+        }
+        else
+        {
+            _mirror.ClearBreaks();
+        }
+
         var update = _mirror.Update(lines);
         if (!update.Changed)
         {
@@ -223,6 +236,44 @@ internal sealed class TranscriptView : TextBox
         }
     }
 
+    /// <summary>
+    /// Reading breaks (FR-3.10). When the caret sits on the last screen row of the text, the reader has heard
+    /// everything there is, so the end is marked: what Claude appends next is rendered on a line of its own, and
+    /// Down Arrow reads only that. Once the caret has left the display line that holds the breaks, the line is
+    /// joined up again.
+    /// </summary>
+    private void PlaceReadingBreak(int caret)
+    {
+        if (_mirror.LineCount == 0)
+        {
+            return;
+        }
+
+        var index = _mirror.LineIndexAt(caret);
+        if (_mirror.HasBreaks && _mirror.BreakDisplayLine != _mirror.DisplayLineOf(index))
+        {
+            _mirror.ClearBreaks();
+        }
+
+        var lastRow = (int)SendMessage(Handle, EM_GETLINECOUNT, IntPtr.Zero, IntPtr.Zero) - 1;
+        if (index == _mirror.LineCount - 1 && GetLineFromCharIndex(caret) >= lastRow)
+        {
+            _mirror.BreakAtEnd(caret - _mirror.StartAt(index));
+        }
+    }
+
+    /// <summary>A key press moved the caret: give the view a chance to join up a line the reader has left.</summary>
+    private void SyncAfterKey()
+    {
+        if (_mirror.HasBreaks && _pending is null && _lines is not null)
+        {
+            _pending = _lines;
+            _hold.Stop();
+            _hold.Interval = NavigationHoldMs;
+            _hold.Start();
+        }
+    }
+
     protected override void OnGotFocus(EventArgs e)
     {
         base.OnGotFocus(e);
@@ -247,10 +298,26 @@ internal sealed class TranscriptView : TextBox
         }
 
         _lastKeyTick = Environment.TickCount64;
+        SyncAfterKey();
         if (e.KeyCode == Keys.Escape)
         {
             e.Handled = e.SuppressKeyPress = true;
+            if (SelectionLength > 0)
+            {
+                // A selection is cleared first (FR-3.11); the caret goes back to where the selection began.
+                Select(SelectionStart, 0);
+                Announce("Selection cleared", true);
+                return;
+            }
+
             EscapePressed?.Invoke();
+            return;
+        }
+
+        if (e.KeyData == (Keys.Control | Keys.C) && SelectionLength > 0)
+        {
+            e.Handled = e.SuppressKeyPress = true;
+            CopySelection();
             return;
         }
 
@@ -289,6 +356,20 @@ internal sealed class TranscriptView : TextBox
         }
 
         base.OnKeyDown(e);
+    }
+
+    /// <summary>Ctrl+C with a selection (FR-3.11): the selected text goes to the clipboard and the result is spoken.</summary>
+    private void CopySelection()
+    {
+        try
+        {
+            Clipboard.SetText(SelectedText);
+            Announce("Copied", true);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            Announce("Could not copy. Try again", true);
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -381,7 +462,7 @@ internal sealed class TranscriptView : TextBox
     private void MoveTo(int index, int column = 0, string prefix = "")
     {
         var line = _mirror.LineAt(index);
-        Select(_mirror.StartAt(index) + Math.Min(column, _mirror.TextAt(index).Length), 0);
+        Select(_mirror.StartAt(index) + _mirror.RenderedColumn(index, column), 0);
         ScrollCaretIntoView();
         var text = line.Text.Length == 0 ? "blank" : line.Text;
         if (line.HeadingLevel > 0)
@@ -399,7 +480,7 @@ internal sealed class TranscriptView : TextBox
         if (!Announce(prefix + text, true))
         {
             // No UI Automation notifications: select the line so the screen reader reports the selection.
-            Select(_mirror.StartAt(index), _mirror.TextAt(index).Length);
+            Select(_mirror.StartAt(index), _mirror.RenderedColumn(index, _mirror.TextAt(index).Length));
         }
     }
 

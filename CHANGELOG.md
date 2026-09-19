@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 - 2026-09-19
+
+- Ctrl+1 goes to the message field and Ctrl+2 to the conversation. When you are there already, the key says where you are.
+- A disclaimer in Help, About and at the end of the user guide: no warranty, no liability, no affiliation with Anthropic.
+- Enter on a conversation line puts the line's text on its own line in the message, under "Line 12 of 120:".
+- The log's start line and Copy diagnostics name the program file and the process, so a report says which copy of AxClaude was running.
+- Following a reply as Claude writes it no longer repeats what you just heard: once you have heard the last row, what arrives next is shown on a line of its own, and Down Arrow reads only that. The line reads as one line again once you move on.
+- Selecting text in the conversation works while Claude writes: output waits until the selection is gone, Ctrl+C copies the selection and says "Copied", and Escape clears the selection before it goes to the message field.
+
 ## 1.0.1 - 2026-09-19
 
 - The Help menu always shows the version you have, the latest release on GitHub and the update action.

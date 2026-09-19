@@ -197,10 +197,10 @@ public class SessionModelTests
         // A quoted line (FR-2.9) puts a blank line inside the message; Claude echoes it as a blank row.
         var model = new SessionModel(80, 12);
         Feed(model, $"{Esc}[?25l${Esc}[?25h");
-        model.Send("Look at this.\n\n_ start of copied line from conversation history _\nLine 3 of 54: Example test.");
-        Feed(model, $"{Esc}[?25l{Esc}[1;1Hyou: Look at this.{Esc}[K\r\n{Esc}[K\r\n_ start of copied line from conversation history _{Esc}[K\r\nLine 3 of 54: Example test.{Esc}[K\r\nclaude: I see it.{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        model.Send("Look at this.\n\n_ start of copied line from conversation history _\nLine 3 of 54:\nExample test.");
+        Feed(model, $"{Esc}[?25l{Esc}[1;1Hyou: Look at this.{Esc}[K\r\n{Esc}[K\r\n_ start of copied line from conversation history _{Esc}[K\r\nLine 3 of 54:{Esc}[K\r\nExample test.{Esc}[K\r\nclaude: I see it.{Esc}[K\r\n${Esc}[K{Esc}[?25h");
         Assert.Equal(
-            ["# Input 1", "Look at this.", "", "_ start of copied line from conversation history _", "Line 3 of 54: Example test.", "", "# Output 1 Reply from Claude", "", "claude: I see it."],
+            ["# Input 1", "Look at this.", "", "_ start of copied line from conversation history _", "Line 3 of 54:", "Example test.", "", "# Output 1 Reply from Claude", "", "claude: I see it."],
             Visible(model));
 
         // A message longer than the console width is echoed over two rows.

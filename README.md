@@ -45,3 +45,5 @@ Add a `## 1.0.1 - <date>` section to `CHANGELOG.md` first: it becomes the releas
 ## Licence
 
 MIT, see `LICENSE`. AxClaude is made by Dr. Kyle Keane (www.kylekeane.com). Use it, change it and pass it on; keep that notice with it.
+
+The software is provided "as is", without warranty of any kind, and the developer accepts no liability for its use; the full wording is in `LICENSE` and at the end of the user guide. AxClaude is an independent project, not affiliated with or endorsed by Anthropic.

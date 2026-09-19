@@ -139,7 +139,7 @@ MUST unless marked SHOULD; everything listed is built.
 - FR-2.6: Up on the first line of the field and Down on its last line walk the messages sent in this session (last 100, not persisted). The draft comes back after the newest entry. Each recalled message is announced; the empty draft as "Message field is empty".
 - FR-2.7: Shift+Tab in the field sends Shift+Tab to Claude (next permission mode); the new mode is announced (FR-7.7). Tab still moves to the conversation.
 - FR-2.8: Sending is never locked while Claude works: Claude Code queues or steers with the message itself (§4.4 item 13). The app announces "Message waiting" instead of "Message sent" and prints the exchange block when Claude takes the message up (FR-4.7).
-- FR-2.9: Enter on a conversation line quotes it in the field: a blank line when the field is not empty, the literal line `_ start of copied line from conversation history _`, then `Line 3 of 54: <text>` (the display line number and count as `l` reports them; joined rows as one), then a new line for the comment, where the field's caret goes. Focus and the conversation caret stay. Announces "Line 3 copied to the message" (D21).
+- FR-2.9: Enter on a conversation line quotes it in the field: a blank line when the field is not empty, the literal line `_ start of copied line from conversation history _`, then `Line 3 of 54:` (the display line number and count as `l` reports them), then the line's text on a line of its own (joined rows as one), then a new line for the comment, where the field's caret goes. Focus and the conversation caret stay. Announces "Line 3 copied to the message" (D21).
 - Dropped: a paste-as-pasted-text command, a persisted per-project history, an `@` file picker (Claude Code covers them).
 
 ### FR-3 Transcript view
@@ -156,6 +156,9 @@ MUST unless marked SHOULD; everything listed is built.
 - FR-3.9: **Bookmarks.** `m` in the conversation (Navigate → Bookmark this line; Ctrl+Shift+K from anywhere, which focuses the conversation first) drops a bookmark in front of the caret's line: an app line `Bookmark n` (`LineKind.Bookmark`, `IsMarker`: never classified or hidden, not a heading; *n* counts bookmarks since the session started), announced "Bookmark n added"; the caret stays. On a bookmarked line, or on the bookmark line itself, `m` removes it ("Bookmark n removed"). `k` / Shift+K jump to the next / previous bookmark line and announce it together with the line it marks ("Bookmark 2, claude: …"); otherwise "No next bookmark". A bookmark on a wrapped line (FR-3.2a) goes in front of its first row and leaves the join and the heading rule around it alone (`JoinWrappedRows` steps over bookmark lines). Bookmarks are conversation lines: they are copied and saved with it (FR-3.8), trimmed with it (FR-3.6), and live as long as the conversation in the window. Nothing is persisted separately.
 - FR-3.10: Options → Font… (the Windows font dialog); Ctrl+Plus / Ctrl+Minus change the size in 1-point steps (6 to 72) and announce it; "Use the Windows text size" returns to the system message font, which follows the text size slider under Settings → Accessibility. Menus and the status bar use the system font. Colours are the system colours, so high contrast themes apply.
 - Dropped: a transcript log file (Claude Code keeps every conversation).
+
+- FR-3.10: **Reading breaks.** When the view has the focus and the caret is on the last screen row of the text, the reader has heard everything there is, so the view marks the end of the last line as heard when output is applied; what Claude appends to that line (or joins to it) after the mark is rendered on a line of its own, so that Down Arrow reads only what is new (D28). A mark that would cut a word moves in front of the word (never in front of the caret), and a space after the mark stays on the heard side. The breaks are rendering only: `l`, Enter, Find and Ctrl+S see the joined line. They are removed, and the line joined up again, once the caret has left the display line that holds them or the view has lost the focus.
+- FR-3.11: **Selection.** Shift with the arrow keys, Ctrl+Shift+End and Ctrl+A select text natively. While the focused view holds a selection, output waits (as after a key press) until the selection is gone, so the selected text never changes under the reader. Ctrl+C with a selection copies it and announces `Copied` (`Could not copy. Try again` when the clipboard is held). Escape with a selection clears it, puts the caret at its start and announces `Selection cleared`; Escape without a selection focuses the message field as before.
 
 ### FR-4 Markers
 
@@ -193,7 +196,8 @@ Single keys act only when the view has focus and no modifier other than Shift is
 | Ctrl+F, F3 / Shift+F3 | find (FR-3.7), from anywhere |
 | Ctrl+Home / Ctrl+End | start / end (native) |
 | Enter | quote the line in the message field (FR-2.9) |
-| Escape | focus the input field (nothing is sent) |
+| Escape | clear the selection when there is one (FR-3.11), else focus the input field (nothing is sent) |
+| Ctrl+C | copy the selection, `Copied` (FR-3.11) |
 | Shift+Escape | send Escape to Claude (FR-2.3) |
 
 The key table is data (`QuickKey(Keys, Name, Func<Line, bool>)` in `TranscriptView`); the keys are fixed in code.
@@ -204,6 +208,7 @@ The key table is data (`QuickKey(Keys, Name, Func<Line, bool>)` in `TranscriptVi
 - FR-6.2: Focus starts in the field and stays there after sending.
 - FR-6.3: Tab moves between the field and the view; Shift+Tab does so in the view and goes to Claude from the field (FR-2.7). Neither captures Tab.
 - FR-6.4: Alt opens the menu bar; every item has a mnemonic and, where applicable, a displayed shortcut.
+- FR-6.5: Ctrl+1 focuses the field and Ctrl+2 the view, from anywhere (Navigate → Go to message field / Go to conversation). When the control has the focus already, its accessible name (`Message to Claude`, `Conversation`) is announced instead, so the key also tells the user where they are (D26). A focus change is announced by NVDA itself; the app adds nothing then.
 
 ### FR-7 Announcements and attention signals
 
@@ -241,7 +246,7 @@ AxClaude.exe [<folder>] [--project <folder>] [--claude <path>] [--cols N] [--row
 
 - **Project (P):** Current folder: … | Change folder… Ctrl+N | Recent folders ▸ | Restart Claude Ctrl+Shift+R | Save conversation as… Ctrl+S | Exit Alt+F4
 - **Session (S):** Send message Ctrl+Enter | Interrupt Claude (send Escape) Shift+Esc | Send Ctrl+C Ctrl+Shift+C | Send Ctrl+D | Send Tab | Send Shift+Tab (next permission mode) Ctrl+Shift+M | Send Ctrl+O (Claude's detailed view on or off) Ctrl+O | Send Up | Send Down
-- **Navigate (N):** Go to message field Ctrl+Tab | Go to conversation Ctrl+Tab | Latest response Ctrl+Shift+O | Find… Ctrl+F | Find next F3 | Find previous Shift+F3 | Bookmark this line Ctrl+Shift+K (or `m` in the conversation) | Next bookmark `k` | Previous bookmark Shift+K
+- **Navigate (N):** Go to message field Ctrl+1 | Go to conversation Ctrl+2 | Latest response Ctrl+Shift+O | Find… Ctrl+F | Find next F3 | Find previous Shift+F3 | Bookmark this line Ctrl+Shift+K (or `m` in the conversation) | Next bookmark `k` | Previous bookmark Shift+K
 - **Options (O):** Announce when Claude is done ✓ | Play a sound when Claude is done ✓ | Flash the taskbar button when Claude is done ✓ | Speak replies as they arrive | Show the time in the Input and Output lines | Font… | Larger text Ctrl+Plus | Smaller text Ctrl+Minus | Use the Windows text size | Record raw stream for a bug report… (reads Stop recording while active) | Open settings file
 - **Help (H):** Keyboard shortcuts F1 | User guide (`docs/user-guide.md`, embedded) | Claude Code documentation (web) | Claude Code slash commands (web) | Claude Code keys (web) | Claude Code command line (web) | Install or update Claude Code (web) | Installed: AxClaude 1.0.0 | Latest release: AxClaude 1.0.1 (newer than this one) | Update to AxClaude 1.0.1… (or Check for updates…) | Copy diagnostics | About. The web items open `https://code.claude.com/docs/en/overview`, `/commands`, `/interactive-mode`, `/cli-reference` and `/setup`.
 
@@ -262,8 +267,8 @@ The Session menu and its shortcuts send raw sequences (Appendix B), fixed in cod
 ### FR-13 Errors and diagnostics
 
 - FR-13.1: Every failure (Claude not found, `CreatePseudoConsole` failure, process exit, settings unreadable) produces a system line and an announcement; a failure of something the user asked for (start, save, open a page or the settings file, a folder that is gone) also shows the **Error** notice (D23). Also handled plainly: a project folder that no longer exists; a Windows without a pseudo console (a sentence naming Windows 10 1809); a recording file that can no longer be written (the recording stops with a system line; the reader thread never dies); a clipboard held by another program ("Could not copy. Try again").
-- FR-13.2: A rolling log `%LOCALAPPDATA%\AxClaude\logs\axclaude.log` records lifecycle events. The parser ignores unknown sequences silently; the raw recording is the parser diagnostic.
-- FR-13.3: Help → Copy diagnostics copies versions, paths, the Claude state and the last 200 log lines.
+- FR-13.2: A rolling log `%LOCALAPPDATA%\AxClaude\logs\axclaude.log` records lifecycle events. The start line names the version, the executable path and the process id, so lines from an installed copy and a development build sharing the log can be told apart. The parser ignores unknown sequences silently; the raw recording is the parser diagnostic.
+- FR-13.3: Help → Copy diagnostics copies versions, the executable path and process id, the other paths, the Claude state and the last 200 log lines.
 - FR-13.4: An unhandled exception on the UI thread is logged and reported in the **Unexpected error** notice, which names the log file (a message box only while no window exists); the app keeps running. Background exceptions are logged.
 
 ## 6. User interface
@@ -294,11 +299,11 @@ A notice (D23) takes the place of the conversation and the field, between the me
 
 ### 6.3 Keyboard map
 
-Global: Ctrl+Tab / Ctrl+Shift+Tab / F6 toggle field ↔ view; Ctrl+Enter send; Shift+Escape send ESC; Ctrl+F find, F3 / Shift+F3 next / previous; Ctrl+S save; Ctrl+N change folder; Ctrl+Shift+R restart; Ctrl+O send Ctrl+O; Ctrl+Shift+C send Ctrl+C; Ctrl+Shift+M send Shift+Tab; Ctrl+Shift+O latest response; Ctrl+Shift+K bookmark the caret's line; Ctrl+Plus / Ctrl+Minus text size; F1 shortcuts; Alt+F4 exit; Alt menus.
+Global: Ctrl+Tab / Ctrl+Shift+Tab / F6 toggle field ↔ view; Ctrl+1 field, Ctrl+2 view (announced when already there); Ctrl+Enter send; Shift+Escape send ESC; Ctrl+F find, F3 / Shift+F3 next / previous; Ctrl+S save; Ctrl+N change folder; Ctrl+Shift+R restart; Ctrl+O send Ctrl+O; Ctrl+Shift+C send Ctrl+C; Ctrl+Shift+M send Shift+Tab; Ctrl+Shift+O latest response; Ctrl+Shift+K bookmark the caret's line; Ctrl+Plus / Ctrl+Minus text size; F1 shortcuts; Alt+F4 exit; Alt menus.
 
 Input field: Enter new line; Ctrl+Enter send; Escape guarded; Shift+Tab send Shift+Tab; Ctrl+Up / Ctrl+Down send arrows; Up on the first line / Down on the last line recall; standard editing keys.
 
-Transcript view: arrows, Home/End, Ctrl+Home/Ctrl+End (native); Page Up/Down, `l` and `m` (app); Enter quote; Shift+arrows select; Ctrl+C copy; Ctrl+A select all; quick keys (FR-5); Escape to the field.
+Transcript view: arrows, Home/End, Ctrl+Home/Ctrl+End (native); Page Up/Down, `l` and `m` (app); Enter quote; Shift+arrows select (output waits while a selection exists); Ctrl+C copy (`Copied`); Ctrl+A select all; quick keys (FR-5); Escape clears a selection, else to the field.
 
 While a notice shows: Tab / Shift+Tab between text, field and buttons; Enter the default (or focused) button; Escape the cancel button; Alt+letter a mnemonic; Ctrl+Plus / Ctrl+Minus still work; every other window and menu shortcut, and Alt or F10 alone, wait. Alt+Space and NVDA+End still work. NVDA's own commands are never intercepted.
 
@@ -313,6 +318,7 @@ While a notice shows: Tab / Shift+Tab between text, field and buttons; Enter the
 | `k` / Shift+K | `Bookmark 3, <the line it marks>` (`blank` for an empty line); `No next bookmark` / `No previous bookmark` |
 | Enter in the conversation | `Line 12 copied to the message` |
 | Escape in the message field | `Escape does nothing here. Press Shift+Escape to interrupt Claude` |
+| Ctrl+1 / Ctrl+2 when the control has the focus already | `Message to Claude` / `Conversation`; nothing from the app when the focus moves (NVDA announces the control) |
 | Find | the line text, prefixed `From the top, ` or `From the end, ` after a wrap; `Not found: <text>`; `Type the text to find` on an empty field |
 | Save conversation | `Conversation saved` |
 | Ctrl+O | `Claude's detailed view is on. Press Ctrl+O to turn it off.` / `Claude's detailed view is off.` |
@@ -323,6 +329,8 @@ While a notice shows: Tab / Shift+Tab between text, field and buttons; Enter the
 | Send while stopped | `Claude is not running. Press Ctrl+Shift+R to start it again` |
 | Folder changed | `Project folder changed to <name>` |
 | Copy | `Copied` / `Diagnostics copied`; `Could not copy. Try again` |
+| Ctrl+C in the conversation | `Copied`; `Could not copy. Try again` |
+| Escape with a selection | `Selection cleared` |
 | Send | `Message sent` / `Message waiting` / `Answer sent` |
 | Reply begins | `Claude is responding` |
 | Claude's bracketed row | its text, e.g. `accept edits on` |
@@ -402,7 +410,7 @@ Headings are structural (§4.4 item 3): a line (after a `claude:` label) of 1 to
 
 ### 7.7 TranscriptView and TranscriptMirror
 
-`TranscriptMirror` (Core, unit tested) holds the visible lines as one text with their start offsets, separators (`\r\n`, or a space for a `JoinedToPrevious` line, nothing when it starts with one), display line numbers for `l`, and the search behind Ctrl+F. `Update(lines)` compares the new visible list with the old one by line identity and separator (common prefix and suffix; everything between is replaced as one block together with the separator in front of it; a prefix or suffix line whose text changed is replaced on its own) and returns `MirrorEdit`s in descending start order plus `MapPosition(oldCaret)`: the same column of the same line when it is still shown, otherwise the start of the next line still shown, or of the replacement. A frame with no visible change returns at once; otherwise only the entries after the first changed line are recomputed, and the line lists are reused between frames, so a spinner tick allocates nothing and no 20 000-entry list goes to the large object heap. The update is valid until the next call.
+`TranscriptMirror` (Core, unit tested) holds the visible lines as one text with their start offsets, separators (`\r\n`, or a space for a `JoinedToPrevious` line, nothing when it starts with one), display line numbers for `l`, and the search behind Ctrl+F. `Update(lines)` compares the new visible list with the old one by line identity and separator (common prefix and suffix; everything between is replaced as one block together with the separator in front of it; a prefix or suffix line whose text changed is replaced on its own) and returns `MirrorEdit`s in descending start order plus `MapPosition(oldCaret)`: the same column of the same line when it is still shown, otherwise the start of the next line still shown, or of the replacement. A frame with no visible change returns at once; otherwise only the entries after the first changed line are recomputed, and the line lists are reused between frames, so a spinner tick allocates nothing and no 20 000-entry list goes to the large object heap. The update is valid until the next call. Reading breaks (FR-3.10) live here too: `BreakAtEnd(caretColumn)` records the last line and its length as heard, the rendering of that line then carries a `\r\n` at the resolved column (or the next joined line starts with `\r\n` instead of a space), start offsets and `MapPosition` count the extra characters, `RenderedColumn` maps a text column through them, `DisplayTextAt` and the display line numbers ignore them, and `ClearBreaks` takes them away. The view marks the end when the caret is on the last screen row of the edit control (`EM_GETLINECOUNT`, `EM_LINEFROMCHAR`) and clears once the caret's display line is not the one with the breaks.
 
 The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLACESEL), never `Text = …`, with redraw suspended, then restores the caret through `MapPosition`. Output within 250 ms of a key press in the focused view is held until the keys stop, because NVDA reads the caret line in several messages and text that shifts between them is read wrong; announcements and the status bar are not held. Without focus, the caret goes to the start of the last line and the view scrolls to it with `EM_SCROLLCARET` sent directly: WinForms' `ScrollToCaret` first copies the whole text. Edits land at the bottom of the text, which keeps the word-wrapped EDIT control cheap; an edit near the top re-wraps everything below it (about 0.7 s at 20 000 lines, so a trim, FR-3.6, is a rare one-off).
 
@@ -441,6 +449,10 @@ The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLAC
 - **D23 The app never opens a second window of its own.** A screen reader user loses popup windows: a dialog next to the main window is easy to leave behind when the screen reader's focus moves, and then both are stuck. Every dialog is a notice drawn inside the main window by `OverlayPanel` (Find, the shortcuts, the guide, About, errors, the crash report, Claude Code was not found, the close question). The only separate windows are the standard folder, file and font pickers, and the `--help`, `--version` and bad-command-line message boxes shown before any window exists.
 - **D24 Performance is measured, not assumed.** The per-frame path (parser, `EndFrame`, mirror update, EDIT control edits) was benchmarked at 20 000 lines (2026-09-19). Three wastes were found and removed: a closure allocated on every iteration of the echo loop (700 KB a frame), the mirror's full rebuild on every frame, and WinForms' `ScrollToCaret` copying the text. A frame end now costs 0.12 ms and allocates nothing at 18 000 lines, down from 0.54 ms. No further machinery (virtualised views, background parsing) is warranted.
 - **D25 Updates come from GitHub releases, and the user chooses.** A release is a version tag: GitHub Actions builds the same zip that `publish.ps1` builds locally and attaches it (`.github/workflows/release.yml`, started by `release.ps1`). The app asks for the latest release once at startup (an opt-out setting) and installs only after Update now: no background downloads, no server of the app's own, no installer beyond `install.ps1`, which already exists. Handing over to the new version's own installer means the running executable is never overwritten while it runs, and a failed update leaves the installed version in place.
+- **D26 Go-to keys speak even when nothing moves.** Ctrl+Tab toggles, so a user who has lost track of the focus does not know where it will land. Ctrl+1 and Ctrl+2 name a destination, and when the focus is there already the app says the control's name (the same words NVDA uses for a real focus change): one key, one answer, whether or not the focus moved. This is on demand only (the user pressed the key), so it does not conflict with the rule that navigation never speaks by itself.
+- **D27 The disclaimer is in the app and the guide, not a click-through.** The MIT licence's warranty and liability clauses are the binding text (`LICENSE`, shipped in the zip). About and the end of the user guide repeat them in full words, add that everything typed goes to Anthropic under Anthropic's terms, that Claude Code changes files and runs commands under the user's permissions, and that the project is independent of Anthropic. A first-run acceptance screen would be one more notice for a screen reader user to get through and would protect no better.
+- **D28 The line being written is read in pieces.** In a word-wrapped edit control, Down Arrow on the last screen row leaves the caret where it is, and NVDA then reads that whole row again. While Claude writes, the row grows, so every Down Arrow repeated what had just been heard. Holding output back does not help (the row still grows), and announcing the new text over a notification does not either (NVDA still reads the row). Instead the view renders what arrives after the heard end on a line of its own (FR-3.10), so the native Down Arrow lands on new text only; the transcript itself, `l`, Enter, Find and the saved file are untouched, and the line is joined up again once the reader moves on.
+- **D29 A selection holds output back.** Streaming edits under a selection re-select around every replacement, and NVDA reports selection changes; the only reliable way to let a screen reader user select and copy from a growing conversation is to keep the text still while text is selected (FR-3.11), as is already done for 250 ms after a key press. The status bar and the notices still move, so nothing is lost, and any arrow key lets the output catch up.
 
 ## 9. Repository, build and run
 
@@ -489,6 +501,7 @@ Released 1.0.0 on 2026-09-19 through the release workflow (§9), with the MIT li
 To do:
 
 - [ ] A short NVDA run of the renamed announcements (test plan 2.6, 5.4, 5.5, 6, 8.1, 8.4, 9.3, 9.9, 10.1), the bookmarks (test plan 4.12) and the update flow (test plan 11) on the released build; anything found goes into 1.0.1 through `release.ps1`.
+- [ ] 1.0.2 (unreleased): Ctrl+1 / Ctrl+2 (FR-6.5, test plan 1.4a), the About notice with the disclaimer (D27), the reading breaks (FR-3.10, test plan 3.4, 4.9, 4.11) and the selection (FR-3.11, test plan 3.5, 4.6) checked with NVDA before `release.ps1 1.0.2`.
 
 ## Appendix A — Control sequences the screen model handles
 
