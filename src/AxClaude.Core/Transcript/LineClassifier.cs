@@ -126,10 +126,13 @@ public static partial class LineClassifier
     }
 
     /// <summary>
-    /// Heading level of a line, or 0. Screen reader mode prints markdown headings as plain text, so a short line
-    /// without terminal punctuation that is followed by a blank line counts as a level-2 heading.
+    /// Heading level of a line, or 0. Screen reader mode prints markdown headings as plain rows, so a short row
+    /// inside a reply, after a blank row or on the <c>claude:</c> label row, without terminal punctuation and
+    /// followed by a blank row counts as level 2. Rows outside a reply never qualify: a short tool-output row
+    /// followed by a blank row is not a heading, and neither is the last line of a code block. Raw markdown
+    /// hashes count anywhere.
     /// </summary>
-    public static int HeadingLevel(string text, LineKind kind, string? nextText)
+    public static int HeadingLevel(string text, LineKind kind, string? previousText, string? nextText, bool inReply)
     {
         if (kind is not (LineKind.Plain or LineKind.ClaudeReply))
         {
@@ -149,6 +152,11 @@ public static partial class LineClassifier
         if (hashes is >= 1 and <= 6 && hashes < t.Length && char.IsWhiteSpace(t[hashes]) && !t[hashes..].IsWhiteSpace())
         {
             return hashes;
+        }
+
+        if (kind == LineKind.Plain && (!inReply || previousText is null || previousText.Length > 0))
+        {
+            return 0;
         }
 
         if (nextText is null || nextText.Length > 0 || t.Length is 0 or > 80)

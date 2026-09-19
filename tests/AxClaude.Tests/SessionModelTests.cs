@@ -150,6 +150,15 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void Headings_are_short_rows_between_blank_rows_inside_a_reply()
+    {
+        var model = new SessionModel(80, 24);
+        Feed(model, $"{Esc}[?25lclaude: First part\r\n\r\nA paragraph.\r\n\r\nDetails\r\n\r\n- item\r\n\r\nls -la\r\ngit init\r\n\r\nThe end.\r\ntool: Bash (dotnet test)\r\n=== tests ===\r\n\r\nPassed\r\nBaked for 1s · done 2:47 PM\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        var headings = model.Lines.Where(l => l.HeadingLevel > 0).Select(l => $"{l.HeadingLevel}:{l.Text}").ToList();
+        Assert.Equal(["2:claude: First part", "2:Details"], headings);
+    }
+
+    [Fact]
     public void Claude_saying_no_conversation_to_continue_is_recognised()
     {
         var model = new SessionModel(80, 10);

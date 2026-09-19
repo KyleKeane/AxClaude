@@ -584,49 +584,75 @@ public sealed partial class SessionModel : ILineStore
         return anchor;
     }
 
+    /// <summary>
+    /// Classifies the rows on screen. The reply block state (from a <c>claude:</c> row up to the next row of another
+    /// kind) and the previous visible row's text run through the whole transcript, committed rows included, because
+    /// a heading is only a heading inside a reply and after a blank row (§7.6).
+    /// </summary>
     private void Classify()
     {
+        var inReply = false;
+        string? previousText = null;
         for (var i = 0; i < _lines.Count; i++)
         {
             var line = _lines[i];
-            if (line.Committed || line.IsMarker)
+            if (line.IsMarker)
             {
                 continue;
             }
 
-            var inPromptBlock = false;
-            for (int j = i - 1, seen = 0; j >= 0 && seen < 12; j--)
+            if (!line.Committed)
             {
-                var previous = _lines[j];
-                if (previous.Hidden || previous.IsMarker)
+                var inPromptBlock = false;
+                for (int j = i - 1, seen = 0; j >= 0 && seen < 12; j--)
                 {
-                    continue;
+                    var previous = _lines[j];
+                    if (previous.Hidden || previous.IsMarker)
+                    {
+                        continue;
+                    }
+
+                    seen++;
+                    if (previous.Kind == LineKind.Prompt)
+                    {
+                        inPromptBlock = true;
+                        break;
+                    }
                 }
 
-                seen++;
-                if (previous.Kind == LineKind.Prompt)
+                line.Kind = LineClassifier.Classify(line.Text, inPromptBlock);
+
+                string? next = null;
+                for (var j = i + 1; j < _lines.Count; j++)
                 {
-                    inPromptBlock = true;
+                    var candidate = _lines[j];
+                    if (candidate.ChromeHidden || candidate.IsMarker)
+                    {
+                        continue;
+                    }
+
+                    next = candidate.Text;
                     break;
                 }
+
+                line.HeadingLevel = LineClassifier.HeadingLevel(line.Text, line.Kind, previousText, next, inReply);
             }
 
-            line.Kind = LineClassifier.Classify(line.Text, inPromptBlock);
-
-            string? next = null;
-            for (var j = i + 1; j < _lines.Count; j++)
+            if (line.Hidden)
             {
-                var candidate = _lines[j];
-                if (candidate.ChromeHidden || candidate.IsMarker)
-                {
-                    continue;
-                }
-
-                next = candidate.Text;
-                break;
+                continue;
             }
 
-            line.HeadingLevel = LineClassifier.HeadingLevel(line.Text, line.Kind, next);
+            if (line.Kind == LineKind.ClaudeReply)
+            {
+                inReply = true;
+            }
+            else if (line.Kind != LineKind.Plain)
+            {
+                inReply = false;
+            }
+
+            previousText = line.Text;
         }
     }
 

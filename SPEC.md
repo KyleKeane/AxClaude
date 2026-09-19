@@ -412,7 +412,7 @@ Handled sequences (Appendix A): printable text with wcwidth-aware cell placement
 
 Classification runs at frame end for every uncommitted line, on the trimmed text: `^you:` UserEcho; `^claude:` ClaudeReply; `^thinking:` Thinking; `^tool:` or `(ctrl+o to expand)$` Tool; `^tool error:` ToolError; `^error:` Error; `^warning:` Warning; `^Permission Required:`, `^Enter selection`, `^Enter y/n` Prompt; `^\d+\. ` or `^[yn]\. ` within 12 visible lines after a Prompt → PromptOption; `^\S+ for … · done ` TurnSummary; `^\[Screen Reader Mode:` System.
 
-Headings are structural (§4.4 item 3): a line (after a `claude:` label) of 1 to 80 characters, not ending in `.`, `,`, `;`, `:`, `?` or `!`, not a list item, with at least one letter, followed by a blank line, is level 2. A line that still begins with `#`s uses the `#` count. The markers are level 1 (FR-4.1). App lines (`Line.IsMarker`) are never classified or hidden.
+Headings are structural (§4.4 item 3): inside a reply (from a `claude:` row up to the next tool, summary or other labelled row), a row of 1 to 80 characters that follows a blank row or sits on the `claude:` label row, does not end in `.`, `,`, `;`, `:`, `?` or `!`, is not a list item, has at least one letter and is followed by a blank row, is level 2. Rows outside a reply, such as tool output, never qualify, and neither does the last line of a code block, which follows another code line. Screen reader mode strips the hashes, so every markdown heading level reads as level 2; a line that still begins with `#`s uses the `#` count anywhere. The markers are level 1 (FR-4.1). App lines (`Line.IsMarker`) are never classified or hidden.
 
 ### 7.7 TranscriptView and TranscriptMirror
 
