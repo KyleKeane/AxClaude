@@ -318,6 +318,7 @@ internal sealed class MainForm : Form
 
         var session = new ToolStripMenuItem("&Session");
         session.DropDownItems.Add(new ToolStripMenuItem("Send &message", null, (_, _) => SendInput()) { ShortcutKeyDisplayString = "Ctrl+Enter" });
+        session.DropDownItems.Add(new ToolStripMenuItem("Send the waiting message &now", null, (_, _) => SendNow()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.S });
         session.DropDownItems.Add(new ToolStripMenuItem("&Interrupt Claude (send Escape)", null, (_, _) => Write("\x1b")) { ShortcutKeyDisplayString = "Shift+Esc" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&C", null, (_, _) => Write("\x03")) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.C });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&D", null, (_, _) => Write("\x04")));
@@ -568,6 +569,28 @@ internal sealed class MainForm : Form
         var (text, delay) = _writes.Dequeue();
         Write(text);
         Later(delay, PumpWrites);
+    }
+
+    /// <summary>
+    /// Session → Send the waiting message now (Ctrl+Shift+S): Claude's Ctrl+X Ctrl+S, which makes it take up a
+    /// message it holds without finishing the current step first (FR-2.8). The chord goes as two writes.
+    /// </summary>
+    private void SendNow()
+    {
+        if (_model.QueuedMessages == 0)
+        {
+            Announce("No message waiting", false);
+            return;
+        }
+
+        _writes.Enqueue(("\x18", 30));
+        _writes.Enqueue(("\x13", 30));
+        if (!_writing)
+        {
+            PumpWrites();
+        }
+
+        Announce("Sending now", false);
     }
 
     private static void Later(int milliseconds, Action action)

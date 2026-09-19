@@ -19,6 +19,7 @@ internal static class HelpText
           Ctrl+Tab, Ctrl+Shift+Tab or F6: switch between the message field and the conversation
           Ctrl+Enter: send the message (an empty field sends a plain Enter)
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
+          Ctrl+Shift+S: make Claude take up the waiting message now instead of after its current step
           Ctrl+F: find text in the conversation. F3 and Shift+F3: next or previous match
           Ctrl+S: save the conversation as a text file
           Ctrl+N: new Claude session: choose the folder and how Claude starts (continue, resume, plan mode, custom arguments)
