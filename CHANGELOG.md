@@ -20,3 +20,6 @@ First release.
 - Help menu with the keyboard shortcuts, the user guide and the Claude Code documentation pages; Copy diagnostics; a rolling log; a raw stream recorder for bug reports.
 - Settings in `%APPDATA%\AxClaude\settings.json`; `--help` and `--version`.
 - `install.ps1` installs per user without administrator rights and `install.ps1 -Uninstall` removes it; `publish.ps1` builds the self-contained executable and the zip.
+- Updates: at startup AxClaude asks GitHub once whether a newer release exists (Options turns that off) and says so. Help, Check for updates asks on demand, and Update now downloads the release, installs it and starts AxClaude again on the same folder.
+- Releases are built and published by GitHub Actions from a version tag (`release.ps1`).
+- MIT licence.

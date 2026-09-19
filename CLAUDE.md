@@ -24,6 +24,8 @@ dotnet run --project tools/PtyCapture -- --dump session.vt
 .\publish.ps1 -NoInstall              # self-contained exe + install.ps1 + guide into publish\win-x64 and publish\AxClaude-<version>-win-x64.zip
 .\publish.ps1                         # the same, then install for this user (Start menu, Explorer entry, axclaude command)
 .\install.ps1 -Uninstall              # remove the installation (from the repo root or the installed folder)
+.\release.ps1 1.0.1                   # after adding "## 1.0.1" to CHANGELOG.md: tests, sets <Version>, commits, tags v1.0.1, pushes; GitHub Actions publishes the release the app updates from
+gh run watch                          # follow that release build
 .\tools\make-icon.ps1                 # redraw src/AxClaude/AxClaude.ico
 ```
 
@@ -35,6 +37,8 @@ The app records the same format with `--record file.vt` or Options → Record ra
 - `src/AxClaude.Core/Transcript`: `SessionModel` (frames to lines: chrome hiding, classification, the wrapped-row join flag, markers around the `you:` echo, status), `LineClassifier` (labels, chrome patterns, heading heuristic), `Line`, `TranscriptMirror` (visible lines to edit-control edits with `\r\n` or space separators, where the caret belongs afterwards, display line numbers, the find search).
 - `src/AxClaude.Core/Pty`: `PtyHost` (ConPTY), `ClaudeLauncher` (find claude and list the places tried, install command, command line, environment), `StreamRecorder` (raw stream to a `.vt` file plus chunk index, the PtyCapture format).
 - `src/AxClaude.Core/AppSettings.cs`: the settings file (SPEC.md Appendix C).
+- `src/AxClaude.Core/Updates`: `UpdateCheck` (the latest GitHub release: JSON parsing, version comparison; the repository name lives here). `src/AxClaude/Updater.cs`: the download into `%LOCALAPPDATA%\AxClaude\updates` and the hand-over to the new version's `install.ps1 -WaitForProcess`, which installs after the app exits and starts it again (SPEC.md FR-1.10, D25).
+- `.github/workflows/release.yml`: a `v*` tag builds the zip with `publish.ps1` and creates the GitHub release with the CHANGELOG section as notes (`tools/release-notes.ps1`); `release.ps1` makes the tag. `build.yml` runs the tests on every push.
 - `src/AxClaude`: `MainForm` (window, menus, timers, sending, find, save, announcements, fonts, process lifecycle), `TranscriptView` (applies the mirror's edits to the TextBox, quick keys, find, announcements, the hold after a key press), `StatusLayout` (keeps both status labels inside the strip), `StartupOptions`, `OverlayPanel` (the notices: every dialog of the app's own, drawn inside the window in place of the conversation and the message field, SPEC.md D23), `HelpText` (the F1 shortcuts, the embedded `docs/user-guide.md`, the Claude-not-found text), `Log` (diagnostic log), `Program` (crash handler, `--help`, `--version`).
 - `docs/user-guide.md`: the guide for users; embedded in the executable (`AxClaude.csproj`) and shipped as `README.md` in the zip. `docs/nvda-test-plan.md`: the manual test plan.
 - `install.ps1` (shipped in the zip, per-user install and `-Uninstall`), `publish.ps1` (build, zip, install), `tools/make-icon.ps1` (draws `src/AxClaude/AxClaude.ico`).

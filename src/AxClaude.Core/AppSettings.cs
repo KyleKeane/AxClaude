@@ -55,6 +55,9 @@ public sealed class AppSettings
     /// <summary>Show reply rows that Claude wrapped at the console width as one line (FR-3.2a). File only, no menu item.</summary>
     public bool JoinWrappedLines { get; set; } = true;
 
+    /// <summary>Ask GitHub once at startup whether a newer release exists (FR-1.10).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
     public int MaxTranscriptLines { get; set; } = 20000;
     public WindowPlacement? Window { get; set; }
 

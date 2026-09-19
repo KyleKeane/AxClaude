@@ -127,6 +127,7 @@ MUST unless marked SHOULD; everything listed is built.
 - FR-1.7: On close, close the pseudo console (Claude exits), wait up to 2 s, then terminate. No Ctrl+C. Claude Code persists the conversation continuously, so `--continue` recovers it. A close (Alt+F4, the close button, Project → Exit) while Claude is in the middle of a turn (working, waiting for an answer, or holding a message sent while it worked) first shows the **Close AxClaude?** notice (D23): "Claude is still working" (or "Claude is waiting for your answer"; plus " and a message you sent is still waiting for it" when one is), ". If you close now, Claude stops in the middle of its work.", "What is done so far is saved. Start AxClaude with -- --continue to carry on later.", "Enter closes anyway. Escape keeps AxClaude open." Buttons **Close anyway** (Enter) and **Keep working** (Escape). An idle Claude closes at once; a Windows shutdown or Task Manager never asks.
 - FR-1.8 SHOULD: **Restart Claude** (Ctrl+Shift+R) stops and restarts in the same folder with the same arguments. No resume menu item: `--continue` / `--resume <id>` go after `--` (FR-9.1) and Restart keeps them.
 - FR-1.9 SHOULD: When Claude Code is not found, the notice **Claude Code was not found** (D23) lists the paths tried, gives the install command `irm https://claude.ai/install.ps1 | iex` with **Copy install command** (the notice stays; "Copied. Paste it into PowerShell and press Enter" is spoken), **Open install instructions** (`https://code.claude.com/docs/en/setup`), **Locate claude.exe…** (the standard file picker; a choice closes the notice, is saved as `claudePath` and started at once; Cancel returns to the notice) and **Close** (Enter or Escape). A system line says the same; Restart retries after an install.
+- FR-1.10 SHOULD: **Updates.** Releases are GitHub releases of `KyleKeane/AxClaude`, each with the zip that `publish.ps1` builds (§9, D25). At startup, when `checkForUpdates` is on (the default; Options → Check for updates when AxClaude starts), the app asks the GitHub API once for the latest release, off the UI thread with a 30 s limit; a failure only goes to the log. A version above the running one (major, minor, build) is announced ("AxClaude 1.0.1 is available. See the Help menu"), written as a system line and offered as Help → **Update to AxClaude 1.0.1…**; otherwise the item reads **Check for updates…** and asks again on demand, reporting the result in a notice: the newest version is in use, or GitHub could not be reached (with **Open releases page**). The update notice shows the release notes (the CHANGELOG section) with **Update now**, **Open release page** and **Later**. Update now downloads the zip into `%LOCALAPPDATA%\AxClaude\updates\<version>` and extracts it (announced: "Downloading AxClaude 1.0.1", then "AxClaude 1.0.1 downloaded. AxClaude closes now and starts again when the update is installed"), then closes the window; the close question of FR-1.7 applies, and Keep working cancels the install and keeps the download. On the way out the app starts that version's own `install.ps1 -WaitForProcess <pid> -Start <folder> [-ContinueConversation] -LogFile %LOCALAPPDATA%\AxClaude\logs\update.log` without a window: it waits for this process to end, installs over `%LOCALAPPDATA%\Programs\AxClaude` and starts the new AxClaude on the same folder, with `-- --continue` when a message was sent in the session. Nothing is downloaded or installed without the user choosing it.
 
 ### FR-2 Input
 
@@ -331,6 +332,8 @@ While a notice shows: Tab / Shift+Tab between text, field and buttons; Enter the
 | Recording | `Recording started` / `Recording stopped` |
 | A notice opens | nothing: the focus moves to its text or field and NVDA reads the title, the role and the first line |
 | Copy install command | `Copied. Paste it into PowerShell and press Enter` |
+| Update found at startup | `AxClaude 1.0.1 is available. See the Help menu` (and a system line) |
+| Update now | `Downloading AxClaude 1.0.1`; `AxClaude 1.0.1 downloaded. AxClaude closes now and starts again when the update is installed`; Keep working: `The update was not installed. Help menu, Update AxClaude, when you are ready` |
 
 ## 7. Architecture
 
@@ -341,13 +344,16 @@ src/AxClaude.Core/        class library (net10.0), no WinForms
   Pty/        PtyHost (ConPTY P/Invoke), ClaudeLauncher (find claude, command line, environment), StreamRecorder
   Vt/         VtParser (state machine), Screen (cells, rows carrying their Line), Wcwidth
   Transcript/ SessionModel, Line, LineKind, LineClassifier, TranscriptMirror
+  Updates/    UpdateCheck (the latest GitHub release: parsing, version comparison), ReleaseInfo
   AppSettings.cs
 src/AxClaude/             WinForms app (net10.0-windows): MainForm, TranscriptView, OverlayPanel, HelpText,
-                          StatusLayout, StartupOptions, Log, Program, AxClaude.ico (tools/make-icon.ps1)
-tests/AxClaude.Tests/     xunit: FixtureTests, ReplayTests, SessionModelTests, TranscriptMirrorTests, SettingsTests
+                          StatusLayout, StartupOptions, Updater (download, hand-over to install.ps1), Log, Program,
+                          AxClaude.ico (tools/make-icon.ps1)
+tests/AxClaude.Tests/     xunit: FixtureTests, ReplayTests, SessionModelTests, TranscriptMirrorTests, SettingsTests, UpdateCheckTests
 tests/fixtures/           *.vt recordings, *.vt.chunks.txt timing, *.expected.txt transcripts
-tools/PtyCapture/         recorder
+tools/PtyCapture/         recorder; tools/release-notes.ps1 (the CHANGELOG section of a version)
 docs/                     user-guide.md (embedded, shipped as README.md), nvda-test-plan.md
+.github/workflows/        build.yml (tests on push), release.yml (tag → zip → GitHub release); release.ps1 starts it
 publish.ps1, install.ps1  build the zip; install or remove for the current user
 ```
 
@@ -434,6 +440,7 @@ The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLAC
 - **D22 The app prints the message itself; Claude's echo is only hidden.** Moving two markers around the echo broke as soon as a message held a blank line. The exchange block is text the app owns, printed once; the echo is matched by text with whitespace ignored and hidden. Nothing moves afterwards.
 - **D23 The app never opens a second window of its own.** A screen reader user loses popup windows: a dialog next to the main window is easy to leave behind when the screen reader's focus moves, and then both are stuck. Every dialog is a notice drawn inside the main window by `OverlayPanel` (Find, the shortcuts, the guide, About, errors, the crash report, Claude Code was not found, the close question). The only separate windows are the standard folder, file and font pickers, and the `--help`, `--version` and bad-command-line message boxes shown before any window exists.
 - **D24 Performance is measured, not assumed.** The per-frame path (parser, `EndFrame`, mirror update, EDIT control edits) was benchmarked at 20 000 lines (2026-09-19). Three wastes were found and removed: a closure allocated on every iteration of the echo loop (700 KB a frame), the mirror's full rebuild on every frame, and WinForms' `ScrollToCaret` copying the text. A frame end now costs 0.12 ms and allocates nothing at 18 000 lines, down from 0.54 ms. No further machinery (virtualised views, background parsing) is warranted.
+- **D25 Updates come from GitHub releases, and the user chooses.** A release is a version tag: GitHub Actions builds the same zip that `publish.ps1` builds locally and attaches it (`.github/workflows/release.yml`, started by `release.ps1`). The app asks for the latest release once at startup (an opt-out setting) and installs only after Update now: no background downloads, no server of the app's own, no installer beyond `install.ps1`, which already exists. Handing over to the new version's own installer means the running executable is never overwritten while it runs, and a failed update leaves the installed version in place.
 
 ## 9. Repository, build and run
 
@@ -442,6 +449,7 @@ The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLAC
 - Warnings are errors in Release; nullable enabled everywhere.
 - Git: `main` is always buildable; imperative commit subjects; Co-Authored-By trailer for commits made with Claude.
 - Licence: MIT (`LICENSE`), copyright Dr. Kyle Keane, www.kylekeane.com; the same line is in `AxClaude.csproj` (`Authors`, `Copyright`), Help → About, the guide and the README. The only condition is that the notice stays with copies.
+- Releases (FR-1.10, D25): `release.ps1 <version>` checks that CHANGELOG.md has a `## <version>` section, runs the tests, sets `<Version>`, commits "Release <version>", tags `v<version>` and pushes. `.github/workflows/release.yml` (a `v*` tag, or `gh workflow run release.yml -f tag=v1.0.1`) checks the tag against `<Version>`, tests, runs `publish.ps1 -NoInstall` and creates the GitHub release with the zip and the CHANGELOG section (`tools/release-notes.ps1`) as notes. `.github/workflows/build.yml` runs the tests on every push to `main` and every pull request.
 
 ## 10. Testing
 
@@ -476,11 +484,11 @@ Open: **Q1** the product name; **Q3** hide the `you:` echo (yes); **Q4** `o` tar
 
 Built 2026-09-18 to 2026-09-19: everything in §5, checked with NVDA (test plan sections 1 to 10) on the development build. The 2026-09-19 consolidation pass simplified every announcement, menu label and document, removed unused code (OSC 133, bracketed paste, soft-wrap and cursor-column tracking, unused view members) and fixed the per-frame wastes (D24).
 
+Released 1.0.0 on 2026-09-19 through the release workflow (§9), with the MIT licence, the update check (FR-1.10) and the bookmarks.
+
 To do:
 
-- [ ] A short NVDA run of the renamed announcements (test plan 2.6, 5.4, 5.5, 6, 8.1, 8.4, 9.3, 9.9, 10.1) and of the bookmarks (test plan 4.12).
-- [x] Licence: MIT, attribution to Dr. Kyle Keane, www.kylekeane.com (2026-09-19).
-- [ ] After the NVDA run: tag `v1.0.0` and attach `publish\AxClaude-1.0.0-win-x64.zip` to a GitHub release.
+- [ ] A short NVDA run of the renamed announcements (test plan 2.6, 5.4, 5.5, 6, 8.1, 8.4, 9.3, 9.9, 10.1), the bookmarks (test plan 4.12) and the update flow (test plan 11) on the released build; anything found goes into 1.0.1 through `release.ps1`.
 
 ## Appendix A — Control sequences the screen model handles
 
@@ -528,12 +536,13 @@ ConPTY converts these to key events for the client; win32-input-mode is not used
   "speakReplies": false,
   "markerTimeStamps": false,
   "joinWrappedLines": true,
+  "checkForUpdates": true,
   "maxTranscriptLines": 20000,
   "window": { "x": 100, "y": 100, "width": 1000, "height": 700, "maximized": false }
 }
 ```
 
-`fontFamily` null with `fontSize` 0 is the Windows message font. `claudePath` is set by Locate claude.exe or by hand. `joinWrappedLines` has no menu item. Written atomically; a missing or unreadable file gives the defaults and a system line. Marker formats and chrome patterns are fixed in code: a pattern change needs a fixture anyway.
+`fontFamily` null with `fontSize` 0 is the Windows message font. `claudePath` is set by Locate claude.exe or by hand. `joinWrappedLines` has no menu item. `checkForUpdates` is Options → Check for updates when AxClaude starts (FR-1.10). Written atomically; a missing or unreadable file gives the defaults and a system line. Marker formats and chrome patterns are fixed in code: a pattern change needs a fixture anyway.
 
 ## Appendix D — Glossary
 

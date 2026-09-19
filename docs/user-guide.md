@@ -92,8 +92,8 @@ Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversat
 - **Project**: the current folder (Enter copies the path), Change folder (Ctrl+N), Recent folders, Restart Claude (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
 - **Session**: keys sent to Claude: Send message, Interrupt, Ctrl+C, Ctrl+D, Tab, Shift+Tab, Ctrl+O, Up, Down.
 - **Navigate**: the message field, the conversation, the latest reply, Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
-- **Options**: the announcements, the sound, the taskbar flash, speaking replies, the time in the Input and Output lines, the font and text size, recording for a bug report, the settings file.
-- **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, Copy diagnostics, About.
+- **Options**: the announcements, the sound, the taskbar flash, speaking replies, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.
+- **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, Check for updates, Copy diagnostics, About.
 
 ## Text size and fonts
 
@@ -103,12 +103,19 @@ Ctrl+Plus and Ctrl+Minus make the text bigger or smaller and say the new size. O
 
 Everything you change is saved in `%APPDATA%\AxClaude\settings.json`. Options, "Open settings file" opens it. Two settings have no menu item: `claudePath` names the Claude Code program when it is not on PATH, and `joinWrappedLines` set to false keeps long paragraphs on separate lines.
 
+## Updates
+
+New versions are published on GitHub. When AxClaude starts, it asks GitHub once whether there is a newer one; Options, "Check for updates when AxClaude starts" turns that off. If there is one, AxClaude says "AxClaude 1.0.1 is available. See the Help menu", and a "System:" line in the conversation says the same.
+
+Help, "Update to AxClaude 1.0.1" shows what is new, with three buttons. Update now downloads the new version, closes AxClaude, installs it and starts it again on the same folder; if you had a conversation open, it is picked up again. Open release page opens it in the browser. Later keeps the version you have, and the Help menu offers the update until you take it. Help, "Check for updates" asks GitHub at any time and tells you either way.
+
 ## If something goes wrong
 
 - "Claude Code was not found": install it with the command in the notice, or use "Locate claude.exe" if it is somewhere unusual. Then press Ctrl+Shift+R.
 - An error from AxClaude is a notice inside the window and a "System:" line in the conversation. Escape closes the notice.
 - Claude stopped, or the conversation looks wrong: Ctrl+Shift+R restarts Claude in the same folder. Start AxClaude with `-- --continue` to get the conversation back. While Claude is stopped, Ctrl+Enter sends nothing and keeps your text.
 - For a bug report: Help, Copy diagnostics puts the version, the paths and the last log lines on the clipboard. Options, "Record raw stream for a bug report" records everything Claude Code prints. The log is in `%LOCALAPPDATA%\AxClaude\logs`.
+- An update did not start AxClaude again: `%LOCALAPPDATA%\AxClaude\logs\update.log` says what the installer did. Start AxClaude from the Start menu; if it is still the old version, download the zip from the release page and run `install.ps1` yourself.
 
 ## About AxClaude
 

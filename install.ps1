@@ -17,15 +17,40 @@
   .\install.ps1 -NoContextMenu  # install without the File Explorer entry
 
   If PowerShell refuses to run scripts: powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+  AxClaude's own Update now (Help menu) runs the downloaded version's copy of this script as
+    install.ps1 -WaitForProcess <pid> -Start <folder> [-ContinueConversation] -LogFile <file>
+  which waits for the running AxClaude to end, installs, and starts the new one on the folder.
 #>
 [CmdletBinding()]
 param(
     [switch]$Uninstall,
     [switch]$NoContextMenu,
-    [switch]$NoStartMenu
+    [switch]$NoStartMenu,
+    [int]$WaitForProcess,
+    [string]$Start,
+    [switch]$ContinueConversation,
+    [string]$LogFile
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Say([string]$text) {
+    Write-Host $text
+    if ($LogFile) {
+        try { Add-Content -Path $LogFile -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $text" -Encoding utf8 } catch { }
+    }
+}
+
+if ($WaitForProcess) {
+    Say "Waiting for AxClaude (process $WaitForProcess) to close..."
+    try { Wait-Process -Id $WaitForProcess -Timeout 120 -ErrorAction Stop } catch { }
+    if (Get-Process -Id $WaitForProcess -ErrorAction SilentlyContinue) {
+        Say "AxClaude is still running after two minutes. The update was not installed; start it from the Help menu again."
+        exit 1
+    }
+}
+
 $source = Split-Path -Parent $MyInvocation.MyCommand.Path
 $target = Join-Path $env:LOCALAPPDATA 'Programs\AxClaude'
 $exe = Join-Path $target 'AxClaude.exe'
@@ -48,32 +73,41 @@ if ($Uninstall) {
             Remove-Item $target -Recurse -Force
         }
         catch {
-            Write-Host "Could not remove $target (is AxClaude running?): $($_.Exception.Message)"
+            Say "Could not remove $target (is AxClaude running?): $($_.Exception.Message)"
             exit 1
         }
     }
-    Write-Host "AxClaude was removed. Settings in $env:APPDATA\AxClaude and the log in $env:LOCALAPPDATA\AxClaude were kept."
+    Say "AxClaude was removed. Settings in $env:APPDATA\AxClaude and the log in $env:LOCALAPPDATA\AxClaude were kept."
     exit 0
 }
 
 $sourceExe = Join-Path $source 'AxClaude.exe'
 if (-not (Test-Path $sourceExe)) {
-    Write-Host "AxClaude.exe was not found next to this script in $source."
+    Say "AxClaude.exe was not found next to this script in $source."
     exit 1
 }
 
 New-Item -ItemType Directory -Force $target | Out-Null
 $sameFolder = [string]::Equals((Resolve-Path $source).Path.TrimEnd('\'), $target.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)
 if (-not $sameFolder) {
-    try {
-        foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1') {
-            $file = Join-Path $source $name
-            if (Test-Path $file) { Copy-Item $file $target -Force }
+    # Right after AxClaude exits, Windows can hold its executable for a moment: try again for a few seconds.
+    $attempt = 0
+    while ($true) {
+        try {
+            foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1') {
+                $file = Join-Path $source $name
+                if (Test-Path $file) { Copy-Item $file $target -Force }
+            }
+            break
         }
-    }
-    catch {
-        Write-Host "Could not copy into $target (is AxClaude running from there? Close it and run this again): $($_.Exception.Message)"
-        exit 1
+        catch {
+            $attempt++
+            if ($attempt -ge 10) {
+                Say "Could not copy into $target (is AxClaude running from there? Close it and run this again): $($_.Exception.Message)"
+                exit 1
+            }
+            Start-Sleep -Seconds 1
+        }
     }
 }
 
@@ -106,10 +140,17 @@ if (-not $NoContextMenu) {
     }
 }
 
-Write-Host "Installed AxClaude to $target"
-if (-not $NoStartMenu) { Write-Host "Start menu: AxClaude" }
-if (-not $NoContextMenu) { Write-Host "File Explorer: right-click a folder, Open in AxClaude" }
-Write-Host "Console: axclaude, or axclaude C:\path\to\project (shim in $shim)"
+Say "Installed AxClaude to $target"
+if (-not $NoStartMenu) { Say "Start menu: AxClaude" }
+if (-not $NoContextMenu) { Say "File Explorer: right-click a folder, Open in AxClaude" }
+Say "Console: axclaude, or axclaude C:\path\to\project (shim in $shim)"
 if (-not (($env:Path -split ';') -contains $bin)) {
-    Write-Host "Note: $bin is not on PATH in this console. Open a new console, or add it, before using the axclaude command."
+    Say "Note: $bin is not on PATH in this console. Open a new console, or add it, before using the axclaude command."
+}
+
+if ($Start) {
+    $arguments = @("`"$Start`"")
+    if ($ContinueConversation) { $arguments += @('--', '--continue') }
+    Say "Starting AxClaude on $Start"
+    Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $target
 }

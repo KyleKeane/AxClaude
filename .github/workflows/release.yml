@@ -1,0 +1,66 @@
+# Builds the zip that publish.ps1 builds locally and attaches it to a GitHub release. The app installs updates from
+# these releases (SPEC.md FR-1.10). Started by pushing a version tag, which release.ps1 does, or by hand from the
+# Actions tab (or `gh workflow run release.yml -f tag=v1.0.1`) for a tag that already exists.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to release, for example v1.0.1'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check the tag against the project version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if (-not $tag) { $tag = $env:GITHUB_REF_NAME }
+          $version = $tag -replace '^v', ''
+          $projectVersion = (Select-Xml -Path src/AxClaude/AxClaude.csproj -XPath '/Project/PropertyGroup/Version').Node.InnerText
+          if ($projectVersion -ne $version) {
+            Write-Host "Tag $tag does not match <Version>$projectVersion</Version> in AxClaude.csproj. Release with release.ps1, which sets both."
+            exit 1
+          }
+          "TAG=$tag" >> $env:GITHUB_ENV
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Test
+        run: dotnet test AxClaude.sln --configuration Release --nologo
+
+      - name: Publish
+        shell: pwsh
+        run: .\publish.ps1 -NoInstall
+
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        run: .\tools\release-notes.ps1 -Version $env:VERSION | Set-Content -Path notes.md -Encoding utf8
+
+      - name: Create the GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = (Get-Item "publish\AxClaude-$env:VERSION-win-x64.zip").FullName
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $zip --clobber
+          } else {
+            gh release create $env:TAG $zip --title "AxClaude $env:VERSION" --notes-file notes.md
+          }

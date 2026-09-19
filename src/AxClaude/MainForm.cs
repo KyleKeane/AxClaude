@@ -5,6 +5,7 @@ using System.Text;
 using AxClaude.Core;
 using AxClaude.Core.Pty;
 using AxClaude.Core.Transcript;
+using AxClaude.Core.Updates;
 
 namespace AxClaude;
 
@@ -27,6 +28,7 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _recentFoldersItem = new("&Recent folders");
     private readonly ToolStripMenuItem _recordItem = new(RecordItemText);
     private const string RecordItemText = "&Record raw stream for a bug report...";
+    private readonly ToolStripMenuItem _updateItem = new("Check for &updates...");
     private readonly System.Windows.Forms.Timer _quiet = new() { Interval = 100 };
     private readonly System.Windows.Forms.Timer _attention = new() { Interval = 400 };
     private readonly System.Windows.Forms.Timer _exitSettle = new() { Interval = 300 };
@@ -47,6 +49,9 @@ internal sealed class MainForm : Form
     private Control? _focusBeforeNotice;
     private bool _noticeOpen;
     private bool _closeConfirmed;
+    private ReleaseInfo? _update;
+    private string? _updateFolder;
+    private bool _updateBusy;
 
     public MainForm(StartupOptions options, AppSettings settings, string? settingsError)
     {
@@ -118,6 +123,11 @@ internal sealed class MainForm : Form
         {
             StartClaude();
         }
+
+        if (_settings.CheckForUpdates)
+        {
+            CheckForUpdates(manual: false);
+        }
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -136,6 +146,12 @@ internal sealed class MainForm : Form
         StopClaude();
         StopRecording(announce: false);
         SaveSettings();
+        if (_updateFolder is { } update)
+        {
+            // FR-1.10: the downloaded version's installer waits for this process to end, installs and starts AxClaude again.
+            Updater.LaunchInstaller(update, _folder, continueConversation: _history.Count > 0);
+        }
+
         base.OnFormClosing(e);
     }
 
@@ -312,6 +328,7 @@ internal sealed class MainForm : Form
             _settings.MarkerTimeStamps = v;
             _model.TimeStamps = v;
         }));
+        options.DropDownItems.Add(Toggle("Check for &updates when AxClaude starts", _settings.CheckForUpdates, v => _settings.CheckForUpdates = v));
         options.DropDownItems.Add(new ToolStripSeparator());
         options.DropDownItems.Add(new ToolStripMenuItem("&Font...", null, (_, _) => ChooseFont()));
         options.DropDownItems.Add(new ToolStripMenuItem("&Larger text", null, (_, _) => ChangeTextSize(1)) { ShortcutKeyDisplayString = "Ctrl+Plus" });
@@ -332,6 +349,8 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripMenuItem("Claude Code command &line (web)", null, (_, _) => OpenUrl("https://code.claude.com/docs/en/cli-reference")));
         help.DropDownItems.Add(new ToolStripMenuItem("Install or update Claude Code (&web)", null, (_, _) => OpenUrl(ClaudeLauncher.InstallUrl)));
         help.DropDownItems.Add(new ToolStripSeparator());
+        _updateItem.Click += (_, _) => CheckForUpdates(manual: true);
+        help.DropDownItems.Add(_updateItem);
         help.DropDownItems.Add(new ToolStripMenuItem("Copy diag&nostics", null, (_, _) => CopyDiagnostics()));
         help.DropDownItems.Add(new ToolStripMenuItem("&About", null, (_, _) =>
             ShowText("About AxClaude",
@@ -1413,8 +1432,11 @@ internal sealed class MainForm : Form
                 : $" and {_model.QueuedMessages} messages you sent are still waiting for it";
         }
 
+        var consequence = _updateFolder is null
+            ? "If you close now, Claude stops in the middle of its work."
+            : "If you close now, Claude stops in the middle of its work and the update is installed.";
         ShowNotice("Close AxClaude?",
-            $"{state}. If you close now, Claude stops in the middle of its work.\n" +
+            $"{state}. {consequence}\n" +
             "What is done so far is saved. Start AxClaude with -- --continue to carry on later.\n" +
             "Enter closes anyway. Escape keeps AxClaude open.",
         [
@@ -1423,8 +1445,169 @@ internal sealed class MainForm : Form
                 _closeConfirmed = true;
                 Close();
             }, IsDefault: true),
-            new OverlayChoice("&Keep working", IsCancel: true),
+            new OverlayChoice("&Keep working", CancelUpdate, IsCancel: true),
         ]);
+    }
+
+    /// <summary>
+    /// FR-1.10: asks GitHub for the latest release. A newer one is announced, noted in a system line and offered under
+    /// Help; a manual check (Help → Check for updates) reports the result either way, including a failure.
+    /// </summary>
+    private async void CheckForUpdates(bool manual)
+    {
+        if (manual && _update is { } known)
+        {
+            ShowUpdateNotice(known);
+            return;
+        }
+
+        if (_updateBusy)
+        {
+            return;
+        }
+
+        _updateBusy = true;
+        _updateItem.Enabled = false;
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var release = await Updater.CheckAsync(cancellation.Token);
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            if (release is not null && UpdateCheck.IsNewer(release, Program.Version))
+            {
+                var version = release.Version.ToString(3);
+                _update = release;
+                _updateItem.Text = $"&Update to AxClaude {version}...";
+                Log.Info($"Update available: {release.Tag}, zip {release.ZipUrl ?? "missing"}");
+                if (manual)
+                {
+                    ShowUpdateNotice(release);
+                }
+                else
+                {
+                    _model.AddSystemLine($"AxClaude {version} is available. Help menu, Update to AxClaude {version}.");
+                    Announce($"AxClaude {version} is available. See the Help menu", false);
+                }
+            }
+            else if (manual)
+            {
+                ShowText("Check for updates",
+                    $"You have the newest version, AxClaude {Program.Version}.\n" +
+                    (release is null ? "No release is published yet.\n" : string.Empty) +
+                    $"Releases: {UpdateCheck.ReleasesPage}");
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException)
+        {
+            Log.Error("The update check failed", ex);
+            if (manual && !IsDisposed)
+            {
+                ShowNotice("Check for updates",
+                    $"GitHub could not be reached: {ex.Message}\nThe releases page: {UpdateCheck.ReleasesPage}",
+                [
+                    new OverlayChoice("&Open releases page", () => OpenUrl(UpdateCheck.ReleasesPage), StaysOpen: true),
+                    OverlayChoice.Close,
+                ]);
+            }
+        }
+        finally
+        {
+            _updateBusy = false;
+            if (!IsDisposed)
+            {
+                _updateItem.Enabled = true;
+            }
+        }
+    }
+
+    /// <summary>The release notes with Update now, Open release page and Later (FR-1.10).</summary>
+    private void ShowUpdateNotice(ReleaseInfo release)
+    {
+        var version = release.Version.ToString(3);
+        var size = release.ZipSize > 0 ? $" The download is {release.ZipSize / (1024.0 * 1024.0):0} MB." : string.Empty;
+        var text =
+            $"You have AxClaude {Program.Version}. AxClaude {version} is available.\n\n" +
+            (release.Notes.Length > 0 ? release.Notes + "\n\n" : string.Empty) +
+            "Update now downloads the new version, closes AxClaude, installs it and starts it again on the same folder. " +
+            $"The conversation is picked up again if one is open.{size}\n" +
+            "Later keeps this version; the Help menu offers the update again.";
+        ShowNotice($"Update to AxClaude {version}", text,
+        [
+            new OverlayChoice("&Update now", () => InstallUpdate(release), IsDefault: true),
+            new OverlayChoice("&Open release page", () => OpenUrl(release.PageUrl), StaysOpen: true),
+            new OverlayChoice("&Later", IsCancel: true),
+        ]);
+    }
+
+    /// <summary>
+    /// Update now: downloads and extracts the release, then closes the window. The close question of FR-1.7 still
+    /// applies while Claude works; on the way out, OnFormClosing starts the new version's installer.
+    /// </summary>
+    private async void InstallUpdate(ReleaseInfo release)
+    {
+        if (_updateBusy)
+        {
+            return;
+        }
+
+        _updateBusy = true;
+        _updateItem.Enabled = false;
+        var version = release.Version.ToString(3);
+        Announce($"Downloading AxClaude {version}", true);
+        _model.AddSystemLine($"Downloading AxClaude {version}...");
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            var folder = await Updater.DownloadAsync(release, cancellation.Token);
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            _updateFolder = folder;
+            Log.Info($"Update {release.Tag} downloaded to {folder}");
+            _model.AddSystemLine($"AxClaude {version} downloaded. AxClaude closes now, installs it and starts again.");
+            Announce($"AxClaude {version} downloaded. AxClaude closes now and starts again when the update is installed", true);
+            Close();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            Log.Error("The update download failed", ex);
+            if (!IsDisposed)
+            {
+                _model.AddSystemLine($"The download of AxClaude {version} failed: {ex.Message}");
+                ShowNotice($"Update to AxClaude {version}",
+                    $"The download failed: {ex.Message}\nYou can download the zip from the release page and run install.ps1 yourself.",
+                [
+                    new OverlayChoice("&Open release page", () => OpenUrl(release.PageUrl), StaysOpen: true),
+                    OverlayChoice.Close,
+                ]);
+            }
+        }
+        finally
+        {
+            _updateBusy = false;
+            if (!IsDisposed)
+            {
+                _updateItem.Enabled = true;
+            }
+        }
+    }
+
+    /// <summary>Keep working after Update now: the downloaded update is not installed now; the Help menu offers it again and the download is kept.</summary>
+    private void CancelUpdate()
+    {
+        if (_updateFolder is null)
+        {
+            return;
+        }
+
+        _updateFolder = null;
+        Announce("The update was not installed. Help menu, Update AxClaude, when you are ready", true);
     }
 
     /// <summary>FR-1.9: where the app looked, the install command with a button that copies it, the install page, and Locate claude.exe.</summary>

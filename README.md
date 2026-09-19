@@ -2,6 +2,8 @@
 
 A small Windows app that runs Claude Code in screen reader mode inside a hidden console and shows the conversation as plain text that NVDA reads line by line, with single-key navigation and a message field at the bottom. You are still talking to the real Claude Code: slash commands, prompts, dialogs and modes pass through.
 
+**Download:** the zip on the [latest release](https://github.com/KyleKeane/AxClaude/releases/latest). Extract it and run `install.ps1`; the user guide inside explains the rest. Installed copies offer newer releases themselves under Help.
+
 - `docs/user-guide.md`: the guide for users. It ships in the zip as `README.md` and under Help, User guide.
 - `SPEC.md`: the specification, the design decisions and the status.
 - `CLAUDE.md`: the working rules for developing with Claude Code in this repository.
@@ -30,6 +32,15 @@ Needs Windows 10 1809 or later, the .NET 10 SDK, Claude Code and, for testing, N
 ```
 
 Send the zip. The recipient extracts it and runs `install.ps1` (no administrator rights); `install.ps1 -Uninstall` removes it again. Close a running installed AxClaude before publishing again. `tools\make-icon.ps1` draws the icon.
+
+## Release
+
+```
+.\release.ps1 1.0.1          # tests, sets the version, commits, tags v1.0.1 and pushes
+gh run watch                 # follows the GitHub Actions run that builds and publishes the release
+```
+
+Add a `## 1.0.1 - <date>` section to `CHANGELOG.md` first: it becomes the release notes, which the app shows in its update notice. GitHub Actions (`.github/workflows/release.yml`) tests, runs `publish.ps1`, and attaches the zip to the release at `github.com/KyleKeane/AxClaude/releases`; installed copies of AxClaude find it there. `build.yml` runs the tests on every push.
 
 ## Licence
 
