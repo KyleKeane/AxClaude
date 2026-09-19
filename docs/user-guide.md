@@ -59,7 +59,7 @@ Keys that go straight to Claude Code:
 - Shift+Escape interrupts Claude, or closes one of its dialogs. Plain Escape in the message field does nothing, on purpose: it is easy to press by accident, and it would stop Claude in the middle of its work.
 - Shift+Tab switches to the next permission mode (manual, accept edits, plan, auto and so on). The new mode is spoken.
 - Ctrl+Up and Ctrl+Down send Up and Down, for Claude's own menus.
-- Ctrl+Shift+C sends Ctrl+C. Ctrl+O turns Claude's detailed view on and off; AxClaude says which. In screen reader mode that view changes nothing already printed. To see what the tools print, start the session with the `--verbose` argument (Ctrl+N, Custom, for example `--continue --verbose`): every tool's output then appears in full under its "tool:" line. The Session menu has Ctrl+D and Tab too.
+- Ctrl+Shift+C sends Ctrl+C. Ctrl+O, Claude's detailed view, is switched off in AxClaude: in screen reader mode it redraws the whole conversation, which doubled it and spoke old replies again. Pressing it says so. To see what the tools print, start the session with the `--verbose` argument (Ctrl+N, Custom, for example `--continue --verbose`): every tool's output then appears in full under its "tool:" line. The Session menu has Ctrl+D and Tab too.
 
 ## Slash commands
 
@@ -95,7 +95,7 @@ Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversat
 ## Menus
 
 - **Project**: Open current folder (Ctrl+W), which names the folder and opens it in File Explorer, Change folder, New session (Ctrl+N), Recent folders, Restart Claude (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
-- **Session**: keys sent to Claude: Send message, Send the waiting message now (Ctrl+Shift+S), Interrupt, Ctrl+C, Ctrl+D, Tab, Shift+Tab, Ctrl+O, Up, Down.
+- **Session**: keys sent to Claude: Send message, Send the waiting message now (Ctrl+Shift+S), Interrupt, Ctrl+C, Ctrl+D, Tab, Shift+Tab, Up, Down.
 - **Navigate**: the message field, the conversation, the latest reply, Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
 - **Options**: the announcements, the chimes, the tick for each new line, the taskbar flash, speaking replies, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.
 - **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, the version you have, the latest release on GitHub, Update or Check for updates, Copy diagnostics, About.

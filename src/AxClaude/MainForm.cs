@@ -25,6 +25,9 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _recentFoldersItem = new("&Recent folders");
     private readonly ToolStripMenuItem _recordItem = new(RecordItemText);
     private const string RecordItemText = "&Record raw stream for a bug report...";
+
+    /// <summary>Spoken for Ctrl+O, which the app does not pass on (D14).</summary>
+    private const string CtrlOGuard = "Ctrl+O is off here: Claude's detailed view redraws the conversation in screen reader mode. For tool output, start the session with --verbose.";
     private readonly ToolStripMenuItem _installedItem = new($"&Installed: AxClaude {Program.Version}");
     private readonly ToolStripMenuItem _latestItem = new();
     private readonly ToolStripMenuItem _updateItem = new("Check for &updates...");
@@ -269,6 +272,19 @@ internal sealed class MainForm : Form
             case Keys.Control | Keys.Return:
                 SendInput();
                 return true;
+            case Keys.Control | Keys.O:
+                // D14: Claude's detailed view redraws the conversation in screen reader mode, which doubles the
+                // transcript and speaks old replies again. The key is sent only to close the view should it be open.
+                if (_model.TranscriptViewOpen)
+                {
+                    Write("\x0f");
+                }
+                else
+                {
+                    Announce(CtrlOGuard, true);
+                }
+
+                return true;
             case Keys.Control | Keys.F:
                 FindDialog();
                 return true;
@@ -332,7 +348,6 @@ internal sealed class MainForm : Form
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&D", null, (_, _) => Write("\x04")));
         session.DropDownItems.Add(new ToolStripMenuItem("Send &Tab", null, (_, _) => Write("\t")));
         session.DropDownItems.Add(new ToolStripMenuItem("Send Shift+Tab (next permission &mode)", null, (_, _) => Write("\x1b[Z")) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.M });
-        session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&O (Claude's detailed view on or off)", null, (_, _) => Write("\x0f")) { ShortcutKeys = Keys.Control | Keys.O });
         session.DropDownItems.Add(new ToolStripMenuItem("Send &Up", null, (_, _) => Write("\x1b[A")) { ShortcutKeyDisplayString = "Ctrl+Up in the message field" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Do&wn", null, (_, _) => Write("\x1b[B")) { ShortcutKeyDisplayString = "Ctrl+Down in the message field" });
 

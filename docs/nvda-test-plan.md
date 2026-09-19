@@ -54,7 +54,7 @@ Each step says what to do and what NVDA must say or do. A step fails if NVDA say
 1. In the message field, Shift+Tab: focus stays, NVDA says the new mode ("manual mode on" or similar), NVDA+End shows the same. Shift+Tab until the mode you started with comes back.
 2. Ask Claude to create a file. If a permission prompt appears: "Claude needs your answer". Ctrl+2, Ctrl+End, then Up Arrow to the "Permission Required:" line; Down Arrow: the numbered options and "Enter selection".
 3. Type `1`, Ctrl+Enter: "Answer sent", then "Claude is done" when the tool finishes.
-4. Ctrl+O once: "Claude's detailed view is on. Press Ctrl+O to turn it off." NVDA+End: "detailed view on, Ctrl+O turns it off". Ctrl+O again: "Claude's detailed view is off." and the status is "ready" again. The conversation does not change on either press, no folder picker opens and nothing else reacts.
+4. Ctrl+O once, on an idle prompt and again while Claude works: "Ctrl+O is off here: Claude's detailed view redraws the conversation in screen reader mode. For tool output, start the session with --verbose." Each time the conversation does not change (`l` gives the same count before and after), the status stays as it was, nothing is spoken again and no folder picker opens.
 5. Ask for something slow, then Escape in the message field while the status says "working": "Escape does nothing here. Press Shift+Escape to interrupt Claude" and the status still says "working". Shift+Escape: the conversation gains Claude's interruption line and the status is "ready".
 6. Session menu, Send Ctrl+C: the same as Shift+Escape.
 
