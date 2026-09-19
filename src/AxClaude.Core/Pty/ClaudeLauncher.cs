@@ -89,6 +89,58 @@ public static class ClaudeLauncher
         return env;
     }
 
+    /// <summary>
+    /// The arguments in a line the user typed (the New session notice, FR-8.6): split at whitespace; a double-quoted
+    /// part keeps its spaces and a backslash before a quote gives a literal quote. The inverse of <see cref="JoinArguments"/>.
+    /// </summary>
+    public static IReadOnlyList<string> SplitArguments(string text)
+    {
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+        var hasToken = false;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c == '\\' && i + 1 < text.Length && text[i + 1] == '"')
+            {
+                current.Append('"');
+                i++;
+                hasToken = true;
+            }
+            else if (c == '"')
+            {
+                // "" is an empty argument; a quoted part joins what is around it: a"b c"d is one argument.
+                inQuotes = !inQuotes;
+                hasToken = true;
+            }
+            else if (!inQuotes && char.IsWhiteSpace(c))
+            {
+                if (hasToken)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                    hasToken = false;
+                }
+            }
+            else
+            {
+                current.Append(c);
+                hasToken = true;
+            }
+        }
+
+        if (hasToken)
+        {
+            result.Add(current.ToString());
+        }
+
+        return result;
+    }
+
+    /// <summary>The arguments as one line, quoted where needed, so that <see cref="SplitArguments"/> gives them back.</summary>
+    public static string JoinArguments(IEnumerable<string> arguments) => string.Join(' ', arguments.Select(Quote));
+
     private static string Quote(string argument) =>
         argument.Length > 0 && argument.IndexOfAny([' ', '\t', '"']) < 0
             ? argument

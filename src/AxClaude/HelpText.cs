@@ -21,8 +21,8 @@ internal static class HelpText
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
           Ctrl+F: find text in the conversation. F3 and Shift+F3: next or previous match
           Ctrl+S: save the conversation as a text file
-          Ctrl+N: change the project folder
-          Ctrl+Shift+R: restart Claude in the same folder
+          Ctrl+N: new Claude session: choose the folder and how Claude starts (continue, resume, plan mode, custom arguments)
+          Ctrl+Shift+R: restart Claude in the same folder with the same arguments
           Ctrl+O: Claude's detailed view on or off
           Ctrl+Shift+C: send Ctrl+C to Claude
           Ctrl+Shift+M: next permission mode

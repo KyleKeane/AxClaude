@@ -65,6 +65,7 @@ internal sealed class MainForm : Form
     {
         AccessibleRole = AccessibleRole.Window;
         _options = options;
+        _claudeArgs = options.ClaudeArgs is { } given ? [.. given] : null;
         _settings = settings;
         _settingsError = settingsError;
         _folder = options.Folder ?? (settings.LastProjectFolder is { } last && Directory.Exists(last) ? last : null);
@@ -298,7 +299,8 @@ internal sealed class MainForm : Form
         var project = new ToolStripMenuItem("&Project");
         _currentFolderItem.Click += (_, _) => CopyFolder();
         project.DropDownItems.Add(_currentFolderItem);
-        project.DropDownItems.Add(new ToolStripMenuItem("&Change folder...", null, (_, _) => ChangeFolder()) { ShortcutKeys = Keys.Control | Keys.N });
+        project.DropDownItems.Add(new ToolStripMenuItem("&Change folder...", null, (_, _) => ChangeFolder()));
+        project.DropDownItems.Add(new ToolStripMenuItem("&New session...", null, (_, _) => NewSession()) { ShortcutKeys = Keys.Control | Keys.N });
         _recentFoldersItem.DropDownOpening += (_, _) => FillRecentFolders();
         _recentFoldersItem.DropDownItems.Add(new ToolStripMenuItem("(none)") { Enabled = false });
         project.DropDownItems.Add(_recentFoldersItem);
@@ -1102,21 +1104,28 @@ internal sealed class MainForm : Form
         }
     }
 
-    private bool ChooseFolder()
+    /// <summary>The standard folder picker (one of the few separate windows, D23); null when it was cancelled.</summary>
+    private string? PickFolder(string? start)
     {
         using var dialog = new FolderBrowserDialog
         {
             Description = "Choose the project folder for Claude",
             UseDescriptionForTitle = true,
-            InitialDirectory = _folder ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            InitialDirectory = start ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ShowNewFolderButton = true,
         };
-        if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(dialog.SelectedPath))
+        return dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath) ? dialog.SelectedPath : null;
+    }
+
+    private bool ChooseFolder()
+    {
+        if (PickFolder(_folder) is not { } folder)
         {
             return false;
         }
 
-        _folder = dialog.SelectedPath;
+        _folder = folder;
+        _nothingToContinue = false;
         UpdateFolderUi();
         return true;
     }
@@ -1141,12 +1150,81 @@ internal sealed class MainForm : Form
         }
 
         _folder = folder;
+        _nothingToContinue = false;
         UpdateFolderUi();
         Announce($"Project folder changed to {FolderName(folder)}", false);
         Relaunch($"Project folder changed to {folder}");
     }
 
+    // ---- New session (FR-8.6) ----
+
+    /// <summary>The recommended ways to start Claude, in the order of the notice; Custom comes after them.</summary>
+    private static readonly OverlayPreset[] SessionPresets =
+    [
+        new("New conversation", []),
+        new("Continue the last conversation", ["--continue"]),
+        new("Choose a conversation to resume", ["--resume"]),
+        new("New conversation in plan mode", ["--permission-mode", "plan"]),
+        new("New conversation, edits accepted without asking", ["--permission-mode", "acceptEdits"]),
+    ];
+
+    /// <summary>
+    /// Project → New session… (Ctrl+N): the folder with a Choose folder button under it, the recommended argument
+    /// sets as radio buttons, Custom with a free argument field. Enter stops the current session and starts a new
+    /// one in the folder with those arguments; Escape keeps the current session.
+    /// </summary>
+    private void NewSession()
+    {
+        var current = ClaudeArgs;
+        var selected = Array.FindIndex(SessionPresets, preset => preset.Arguments.SequenceEqual(current, StringComparer.Ordinal));
+        var custom = selected < 0 ? ClaudeLauncher.JoinArguments(current) : string.Empty;
+        var text = "Choose how Claude starts, then press Enter: the current session stops and a new one starts in the folder. Escape keeps the current session.";
+        if (ClaudeBusy)
+        {
+            text = "Claude is still working. A new session stops it in the middle of its work.\n" + text;
+        }
+
+        ShowNotice(
+            "New Claude session",
+            text,
+            [
+                new OverlayChoice("&Start session", StartNewSession, IsDefault: true),
+                new OverlayChoice("Cancel", IsCancel: true),
+            ],
+            session: new OverlaySession(_folder, ChooseSessionFolder, SessionPresets, selected < 0 ? SessionPresets.Length : selected, custom));
+    }
+
+    private void ChooseSessionFolder()
+    {
+        if (PickFolder(_overlay.SessionFolder ?? _folder) is { } folder)
+        {
+            _overlay.SetSessionFolder(folder);
+        }
+    }
+
+    private void StartNewSession()
+    {
+        var folder = _overlay.SessionFolder;
+        if (folder is null || !Directory.Exists(folder))
+        {
+            Fail("The folder no longer exists: " + folder);
+            return;
+        }
+
+        var arguments = _overlay.SelectedPreset?.Arguments ?? ClaudeLauncher.SplitArguments(_overlay.CustomArguments);
+        _folder = folder;
+        _nothingToContinue = false;
+        UpdateFolderUi();
+        _claudeArgs = [.. arguments];
+        var with = arguments.Count > 0 ? " with " + ClaudeLauncher.JoinArguments(arguments) : " with no extra arguments";
+        Announce($"New session in {FolderName(folder)}", false);
+        Relaunch($"New session in {folder}{with}");
+    }
+
     // ---- Claude process ----
+
+    /// <summary>The arguments Claude gets after --ax-screen-reader: the chosen ones, or the default (FR-9.1).</summary>
+    private IReadOnlyList<string> ClaudeArgs => _claudeArgs ?? (_nothingToContinue ? [] : ["--continue"]);
 
     private void StartClaude()
     {
@@ -1327,7 +1405,7 @@ internal sealed class MainForm : Form
     /// field, or the top of the text), the menu and the window's shortcuts are blocked, and Enter and Escape go to
     /// the default and cancel buttons. A notice shown while another is open replaces it.
     /// </summary>
-    private void ShowNotice(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input = null)
+    private void ShowNotice(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input = null, OverlaySession? session = null)
     {
         if (!_noticeOpen)
         {
@@ -1337,7 +1415,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = true;
-        _overlay.Populate(title, text, choices, input);
+        _overlay.Populate(title, text, choices, input, session);
         _overlay.Visible = true;
         _overlay.BringToFront();
         AcceptButton = _overlay.DefaultButton;
