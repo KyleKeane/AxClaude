@@ -74,7 +74,8 @@ if ($updated -eq $xml -and $xml -notmatch "<Version>$([regex]::Escape($Version))
     Write-Host "No <Version> element was found in $project."
     exit 1
 }
-Set-Content -Path $project -Value $updated -Encoding utf8 -NoNewline
+# Not Set-Content -Encoding utf8: in Windows PowerShell 5.1 that writes a byte order mark.
+[IO.File]::WriteAllText($project, $updated, (New-Object System.Text.UTF8Encoding($false)))
 
 git -C $root add -- CHANGELOG.md src/AxClaude/AxClaude.csproj
 git -C $root commit -q -m "Release $Version"
