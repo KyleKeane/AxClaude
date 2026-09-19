@@ -5,7 +5,7 @@
 .EXAMPLE
   .\run.ps1                       # current folder is the project
   .\run.ps1 C:\src\myproject      # that folder is the project
-  .\run.ps1 C:\src\myproject -- --continue   # extra arguments go to claude
+  .\run.ps1 C:\src\myproject -- --resume     # extra arguments go to claude (default: --continue)
   .\run.ps1 -NoBuild              # skip the build, just start
   .\run.ps1 -Test                 # run the unit tests instead
 

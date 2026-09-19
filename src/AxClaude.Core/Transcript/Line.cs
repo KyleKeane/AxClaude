@@ -50,7 +50,7 @@ public sealed class Line
     public bool JoinedToPrevious { get; internal set; }
 
     public bool Committed { get; internal set; }
-    public bool Hidden => ChromeHidden || EchoHidden;
+    public bool Hidden => ChromeHidden || EchoHidden || ReplayHidden;
     /// <summary>A line the app inserted (a marker, a printed message line or blank line, a system line, a bookmark): never classified by text, never hidden.</summary>
     public bool IsMarker => Kind is LineKind.InputMarker or LineKind.OutputMarker or LineKind.System or LineKind.UserMessage or LineKind.Bookmark;
 
@@ -58,6 +58,8 @@ public sealed class Line
     internal string? StickyChromeText { get; set; }
     internal bool EchoHidden { get; set; }
     internal bool EchoHandled { get; set; }
+    /// <summary>Printed while a restart replayed a conversation the window already shows (FR-4.8).</summary>
+    internal bool ReplayHidden { get; set; }
     internal Vt.Row? Row { get; set; }
 
     public override string ToString() => $"{Id}: [{Kind}] {Text}";

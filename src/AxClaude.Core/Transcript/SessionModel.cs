@@ -53,6 +53,13 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>A spinner row or an "esc to interrupt" hint was on screen at the end of the last frame.</summary>
     public bool Working { get; private set; }
 
+    /// <summary>
+    /// While set, every line Claude prints is hidden: a restart in the same folder with --continue replays a
+    /// conversation the window already shows (FR-4.8). The window clears it once Claude is ready; a question or an
+    /// exit before that shows the hidden lines after all (<see cref="ShowHiddenLines"/>).
+    /// </summary>
+    public bool HideReplay { get; set; }
+
     public string? Spinner { get; private set; }
 
     /// <summary>Messages Claude shows as queued inside its working block (sent while it was busy, not yet taken up).</summary>
@@ -217,6 +224,134 @@ public sealed partial class SessionModel : ILineStore
     }
 
     /// <summary>Freezes every line that is still on screen and starts a fresh screen (used when Claude restarts).</summary>
+    /// <summary>
+    /// The exchange blocks for the conversation Claude replays at startup with --continue (FR-4.8). Each visible
+    /// <c>you:</c> row that is not a slash command gets <c># Input n from previous session</c> in front of it and,
+    /// before the reply row that follows, a blank line, <c># Output n from previous session Reply from Claude</c>
+    /// and a blank line; the <c>you:</c> rows stay as the message. n counts from 1 in replay order; the live
+    /// numbering is separate and starts at 1 for every run of the app. Rows before the last system line belong to
+    /// an earlier run in the same window and were marked then. The last past output marker counts as a response
+    /// already started, so the replay never announces "Claude is responding". Called once Claude is ready.
+    /// </summary>
+    public void MarkReplayedExchanges()
+    {
+        var start = 0;
+        for (var i = _lines.Count - 1; i >= 0; i--)
+        {
+            if (_lines[i].Kind == LineKind.System)
+            {
+                start = i + 1;
+                break;
+            }
+        }
+
+        var n = 0;
+        var changed = false;
+        var end = AnchorIndex();
+        for (var i = start; i < end; i++)
+        {
+            var line = _lines[i];
+            if (line.Hidden || line.IsMarker || !IsPastMessage(line.Text))
+            {
+                continue;
+            }
+
+            n++;
+            if (i > start && _lines[i - 1].Kind == LineKind.InputMarker)
+            {
+                continue;
+            }
+
+            _lines.Insert(i, new Line(_nextId++, LineKind.InputMarker, $"# Input {n} from previous session") { HeadingLevel = 1 });
+            i++;
+            end++;
+            var reply = ReplyStart(i + 1, end);
+            if (reply > 0)
+            {
+                var output = new Line(_nextId++, LineKind.OutputMarker, $"# Output {n} from previous session Reply from Claude") { HeadingLevel = 1 };
+                _lines.InsertRange(reply, [new Line(_nextId++, LineKind.UserMessage, string.Empty), output, new Line(_nextId++, LineKind.UserMessage, string.Empty)]);
+                _responseStartedFor = output;
+                end += 3;
+                i = reply + 2;
+            }
+
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>A replayed message row: <c>you:</c> followed by something other than a slash command.</summary>
+    private static bool IsPastMessage(string text)
+    {
+        if (!text.StartsWith("you:", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var rest = text.AsSpan("you:".Length).TrimStart();
+        return rest.Length > 0 && rest[0] != '/';
+    }
+
+    /// <summary>The first reply row (claude:, thinking:, tool:) at or after <paramref name="from"/>, or -1 when another message comes first.</summary>
+    private int ReplyStart(int from, int end)
+    {
+        for (var j = from; j < end; j++)
+        {
+            var line = _lines[j];
+            if (line.Hidden || line.IsMarker)
+            {
+                continue;
+            }
+
+            if (line.Text.StartsWith("you:", StringComparison.Ordinal))
+            {
+                return -1;
+            }
+
+            if (line.Text.StartsWith("claude:", StringComparison.Ordinal) || line.Text.StartsWith("thinking:", StringComparison.Ordinal) || line.Text.StartsWith("tool", StringComparison.Ordinal))
+            {
+                return j;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>Stops hiding and shows every line hidden as a replay: Claude asked something or exited before it was ready (FR-4.8).</summary>
+    public void ShowHiddenLines()
+    {
+        HideReplay = false;
+        var changed = false;
+        foreach (var line in _lines)
+        {
+            changed |= line.ReplayHidden;
+            line.ReplayHidden = false;
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>True when Claude's last lines say it found no conversation to continue (FR-9.1).</summary>
+    public bool SaidNoConversationToContinue()
+    {
+        for (var i = _lines.Count - 1; i >= 0 && i >= _lines.Count - 20; i--)
+        {
+            if (_lines[i].Text.StartsWith("No conversation found to continue", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public void ResetScreen()
     {
         PullRowText();
@@ -244,7 +379,7 @@ public sealed partial class SessionModel : ILineStore
 
     public Line CreateLine(Line? before)
     {
-        var line = new Line(_nextId++, LineKind.Plain, string.Empty);
+        var line = new Line(_nextId++, LineKind.Plain, string.Empty) { ReplayHidden = HideReplay };
         var index = before is null ? -1 : _lines.LastIndexOf(before);
         if (index < 0)
         {
@@ -299,10 +434,12 @@ public sealed partial class SessionModel : ILineStore
                 row.Dirty = false;
                 if (text != line.Text)
                 {
-                    // The row now shows something else: whatever the echo handling decided about it no longer applies.
+                    // The row now shows something else: whatever the echo handling decided about it no longer applies,
+                    // and a row that held hidden replay text now holds live text once the replay is over.
                     line.Text = text;
                     line.EchoHidden = false;
                     line.EchoHandled = false;
+                    line.ReplayHidden &= HideReplay;
                 }
             }
         }

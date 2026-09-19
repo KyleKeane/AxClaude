@@ -15,7 +15,7 @@ A small Windows app that runs Claude Code in screen reader mode inside a hidden 
 ```
 .\run.ps1                                  # build, then start on the current folder
 .\run.ps1 C:\path\to\project               # start on that folder
-.\run.ps1 C:\path\to\project -- --continue # arguments after -- go to claude
+.\run.ps1 C:\path\to\project -- --resume   # arguments after -- go to claude (default: --continue)
 .\run.ps1 -NoBuild                         # start without building
 .\run.ps1 -Test                            # run the unit tests
 ```

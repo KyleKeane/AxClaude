@@ -32,6 +32,70 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void Replayed_exchanges_get_marked_blocks_and_the_numbering_continues_after_them()
+    {
+        var model = new SessionModel(80, 12);
+        Feed(model, $"{Esc}[?25lyou: Reply with exactly the word OK\r\nclaude: OK\r\nBrewed for 2s · done 8:44 AM\r\nyou: /exit\r\nBye!\r\nyou: And again\r\nclaude: OK\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Equal(["you: Reply with exactly the word OK", "claude: OK", "Brewed for 2s · done 8:44 AM", "you: /exit", "Bye!", "you: And again", "claude: OK"], Visible(model));
+
+        // Two earlier exchanges get the blocks; the slash command does not.
+        model.MarkReplayedExchanges();
+        Assert.Equal(
+            [
+                "# Input 1 from previous session", "you: Reply with exactly the word OK", "", "# Output 1 from previous session Reply from Claude", "", "claude: OK", "Brewed for 2s · done 8:44 AM",
+                "you: /exit", "Bye!",
+                "# Input 2 from previous session", "you: And again", "", "# Output 2 from previous session Reply from Claude", "", "claude: OK",
+            ],
+            Visible(model));
+        Assert.All(model.Lines.Where(l => l.Text.StartsWith("# ")), l => Assert.Equal(1, l.HeadingLevel));
+
+        // A second pass changes nothing, the past output marker is no response start, and the live numbering starts at 1.
+        var started = 0;
+        model.ResponseStarted += () => started++;
+        model.MarkReplayedExchanges();
+        model.EndFrame();
+        Assert.Equal(15, Visible(model).Count);
+        Assert.Equal(0, started);
+        Assert.True(model.Send("next"));
+        Assert.Equal("# Input 1", Visible(model)[15]);
+    }
+
+    [Fact]
+    public void A_replay_printed_while_hiding_stays_hidden_and_live_rows_show_again()
+    {
+        var model = new SessionModel(80, 12);
+        model.AddSystemLine("Restarting Claude");
+        model.HideReplay = true;
+        Feed(model, $"{Esc}[?25lyou: earlier question\r\nclaude: earlier answer\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Equal(["System: Restarting Claude"], Visible(model));
+
+        // Ready: the replay stays hidden, and the rows Claude rewrites afterwards show their live text.
+        model.HideReplay = false;
+        model.MarkReplayedExchanges();
+        Assert.True(model.Send("next"));
+        Feed(model, $"{Esc}[?25l{Esc}[3;1Hyou: next{Esc}[K\r\nclaude: live answer{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal(["System: Restarting Claude", "# Input 1", "next", "", "# Output 1 Reply from Claude", "", "claude: live answer"], Visible(model));
+
+        // A question before ready shows everything after all.
+        var second = new SessionModel(80, 12);
+        second.HideReplay = true;
+        Feed(second, $"{Esc}[?25lyou: earlier question\r\nEnter y/n:\r\n{Esc}[?25h");
+        Assert.Empty(Visible(second));
+        second.ShowHiddenLines();
+        Assert.False(second.HideReplay);
+        Assert.Equal(["you: earlier question", "Enter y/n:"], Visible(second));
+    }
+
+    [Fact]
+    public void Claude_saying_no_conversation_to_continue_is_recognised()
+    {
+        var model = new SessionModel(80, 10);
+        Assert.False(model.SaidNoConversationToContinue());
+        Feed(model, $"{Esc}[?25l[Screen Reader Mode: on via flag]\r\nNo conversation found to continue\r\n{Esc}[?25h");
+        Assert.True(model.SaidNoConversationToContinue());
+    }
+
+    [Fact]
     public void A_message_sent_while_claude_works_stays_out_of_the_conversation_until_its_echo()
     {
         var model = new SessionModel(80, 12);

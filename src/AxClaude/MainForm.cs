@@ -592,6 +592,12 @@ internal sealed class MainForm : Form
 
         if (_model.PromptPending)
         {
+            if (_model.HideReplay)
+            {
+                // A question before Claude is ready must be seen, replay or not.
+                _model.ShowHiddenLines();
+            }
+
             if (!_promptAnnounced)
             {
                 _attention.Stop();
@@ -606,6 +612,8 @@ internal sealed class MainForm : Form
         if (!_readyAnnounced && _host is not null && _model.Mode is not null && !_model.Working && !_model.PromptPending)
         {
             _readyAnnounced = true;
+            _model.HideReplay = false;
+            _model.MarkReplayedExchanges();
             Announce("Claude is ready", false);
             if (_settings.SoundOnBell)
             {
@@ -1300,7 +1308,8 @@ internal sealed class MainForm : Form
             arguments.Add("--ax-screen-reader");
         }
 
-        arguments.AddRange(_options.ClaudeArgs);
+        arguments.AddRange(ClaudeArgs);
+        _launchedFolder = _folder;
 
         PtyHost host;
         try
@@ -1407,6 +1416,21 @@ internal sealed class MainForm : Form
         _model.EndFrame();
         StopClaude();
         Log.Info($"Claude exited with code {_exitCode}");
+        if (_model.HideReplay)
+        {
+            // Claude ended before it was ready: whatever it printed is the explanation.
+            _model.ShowHiddenLines();
+        }
+
+        if (_claudeArgs is null && !_nothingToContinue && _model.SaidNoConversationToContinue())
+        {
+            // The default --continue in a folder without a conversation: Claude says so and exits (FR-9.1).
+            _nothingToContinue = true;
+            Announce("No conversation to continue. Starting a new one", false);
+            Relaunch("No conversation to continue here; starting a new one");
+            return;
+        }
+
         _model.AddSystemLine($"Claude stopped (exit code {_exitCode}). Press Ctrl+Shift+R to start it again.");
         Announce("Claude stopped", false);
     }
@@ -1429,6 +1453,8 @@ internal sealed class MainForm : Form
         StopClaude();
         _model.ResetScreen();
         _model.AddSystemLine(systemLine);
+        // The same folder with --continue replays the conversation the window already shows: hidden until Claude is ready (FR-4.8).
+        _model.HideReplay = _folder is not null && string.Equals(_folder, _launchedFolder, StringComparison.OrdinalIgnoreCase) && ClaudeArgs.Contains("--continue");
         if (_folder is not null)
         {
             StartClaude();
@@ -1539,7 +1565,7 @@ internal sealed class MainForm : Form
             : "If you close now, Claude stops in the middle of its work and the update is installed.";
         ShowNotice("Close AxClaude?",
             $"{state}. {consequence}\n" +
-            "What is done so far is saved. Start AxClaude with -- --continue to carry on later.\n" +
+            "What is done so far is saved. Start AxClaude again to carry on.\n" +
             "Enter closes anyway. Escape keeps AxClaude open.",
         [
             new OverlayChoice("&Close anyway", () =>

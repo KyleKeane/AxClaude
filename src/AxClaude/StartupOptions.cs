@@ -2,7 +2,8 @@ namespace AxClaude;
 
 /// <summary>
 /// Command line: <c>AxClaude [&lt;folder&gt;] [--project &lt;folder&gt;] [--claude &lt;path&gt;] [--cols N] [--rows N] [--no-ax]
-/// [--record &lt;file.vt&gt;] [-- claude arguments]</c>. Values not given fall back to the settings file.
+/// [--record &lt;file.vt&gt;] [-- claude arguments]</c>. Values not given fall back to the settings file. <see cref="ClaudeArgs"/>
+/// is null when no <c>--</c> was given (the window then uses <c>--continue</c>, FR-9.1) and empty after a bare <c>--</c>.
 /// </summary>
 internal sealed record StartupOptions(
     string? Folder,
@@ -11,7 +12,7 @@ internal sealed record StartupOptions(
     int? Columns,
     int? Rows,
     string? RecordPath,
-    IReadOnlyList<string> ClaudeArgs)
+    IReadOnlyList<string>? ClaudeArgs)
 {
     public const string Usage = """
         Usage: AxClaude [<folder>] [--project <folder>] [--claude <path>] [--cols N] [--rows N] [--no-ax] [--record <file.vt>] [-- claude arguments]
@@ -21,7 +22,8 @@ internal sealed record StartupOptions(
           --cols N, --rows N  size of the hidden console Claude writes to (default 240 by 50)
           --record <file.vt>  record the raw console stream for a bug report
           --no-ax             start Claude without --ax-screen-reader (testing only)
-          -- ...              everything after -- goes to claude, for example -- --continue or -- --resume <id>
+          -- ...              everything after -- goes to claude, for example -- --resume <id> or -- --permission-mode plan
+                              (default: --continue, the last conversation in the folder; a bare -- starts a new one)
           --help, --version   this text, or the version
         """;
 
@@ -33,7 +35,7 @@ internal sealed record StartupOptions(
         var noAx = false;
         int? columns = null;
         int? rows = null;
-        var claudeArgs = new List<string>();
+        List<string>? claudeArgs = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -41,7 +43,7 @@ internal sealed record StartupOptions(
             switch (arg)
             {
                 case "--":
-                    claudeArgs.AddRange(args.Skip(i + 1));
+                    claudeArgs = args.Skip(i + 1).ToList();
                     i = args.Length;
                     break;
                 case "--claude":
