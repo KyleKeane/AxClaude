@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.1 - 2026-09-19
 
 - Fixed: Ctrl+O is no longer sent to Claude. In screen reader mode Claude's detailed view redraws the whole conversation from the first message on screen, which gave the conversation a second copy of every message and made Speak replies read old replies again. Ctrl+O now says why it does nothing and points at `--verbose` for tool output; the Session menu item is gone.
 
