@@ -98,6 +98,13 @@ public static partial class LineClassifier
         return m.Success ? m.Groups[1].Value : null;
     }
 
+    /// <summary>A row Claude prints when it waits for an answer: a permission or trust question, a numbered menu, a yes-or-no question (§4.4).</summary>
+    public static bool IsPromptText(string text) =>
+        text.StartsWith("Permission Required:", StringComparison.Ordinal)
+        || text.StartsWith("Enter selection", StringComparison.Ordinal)
+        || text.StartsWith("Enter y/n", StringComparison.Ordinal)
+        || text.StartsWith("Select with numbers", StringComparison.Ordinal);
+
     public static LineKind Classify(string text, bool inPromptBlock)
     {
         if (text.StartsWith("you:", StringComparison.Ordinal)) return LineKind.UserEcho;
@@ -107,9 +114,7 @@ public static partial class LineClassifier
         if (text.StartsWith("tool:", StringComparison.Ordinal) || text.EndsWith("(ctrl+o to expand)", StringComparison.Ordinal)) return LineKind.Tool;
         if (text.StartsWith("error:", StringComparison.Ordinal)) return LineKind.Error;
         if (text.StartsWith("warning:", StringComparison.Ordinal)) return LineKind.Warning;
-        if (text.StartsWith("Permission Required:", StringComparison.Ordinal)
-            || text.StartsWith("Enter selection", StringComparison.Ordinal)
-            || text.StartsWith("Enter y/n", StringComparison.Ordinal))
+        if (IsPromptText(text))
         {
             return LineKind.Prompt;
         }

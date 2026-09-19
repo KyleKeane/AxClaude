@@ -87,6 +87,69 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void A_you_row_that_repeats_no_message_is_not_charged_to_a_pending_send()
+    {
+        var model = new SessionModel(80, 12);
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Feed(model, $"{Esc}[?25l{Esc}[1;1Hclaude: Working on it.{Esc}[K\r\nRunning…{Esc}[K\r\nauto mode on (shift+tab to cycle)  ·  esc to interrupt{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.True(model.Working);
+        Assert.True(model.Send("real question"));
+        Assert.Equal(["claude: Working on it."], Visible(model));
+
+        // A tool result quotes a you: row: it stays a row of the result and the held block stays held.
+        Feed(model, $"{Esc}[?25l{Esc}[2;1Htool: Bash (dump){Esc}[K\r\nyou: Reply with exactly the word OK{Esc}[K\r\nRunning…{Esc}[K\r\nauto mode on (shift+tab to cycle)  ·  esc to interrupt{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal(["claude: Working on it.", "tool: Bash (dump)", "you: Reply with exactly the word OK"], Visible(model));
+
+        // The real echo places the block in front of itself and is hidden.
+        Feed(model, $"{Esc}[?25l{Esc}[4;1Hyou: real question{Esc}[K\r\nclaude: The answer.{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal(
+            ["claude: Working on it.", "tool: Bash (dump)", "you: Reply with exactly the word OK", "# Input 1", "real question", "", "# Output 1 Reply from Claude", "", "claude: The answer."],
+            Visible(model));
+    }
+
+    [Fact]
+    public void A_quoted_screen_reader_line_does_not_stop_the_replay_marking()
+    {
+        var model = new SessionModel(80, 14);
+        Feed(model, $"{Esc}[?25l[Screen Reader Mode: on via flag]\r\nyou: first\r\nclaude: one\r\ntool: Bash (dump)\r\n[Screen Reader Mode: on via flag]\r\nyou: second\r\nclaude: two\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        model.MarkReplayedExchanges();
+        Assert.Equal(["# Input 1 from previous session", "# Input 2 from previous session"], model.Lines.Where(l => l.Kind == LineKind.InputMarker).Select(l => l.Text).ToList());
+    }
+
+    [Fact]
+    public void Rows_that_scroll_away_inside_a_frame_are_still_classified()
+    {
+        var model = new SessionModel(80, 6);
+        var burst = new StringBuilder($"{Esc}[?25lyou: early question\r\n");
+        for (var i = 0; i < 20; i++)
+        {
+            burst.Append($"line {i}\r\n");
+        }
+
+        burst.Append($"auto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Feed(model, burst.ToString());
+        var early = model.Lines.Single(l => l.Text == "you: early question");
+        Assert.True(early.Committed);
+        Assert.Equal(LineKind.UserEcho, early.Kind);
+    }
+
+    [Fact]
+    public void A_prompt_is_pending_only_when_the_cursor_sits_on_it()
+    {
+        // A tool result quoting a question, with Claude idle at its own prompt: no question.
+        var model = new SessionModel(80, 12);
+        Feed(model, $"{Esc}[?25ltool: Bash (dump)\r\nEnter y/n:\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.False(model.PromptPending);
+        Assert.True(model.Send("hello"));
+
+        // The effort menu: the cursor waits at the end of its prompt row, and the answer is no message.
+        var menu = new SessionModel(80, 12);
+        Feed(menu, $"{Esc}[?25lEffort\r\n1. low\r\n2. (selected) high\r\nSelect with numbers [1-2]. Then Enter to submit or Escape to cancel:{Esc}[?25h");
+        Assert.True(menu.PromptPending);
+        Assert.False(menu.Send("2"));
+    }
+
+    [Fact]
     public void Claude_saying_no_conversation_to_continue_is_recognised()
     {
         var model = new SessionModel(80, 10);

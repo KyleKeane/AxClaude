@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fixed: a `you:` row that repeats no sent message (quoted in a tool result, replayed at startup, or printed for a slash command) no longer claims a waiting message's Input and Output block, which could land far up in the conversation.
+- Fixed: the headings for replayed exchanges stopped at a quoted "[Screen Reader Mode:" row, leaving earlier exchanges without them.
+- Fixed: rows that scrolled past within one burst of output were never classified, so `i`, `c` and `t` skipped them.
+- Fixed: a question is pending only while Claude's cursor sits on its prompt row, so a prompt quoted in a tool result no longer announces "Claude needs your answer" or turns the next message into an answer. The numbered menus of `/effort` and `/model` ("Select with numbers") now count as questions: the typed number is announced as "Answer sent" and gets no Input and Output block.
+
 ## 1.1.0 - 2026-09-19
 
 - Ctrl+N opens New session: a notice with the folder and a Choose folder button, a list of ways to start Claude (new conversation, continue the last conversation, choose a conversation to resume, plan mode, edits accepted without asking) and Custom for Claude Code's own command line arguments, one or more on each line. Enter stops the current session and starts the new one; Restart Claude keeps the choice. Change folder stays in the Project menu, above New session, without a shortcut.

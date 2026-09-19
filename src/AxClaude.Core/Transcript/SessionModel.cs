@@ -14,8 +14,6 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>A sent message and the block the app prints for it (FR-4.1); <c>Block[0]</c> is in the transcript once the block is placed.</summary>
     private sealed record PendingSend(string Text, IReadOnlyList<Line> Block, DateTime Created);
 
-    private sealed record HandledSend(PendingSend Send, Line Echo);
-
     // A message sent while Claude is busy is echoed only when Claude gets to it, which can take minutes.
     private static readonly TimeSpan PendingLifetime = TimeSpan.FromMinutes(30);
 
@@ -25,7 +23,8 @@ public sealed partial class SessionModel : ILineStore
 
     private readonly List<Line> _lines = [];
     private readonly List<PendingSend> _pending = [];
-    private readonly List<HandledSend> _handled = [];
+    /// <summary>The last line of the previous run in this window, set by <see cref="ResetScreen"/>: the replay marking starts after it (FR-4.8).</summary>
+    private Line? _runBoundary;
     private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
     private char[] _chars = new char[4096];
     private Screen _screen = null!;
@@ -47,7 +46,7 @@ public sealed partial class SessionModel : ILineStore
     public IReadOnlyList<Line> Lines => _lines;
     public int ResponseCount { get; private set; }
 
-    /// <summary>The last content line is a prompt or one of its options, so Claude is waiting for an answer.</summary>
+    /// <summary>Claude's cursor sits on a prompt row, so it is waiting for an answer (FR-7.2).</summary>
     public bool PromptPending { get; private set; }
 
     /// <summary>A spinner row or an "esc to interrupt" hint was on screen at the end of the last frame.</summary>
@@ -118,7 +117,7 @@ public sealed partial class SessionModel : ILineStore
         JoinWrappedRows();
         HandleEchoes();
         PlaceBlocksWithoutEcho();
-        PromptPending = LastContentLine()?.Kind is LineKind.Prompt or LineKind.PromptOption;
+        PromptPending = CursorWaitsForAnswer();
         CheckResponseStarted();
         Trim();
         Changed?.Invoke();
@@ -229,22 +228,14 @@ public sealed partial class SessionModel : ILineStore
     /// <c>you:</c> row that is not a slash command gets <c># Input n from previous session</c> in front of it and,
     /// before the reply row that follows, a blank line, <c># Output n from previous session Reply from Claude</c>
     /// and a blank line; the <c>you:</c> rows stay as the message. n counts from 1 in replay order; the live
-    /// numbering is separate and starts at 1 for every run of the app. Rows before the last system line belong to
-    /// an earlier run in the same window and were marked then. The last past output marker counts as a response
-    /// already started, so the replay never announces "Claude is responding". Called once Claude is ready.
+    /// numbering is separate and starts at 1 for every run of the app. Only this run's output is looked at: the
+    /// rows of an earlier run in the same window end at <see cref="_runBoundary"/> and were marked then. The last
+    /// past output marker counts as a response already started, so the replay never announces "Claude is
+    /// responding". Called once Claude is ready.
     /// </summary>
     public void MarkReplayedExchanges()
     {
-        var start = 0;
-        for (var i = _lines.Count - 1; i >= 0; i--)
-        {
-            if (_lines[i].Kind == LineKind.System)
-            {
-                start = i + 1;
-                break;
-            }
-        }
-
+        var start = _runBoundary is null ? 0 : _lines.LastIndexOf(_runBoundary) + 1;
         var n = 0;
         var changed = false;
         var end = AnchorIndex();
@@ -365,6 +356,7 @@ public sealed partial class SessionModel : ILineStore
             }
         }
 
+        _runBoundary = _lines.Count > 0 ? _lines[^1] : null;
         NewScreen();
         Working = false;
         Spinner = null;
@@ -395,6 +387,12 @@ public sealed partial class SessionModel : ILineStore
 
     public void Commit(Line line)
     {
+        if (!line.IsMarker && line.Kind == LineKind.Plain)
+        {
+            // Written and scrolled away inside one frame: the frame-end pass never saw it.
+            line.Kind = LineClassifier.Classify(line.Text, false);
+        }
+
         line.Committed = true;
         line.Row = null;
     }
@@ -730,7 +728,6 @@ public sealed partial class SessionModel : ILineStore
             }
         }
 
-        _handled.RemoveAll(h => DateTime.UtcNow - h.Send.Created > PendingLifetime);
     }
 
     /// <summary>Handles the new echo at <paramref name="index"/>; returns the index of the last row it covers.</summary>
@@ -739,20 +736,16 @@ public sealed partial class SessionModel : ILineStore
         line.EchoHandled = true;
         List<Line>? block = null;
         // Echoes normally arrive in send order, but a message sent while Claude was busy is echoed later than one
-        // sent after it was answered, so prefer the send whose text the echo repeats. A send whose earlier echo
-        // rows were rewritten with other text (the echo moved) is attached to the new rows. An echo that repeats
-        // nothing is charged to the oldest pending send, so that a held block still gets printed.
-        var send = _pending.FirstOrDefault(p => (block = EchoBlock(index, p.Text)) is not null)
-            ?? _handled.FirstOrDefault(h => !h.Echo.Text.StartsWith("you:", StringComparison.Ordinal) && (block = EchoBlock(index, h.Send.Text)) is not null)?.Send
-            ?? (_pending.Count > 0 ? _pending[0] : null);
+        // sent after it was answered, so prefer the send whose text the echo repeats. An echo that repeats
+        // nothing is left alone: a you: row quoted in a tool result, replayed at startup or printed for a slash
+        // command is not the message, and a held block whose echo never comes goes in once Claude is idle.
+        var send = _pending.FirstOrDefault(p => (block = EchoBlock(index, p.Text)) is not null);
         if (send is null)
         {
             return index;
         }
 
         _pending.Remove(send);
-        _handled.RemoveAll(h => ReferenceEquals(h.Send, send));
-        _handled.Add(new HandledSend(send, line));
         if (_lines.LastIndexOf(send.Block[0]) < 0)
         {
             InsertBlock(send, _lines.LastIndexOf(line));
@@ -861,6 +854,23 @@ public sealed partial class SessionModel : ILineStore
         {
             _lines.RemoveRange(0, count);
         }
+    }
+
+    /// <summary>
+    /// Claude waits for an answer when the cursor sits on a prompt row (<c>Enter selection</c>, <c>Enter y/n</c>,
+    /// <c>Select with numbers</c>) or on the blank row under one. Only the cursor row counts: a tool result or a
+    /// replay can quote such text anywhere else (§4.4).
+    /// </summary>
+    private bool CursorWaitsForAnswer()
+    {
+        var cy = _screen.CursorRow;
+        var line = _screen.LineAt(cy);
+        if (line is not null && LineClassifier.IsPromptText(line.Text))
+        {
+            return true;
+        }
+
+        return (line is null || line.Text.Length == 0) && cy > 0 && _screen.LineAt(cy - 1) is { } above && LineClassifier.IsPromptText(above.Text);
     }
 
     private Line? LastContentLine()
