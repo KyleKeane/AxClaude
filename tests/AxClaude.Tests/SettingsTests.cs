@@ -1,4 +1,5 @@
 using AxClaude.Core;
+using AxClaude.Core.Transcript;
 
 namespace AxClaude.Tests;
 
@@ -10,7 +11,7 @@ public class SettingsTests
         var path = Path.Combine(Path.GetTempPath(), "axclaude-tests", Guid.NewGuid().ToString("N"), "settings.json");
         try
         {
-            var settings = new AppSettings { FontFamily = "Consolas", FontSize = 14, SpeakReplies = true, PtyColumns = 200, MarkerTimeStamps = true, JoinWrappedLines = false };
+            var settings = new AppSettings { FontFamily = "Consolas", FontSize = 14, ReplySpeech = ReplySpeechMode.FirstLines, SpeakToolCalls = true, PtyColumns = 200, MarkerTimeStamps = true, JoinWrappedLines = false };
             settings.RememberFolder(@"C:\one");
             settings.RememberFolder(@"C:\two");
             settings.RememberFolder(@"c:\ONE");
@@ -21,7 +22,10 @@ public class SettingsTests
             Assert.Null(error);
             Assert.Equal("Consolas", loaded.FontFamily);
             Assert.Equal(14, loaded.FontSize);
-            Assert.True(loaded.SpeakReplies);
+            Assert.Equal(ReplySpeechMode.FirstLines, loaded.ReplySpeech);
+            Assert.Contains("\"replySpeech\": \"firstLines\"", File.ReadAllText(path));
+            Assert.DoesNotContain("speakReplies", File.ReadAllText(path));
+            Assert.True(loaded.SpeakToolCalls);
             Assert.Equal(200, loaded.PtyColumns);
             Assert.True(loaded.MarkerTimeStamps);
             Assert.False(loaded.JoinWrappedLines);
@@ -63,6 +67,13 @@ public class SettingsTests
             Assert.Equal(0, sanitized.FontSize);
             Assert.Equal([@"C:\x"], sanitized.RecentFolders);
             Assert.Null(sanitized.Window);
+            Assert.Equal(ReplySpeechMode.None, sanitized.ReplySpeech);
+
+            // The 1.1 key: speaking replies meant every line.
+            File.WriteAllText(path, """{ "speakReplies": true }""");
+            var upgraded = AppSettings.Load(path, out error);
+            Assert.Null(error);
+            Assert.Equal(ReplySpeechMode.All, upgraded.ReplySpeech);
         }
         finally
         {

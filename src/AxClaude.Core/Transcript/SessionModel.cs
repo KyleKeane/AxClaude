@@ -222,7 +222,6 @@ public sealed partial class SessionModel : ILineStore
         return -1;
     }
 
-    /// <summary>Freezes every line that is still on screen and starts a fresh screen (used when Claude restarts).</summary>
     /// <summary>
     /// The exchange blocks for the conversation Claude replays at startup with --continue (FR-4.8). Each visible
     /// <c>you:</c> row that is not a slash command gets <c># Input n from previous session</c> in front of it and,
@@ -343,6 +342,12 @@ public sealed partial class SessionModel : ILineStore
         return false;
     }
 
+    /// <summary>
+    /// Freezes every line that is still on screen and starts a fresh screen for the next run of Claude in the same
+    /// window (Restart Claude, a folder change): the lines stay, and the replay marking of the next run starts after
+    /// the last of them (FR-4.8). The mode and the session name were the old run's and are forgotten, so the status
+    /// says "starting" until the new Claude prints its mode line, which is also what tells the window it is ready.
+    /// </summary>
     public void ResetScreen()
     {
         PullRowText();
@@ -357,11 +362,35 @@ public sealed partial class SessionModel : ILineStore
         }
 
         _runBoundary = _lines.Count > 0 ? _lines[^1] : null;
+        StartRun();
+    }
+
+    /// <summary>
+    /// Empties the conversation for a new session (FR-8.6): every line goes, the messages held for an echo with
+    /// them, and the exchange blocks and bookmarks count from 1 again, as at the first start of the app. The next
+    /// run's replay is then marked from its first row, since nothing of an earlier run is left in the window.
+    /// </summary>
+    public void Clear()
+    {
+        _lines.Clear();
+        _pending.Clear();
+        _runBoundary = null;
+        _responseStartedFor = null;
+        ResponseCount = 0;
+        _bookmarkCount = 0;
+        QueuedMessages = 0;
+        StartRun();
+    }
+
+    private void StartRun()
+    {
         NewScreen();
         Working = false;
         Spinner = null;
         PromptPending = false;
         TranscriptViewOpen = false;
+        Mode = null;
+        SessionName = null;
         Changed?.Invoke();
     }
 

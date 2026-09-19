@@ -22,6 +22,7 @@ internal static class HelpText
           Ctrl+Shift+S: make Claude take up the waiting message now instead of after its current step
           Ctrl+F: find text in the conversation. F3 and Shift+F3: next or previous match
           Ctrl+S: save the conversation as a text file
+          Ctrl+W: open the current folder in File Explorer
           Ctrl+N: new Claude session: choose the folder and how Claude starts (continue, resume, plan mode, custom arguments)
           Ctrl+Shift+R: restart Claude in the same folder with the same arguments
           Ctrl+O: Claude's detailed view on or off
@@ -36,6 +37,7 @@ internal static class HelpText
         Message field
           Enter: new line
           Ctrl+Enter: send
+          Page Up, Page Down: one screen of the field up or down, or the first or last line of the message
           Escape: does nothing; a reminder says that Shift+Escape interrupts Claude
           Shift+Tab: next permission mode
           Ctrl+Up, Ctrl+Down: send Up or Down to Claude

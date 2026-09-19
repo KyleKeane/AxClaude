@@ -1,7 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-09-19
 
+- New session (Ctrl+N) clears the conversation before Claude starts again: the window holds only the "New session in" line and what the new session prints, with the earlier exchanges under their "from previous session" headings when the last conversation is continued. Messages and bookmarks count from 1 again. Restart Claude keeps the conversation as before.
+- Fixed: the status bar said "ready" with the old permission mode while a restarted Claude was still coming up; it now says "starting" until the new session prints its mode line.
+- Speak replies as they arrive is now a choice of three in the Options menu: None, First lines only (the first line of each of Claude's messages, where Claude says what it is doing or what it found) and All lines. Each message is spoken in one piece once it is complete, so a long answer no longer stops after its first lines; tool output, thinking and the conversation replayed at startup are never spoken. The setting is `replySpeech` in the settings file; the old `speakReplies: true` is read as All lines.
+- Options → Speak each tool call speaks the `tool:` line of every tool Claude runs as soon as it appears, whichever reply choice is in use; tool output stays unspoken. The setting is `speakToolCalls`.
+- The tick for a new line is a touch bolder, like a typewriter key, and a tool call has a tick of its own, two lower strikes like a tiny ratchet, so a tool starting is told from a line arriving. Both stay short and quiet.
+- The Project menu item that names the current folder is now "Open current folder" (Ctrl+W from anywhere): it opens the folder in File Explorer. It used to copy the path.
+- Page Up and Page Down in the message field move one screen of the field at a time and reach the first and last line of the message; the field's own keys did nothing while the message fit its three lines. The conversation's paging works the same way.
+- Fixed: the tick for each new line could stop for the rest of the session when the audio device never finished an earlier sound; the tick now yields to a chime by the clock instead of asking Windows whether a sound is still playing.
 - Fixed: a `you:` row that repeats no sent message (quoted in a tool result, replayed at startup, or printed for a slash command) no longer claims a waiting message's Input and Output block, which could land far up in the conversation.
 - Fixed: the headings for replayed exchanges stopped at a quoted "[Screen Reader Mode:" row, leaving earlier exchanges without them.
 - Fixed: rows that scrolled past within one burst of output were never classified, so `i`, `c` and `t` skipped them.

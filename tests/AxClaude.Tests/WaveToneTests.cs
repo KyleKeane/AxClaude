@@ -48,31 +48,33 @@ public class WaveToneTests
     }
 
     [Fact]
-    public void Tick_dies_away()
+    public void Strikes_die_away_one_after_the_other()
     {
-        var wav = WaveTone.Tick(0.3, 3000, 12);
+        var wav = WaveTone.Strikes(0.3, 6, 0.5, 3000, 2000);
         var samples = (wav.Length - WaveTone.HeaderLength) / 2;
-        Assert.Equal(12 * WaveTone.SampleRate / 1000, samples);
+        var each = 6 * WaveTone.SampleRate / 1000;
+        Assert.Equal(2 * each, samples);
 
-        var firstQuarter = 0;
-        var lastQuarter = 0;
-        for (var i = 0; i < samples; i++)
+        int Peak(int from, int to)
         {
-            var value = Math.Abs((int)BitConverter.ToInt16(wav, WaveTone.HeaderLength + i * 2));
-            if (i < samples / 4)
+            var peak = 0;
+            for (var i = from; i < to; i++)
             {
-                firstQuarter = Math.Max(firstQuarter, value);
+                peak = Math.Max(peak, Math.Abs((int)BitConverter.ToInt16(wav, WaveTone.HeaderLength + i * 2)));
             }
-            else if (i >= samples * 3 / 4)
-            {
-                lastQuarter = Math.Max(lastQuarter, value);
-            }
+
+            return peak;
         }
 
-        Assert.True(firstQuarter > lastQuarter * 4, $"{firstQuarter} should be well above {lastQuarter}");
+        // Each strike is loud at its start and all but gone at its end; the second starts afresh once the first has faded.
+        Assert.True(Peak(0, each / 4) > Peak(each * 3 / 4, each) * 4, "the first strike should die away");
+        Assert.True(Peak(each, each + each / 4) > Peak(each * 3 / 4, each) * 4, "the second strike should start afresh");
+        Assert.True(Peak(each, each + each / 4) > Peak(2 * each - each / 4, 2 * each) * 4, "the second strike should die away");
+        Assert.InRange(Peak(0, samples), 0.1 * short.MaxValue, 0.3 * short.MaxValue + 1);
 
-        // The attack: the second sample is still far below the peak (a tone that starts at full volume clicks).
+        // The attack: the second sample is still far below the peak (a sound that starts at full volume clicks), and the first is silent.
+        Assert.Equal(0, BitConverter.ToInt16(wav, WaveTone.HeaderLength));
         var second = Math.Abs((int)BitConverter.ToInt16(wav, WaveTone.HeaderLength + 2));
-        Assert.True(second < firstQuarter / 4, $"{second} should be well below {firstQuarter}");
+        Assert.True(second < Peak(0, each / 4) / 4, $"{second} should be well below the peak");
     }
 }

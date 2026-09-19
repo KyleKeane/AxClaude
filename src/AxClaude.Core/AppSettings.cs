@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AxClaude.Core.Transcript;
 
 namespace AxClaude.Core;
 
@@ -27,6 +28,7 @@ public sealed class AppSettings
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
     public const int MaxRecentFolders = 10;
@@ -50,7 +52,16 @@ public sealed class AppSettings
     public bool SoundOnBell { get; set; } = true;
 
     public bool FlashTaskbar { get; set; } = true;
+
+    /// <summary>How much of a reply is spoken as it arrives (FR-7.4): none, the first line of each message, or all.</summary>
+    public ReplySpeechMode ReplySpeech { get; set; }
+
+    /// <summary>The 1.1 key, true meaning every line: read from an old file, turned into <see cref="ReplySpeech"/> and no longer written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool SpeakReplies { get; set; }
+
+    /// <summary>Speak the <c>tool:</c> row of each tool call as it arrives, whatever <see cref="ReplySpeech"/> says (FR-7.4).</summary>
+    public bool SpeakToolCalls { get; set; }
 
     /// <summary>A tick whenever a line from Claude arrives (FR-7.8).</summary>
     public bool ClickOnNewLine { get; set; } = true;
@@ -127,5 +138,7 @@ public sealed class AppSettings
         if (MaxTranscriptLines < 1000) MaxTranscriptLines = 1000;
         if (string.IsNullOrWhiteSpace(FontFamily)) FontFamily = null;
         if (Window is { } w && (w.Width < 200 || w.Height < 150)) Window = null;
+        if (SpeakReplies && ReplySpeech == ReplySpeechMode.None) ReplySpeech = ReplySpeechMode.All;
+        SpeakReplies = false;
     }
 }

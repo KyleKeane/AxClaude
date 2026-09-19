@@ -28,7 +28,7 @@ Claude works in one project folder at a time. Pick how you start:
 - Console: `axclaude` uses the current folder. `axclaude C:\my\project` uses that folder. AxClaude continues your last conversation in the folder, or starts a new one when there is none; `axclaude --` alone always starts a new one, and anything else after `--` goes to Claude Code, for example `axclaude -- --resume`.
 - File Explorer: right-click a folder and choose "Open in AxClaude".
 
-Ctrl+N starts a new session from inside AxClaude. The notice shows the folder, with a Choose folder button under it, then a list of ways to start Claude: a new conversation, continue the last conversation, choose a conversation to resume, plan mode, edits accepted without asking, and Custom, where you type Claude Code's own command line options, one or more on each line. Enter stops the current session and starts the new one; Escape keeps the current session. Restart Claude (Ctrl+Shift+R) keeps the options you chose.
+Ctrl+N starts a new session from inside AxClaude. The notice shows the folder, with a Choose folder button under it, then a list of ways to start Claude: a new conversation, continue the last conversation, choose a conversation to resume, plan mode, edits accepted without asking, and Custom, where you type Claude Code's own command line options, one or more on each line. Enter stops the current session, clears the conversation and starts the new one in the empty window; with "Continue the last conversation" the earlier exchanges come back under their "from previous session" headings, and messages count from 1 again. Escape keeps the current session. Restart Claude (Ctrl+Shift+R) keeps the options you chose and the conversation.
 
 The first time Claude Code sees a folder it asks whether you trust it. Questions like this appear in the conversation as plain text. Type your answer in the message field and press Ctrl+Enter. AxClaude says "Claude needs your answer" whenever a question is waiting.
 
@@ -36,7 +36,7 @@ The first time Claude Code sees a folder it asks whether you trust it. Questions
 
 From top to bottom: the menu bar (press Alt), the conversation, the message field, the status bar. Focus starts in the message field.
 
-- The **message field** is called "Message to Claude". Enter starts a new line. Ctrl+Enter sends. Ctrl+Enter on an empty field sends a plain Enter, which is how you confirm a dialog.
+- The **message field** is called "Message to Claude". Enter starts a new line. Ctrl+Enter sends. Ctrl+Enter on an empty field sends a plain Enter, which is how you confirm a dialog. Page Up and Page Down move one screen of the field at a time and reach the first and last line of your message; Home and End move within the line, Ctrl+Home and Ctrl+End to the start and end of the message.
 - The **conversation** is a read-only text called "Conversation". Every line Claude prints is a line here. Arrow keys, Home, End, Page Up, Page Down and your screen reader's reading commands all work. Ctrl+1 goes to the message field and Ctrl+2 to the conversation; when you are there already, the key says so, which helps when you have lost track of where you are. Ctrl+Tab (or F6) switches between the two. Escape in the conversation goes back to the message field.
 - While Claude is still writing a line and you are on it, Down Arrow reads only what has arrived since you last heard it, so you can follow a long reply as it comes without hearing anything twice. Once you move on, the line reads as one line again.
 - To copy from the conversation: Shift with the arrow keys selects text, Ctrl+C copies it and says "Copied". While text is selected, new output waits until you press a plain arrow key. Escape clears the selection; a second Escape goes to the message field.
@@ -48,7 +48,7 @@ Alt+F4 closes AxClaude and ends the Claude Code session. If Claude is still work
 
 ## Send a message
 
-When Claude has started, AxClaude says "Claude is ready" with a high ping. Type in the message field and press Ctrl+Enter. AxClaude says "Message sent" with a short low note, and "Claude is responding" with a rising chime when the reply starts. A soft tick marks every new line that arrives from Claude, so you can hear Claude working without reading along. "Claude is done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude needs your answer". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
+When Claude has started, AxClaude says "Claude is ready" with a high ping. Type in the message field and press Ctrl+Enter. AxClaude says "Message sent" with a short low note, and "Claude is responding" with a rising chime when the reply starts. A soft tick, like a typewriter key, marks every new line that arrives from Claude, and a lower double tick, like a tiny ratchet, marks each tool Claude starts, so you can hear Claude working without reading along. "Claude is done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude needs your answer". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
 
 You can send while Claude is still working. Claude Code keeps the message and takes it up when it can. AxClaude says "Message waiting" and the status bar counts the waiting messages. The message appears in the conversation when Claude takes it up, usually after its current step. Ctrl+Shift+S (Session, Send the waiting message now) makes Claude take it up at once.
 
@@ -59,7 +59,7 @@ Keys that go straight to Claude Code:
 - Shift+Escape interrupts Claude, or closes one of its dialogs. Plain Escape in the message field does nothing, on purpose: it is easy to press by accident, and it would stop Claude in the middle of its work.
 - Shift+Tab switches to the next permission mode (manual, accept edits, plan, auto and so on). The new mode is spoken.
 - Ctrl+Up and Ctrl+Down send Up and Down, for Claude's own menus.
-- Ctrl+Shift+C sends Ctrl+C. Ctrl+O turns Claude's detailed view on and off; AxClaude says which. The Session menu has Ctrl+D and Tab too.
+- Ctrl+Shift+C sends Ctrl+C. Ctrl+O turns Claude's detailed view on and off; AxClaude says which. In screen reader mode that view changes nothing already printed. To see what the tools print, start the session with the `--verbose` argument (Ctrl+N, Custom, for example `--continue --verbose`): every tool's output then appears in full under its "tool:" line. The Session menu has Ctrl+D and Tab too.
 
 ## Slash commands
 
@@ -74,7 +74,7 @@ The Help menu opens the Claude Code documentation in your browser: the commands,
 
 ## Read the conversation
 
-Every message you send is printed like this: the line `# Input 1`, your message, a blank line, the line `# Output 1 Reply from Claude`, a blank line, then Claude's reply. Both `#` lines are level 1 headings. When AxClaude starts on a folder with a conversation, the earlier exchanges come back under `# Input 1 from previous session` and `# Output 1 from previous session Reply from Claude`, with the message as a `you:` line; new messages count from 1 as usual. Restart Claude (Ctrl+Shift+R) keeps the conversation as it is. Options, "Show the time in the Input and Output lines" adds the time.
+Every message you send is printed like this: the line `# Input 1`, your message, a blank line, the line `# Output 1 Reply from Claude`, a blank line, then Claude's reply. Both `#` lines are level 1 headings. When AxClaude starts on a folder with a conversation, the earlier exchanges come back under `# Input 1 from previous session` and `# Output 1 from previous session Reply from Claude`, with the message as a `you:` line; new messages count from 1 as usual. Restart Claude (Ctrl+Shift+R) keeps the conversation as it is; New session (Ctrl+N) clears it first. Options, "Show the time in the Input and Output lines" adds the time.
 
 In the conversation, these keys move to a line and speak it. Add Shift to go backwards.
 
@@ -82,19 +82,19 @@ In the conversation, these keys move to a line and speak it. Add Shift to go bac
 - `h`: the next heading. `1` to `6`: the next heading of that level. Input and Output lines are level 1; headings inside Claude's replies are level 2 and deeper.
 - `c`: the next line that starts a Claude reply. `t`: the next tool line (a file Claude edited or a command it ran). `p`: the next paragraph, the first line after a blank line. `e`: the next error or warning. `d`: the next "done" line at the end of a reply. `s`: the next system line from AxClaude.
 - `l`: says where you are, like "Line 12 of 340". Nothing else ever speaks line numbers.
-- Page Up and Page Down move one screen at a time.
+- Page Up and Page Down move one screen at a time, and reach the first and last line.
 - Ctrl+F opens Find. Type the text and press Enter; F3 and Shift+F3 find the next and previous match. "Not found" means there is none.
 - Enter copies the line into the message field, under a line that says it was copied from the conversation and a line with its number, followed by a line that says your comment starts, and puts you in the field under it, ready to write. Ctrl+2 takes you back to the same conversation line, so you can collect several lines into one message.
 - Backspace goes back to the line you were on before the last jump, and again for the jump before that, so a stray `p` or `h` is undone in one press.
 - `m` drops a bookmark on the line you are on: a line that says `Bookmark 1` appears just above it, and AxClaude says "Bookmark 1 added". `m` on the same line takes it away again. `k` and Shift+K go to the next and previous bookmark and read the bookmarked line with it. Bookmarks are lines in the conversation, so Ctrl+S saves them with it, and they go when the conversation goes. The Navigate menu has the same commands, and Ctrl+Shift+K bookmarks the line from anywhere in the window.
 
-Long paragraphs are shown as one line. Claude Code's screen decorations (the mode line, spinners, tips) are not shown; they feed the status bar instead. Text that arrives while you read never moves your place and is never spoken on its own. Options, "Speak replies as they arrive" speaks each reply line when it is complete, if you prefer listening.
+Long paragraphs are shown as one line. Claude Code's screen decorations (the mode line, spinners, tips) are not shown; they feed the status bar instead. Text that arrives while you read never moves your place and is never spoken on its own, unless you ask for it: Options, "Speak replies as they arrive" has three choices. "None" is the default. "First lines only" speaks the first line of each of Claude's messages, where Claude says what it is doing or what it found, so you follow the major moments of a long turn without its detail. "All lines" speaks every line of Claude's replies. Each message is spoken in one go once it is complete; tool output, thinking and the conversation replayed at startup are never spoken. Options, "Speak each tool call" adds the line that names each tool Claude runs, such as "tool: Read (notes.txt)", as soon as it appears, whichever of the three you chose; what the tool printed is still not spoken. Press Control to silence NVDA when you have heard enough: the text stays in the conversation, and the ticks go on either way.
 
 Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversation copy it.
 
 ## Menus
 
-- **Project**: the current folder (Enter copies the path), Change folder, New session (Ctrl+N), Recent folders, Restart Claude (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
+- **Project**: Open current folder (Ctrl+W), which names the folder and opens it in File Explorer, Change folder, New session (Ctrl+N), Recent folders, Restart Claude (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
 - **Session**: keys sent to Claude: Send message, Send the waiting message now (Ctrl+Shift+S), Interrupt, Ctrl+C, Ctrl+D, Tab, Shift+Tab, Ctrl+O, Up, Down.
 - **Navigate**: the message field, the conversation, the latest reply, Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
 - **Options**: the announcements, the chimes, the tick for each new line, the taskbar flash, speaking replies, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.

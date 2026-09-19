@@ -459,16 +459,69 @@ public class SessionModelTests
     }
 
     [Fact]
-    public void Reset_screen_freezes_existing_lines()
+    public void Reset_screen_freezes_existing_lines_and_forgets_the_old_mode()
     {
         var model = new SessionModel(80, 5);
-        Feed(model, "old\r\n$");
-        model.EndFrame();
+        Feed(model, $"{Esc}[?25lold\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Equal("auto mode on", model.Mode);
         model.ResetScreen();
+        Assert.Null(model.Mode);
         model.AddSystemLine("restart");
         Feed(model, "new\r\n$");
         model.EndFrame();
         Assert.Equal(["old", "System: restart", "new"], Visible(model));
+    }
+
+    [Fact]
+    public void Clear_empties_the_conversation_and_the_next_run_starts_as_the_first_one()
+    {
+        var model = new SessionModel(80, 12);
+        Feed(model, $"{Esc}[?25lyou: earlier question\r\nclaude: earlier answer\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        model.MarkReplayedExchanges();
+        Assert.True(model.Send("first"));
+        Assert.True(model.Send("second"));
+        var bookmark = model.ToggleBookmark(model.Lines[0]);
+        Assert.Equal("Bookmark 1", bookmark?.Bookmark.Text);
+        Assert.Equal(2, model.ResponseCount);
+        Assert.Equal("# Input 2", Visible(model).Last(l => l.StartsWith("# Input")));
+
+        var changed = 0;
+        model.Changed += () => changed++;
+        model.Clear();
+        Assert.Equal(1, changed);
+        Assert.Empty(model.Lines);
+        Assert.Equal(0, model.ResponseCount);
+        Assert.Null(model.Mode);
+        Assert.False(model.Working);
+
+        // The new run: its replay is marked from the first row, and the messages and bookmarks count from 1 again.
+        model.AddSystemLine("New session");
+        Feed(model, $"{Esc}[?25lyou: old question\r\nclaude: old answer\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Equal("auto mode on", model.Mode);
+        model.MarkReplayedExchanges();
+        Assert.Equal(
+            ["System: New session", "# Input 1 from previous session", "you: old question", "", "# Output 1 from previous session Reply from Claude", "", "claude: old answer"],
+            Visible(model));
+        Assert.True(model.Send("next"));
+        Assert.Equal("# Input 1", Visible(model)[7]);
+        Assert.Equal("Bookmark 1", model.ToggleBookmark(model.Lines[0])?.Bookmark.Text);
+    }
+
+    [Fact]
+    public void Clear_drops_a_message_held_for_its_echo()
+    {
+        var model = new SessionModel(80, 10);
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Feed(model, $"{Esc}[?25l{Esc}[1;1Hclaude: Working on it.{Esc}[K\r\nRunning…{Esc}[K\r\nauto mode on (shift+tab to cycle)  ·  esc to interrupt{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.True(model.Working);
+        Assert.True(model.Send("held"));
+        Assert.Equal(["claude: Working on it."], Visible(model));
+
+        // The new session's idle prompt would otherwise place the held block at the end.
+        model.Clear();
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Empty(Visible(model));
+        Assert.False(model.Working);
     }
 
     private static void Feed(SessionModel model, string text) => model.Feed(Encoding.UTF8.GetBytes(text));

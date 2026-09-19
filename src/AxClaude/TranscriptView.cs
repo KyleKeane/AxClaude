@@ -11,11 +11,8 @@ namespace AxClaude;
 internal sealed class TranscriptView : TextBox
 {
     private const int WM_SETREDRAW = 0x000B;
-    private const int EM_LINESCROLL = 0x00B6;
     private const int EM_SCROLLCARET = 0x00B7;
     private const int EM_GETLINECOUNT = 0x00BA;
-    private const int EM_GETFIRSTVISIBLELINE = 0x00CE;
-    private const int EM_CHARFROMPOS = 0x00D7;
 
     /// <summary>
     /// How long output is held back after a key press while the view has focus. The screen reader reads the caret
@@ -414,35 +411,17 @@ internal sealed class TranscriptView : TextBox
     }
 
     /// <summary>
-    /// Page Up and Page Down move the caret by one screen of wrapped lines, counted from the caret rather than from
-    /// whatever is scrolled into view, and reach the first and last line. The native keys scroll the view and keep the
-    /// caret on the same screen row, which strands the caret when its line is off screen and never reaches the ends.
-    /// The screen reader reads the new line itself, so nothing is announced here.
+    /// Page Up and Page Down move the caret by one screen of wrapped rows and reach the first and last row
+    /// (<see cref="EditPaging"/>, shared with the message field). The line left is remembered for Backspace (FR-3.12)
+    /// when the caret moved. The screen reader reads the new row itself, so nothing is announced here.
     /// </summary>
     private void Page(int direction)
     {
-        var lineCount = (int)SendMessage(Handle, EM_GETLINECOUNT, IntPtr.Zero, IntPtr.Zero);
-        var first = (int)SendMessage(Handle, EM_GETFIRSTVISIBLELINE, IntPtr.Zero, IntPtr.Zero);
-        var bottomPoint = (IntPtr)((Math.Max(0, ClientSize.Height - 1) << 16) | 1);
-        var atBottom = (int)SendMessage(Handle, EM_CHARFROMPOS, IntPtr.Zero, bottomPoint);
-        var last = atBottom == -1 ? first : (atBottom >> 16) & 0xFFFF;
-        var page = Math.Max(1, last - first);
-        var caretLine = GetLineFromCharIndex(SelectionStart);
-        var target = Math.Clamp(caretLine + direction * page, 0, Math.Max(0, lineCount - 1));
-        if (target == caretLine)
+        var from = _mirror.LineCount == 0 ? null : _mirror.LineAt(_mirror.LineIndexAt(SelectionStart));
+        if (EditPaging.Page(this, direction) && from is not null)
         {
-            return;
+            RememberJump(from);
         }
-
-        RememberJump();
-        Select(GetFirstCharIndexFromLine(target), 0);
-        if (caretLine >= first && caretLine <= last)
-        {
-            // The caret was on screen: scroll by the same amount so it keeps its screen row.
-            SendMessage(Handle, EM_LINESCROLL, IntPtr.Zero, (IntPtr)(target - caretLine));
-        }
-
-        ScrollCaretIntoView();
     }
 
     /// <summary>The l key: the transcript line the caret is on, spoken only on request. Joined wrapped rows count once.</summary>
@@ -495,12 +474,15 @@ internal sealed class TranscriptView : TextBox
     /// <summary>Records the caret's line before a jump moves it away (FR-3.12).</summary>
     private void RememberJump()
     {
-        if (_mirror.LineCount == 0)
+        if (_mirror.LineCount > 0)
         {
-            return;
+            RememberJump(_mirror.LineAt(_mirror.LineIndexAt(SelectionStart)));
         }
+    }
 
-        var line = _mirror.LineAt(_mirror.LineIndexAt(SelectionStart));
+    /// <summary>Records <paramref name="line"/> as the one a jump left (FR-3.12); the newest entry is not repeated.</summary>
+    private void RememberJump(Line line)
+    {
         if (_jumpHistory.Count > 0 && ReferenceEquals(_jumpHistory[^1], line))
         {
             return;

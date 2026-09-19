@@ -21,7 +21,7 @@ internal sealed class MainForm : Form
     private readonly StatusStrip _status = new();
     private readonly ToolStripStatusLabel _state = new();
     private readonly ToolStripStatusLabel _folderLabel = new();
-    private readonly ToolStripMenuItem _currentFolderItem = new();
+    private readonly ToolStripMenuItem _currentFolderItem = new() { ShortcutKeys = Keys.Control | Keys.W };
     private readonly ToolStripMenuItem _recentFoldersItem = new("&Recent folders");
     private readonly ToolStripMenuItem _recordItem = new(RecordItemText);
     private const string RecordItemText = "&Record raw stream for a bug report...";
@@ -32,7 +32,17 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _attention = new() { Interval = 400 };
     private readonly System.Windows.Forms.Timer _exitSettle = new() { Interval = 300 };
     private readonly Queue<(string Text, int DelayAfter)> _writes = new();
-    private readonly HashSet<int> _spoken = [];
+    /// <summary>The per-frame pass behind the tick and the spoken replies (FR-7.8, FR-7.4).</summary>
+    private readonly Arrivals _arrivals = new();
+    private readonly List<(ReplySpeechMode Mode, ToolStripMenuItem Item)> _replySpeechItems = [];
+
+    /// <summary>The Speak replies choices in menu order (FR-7.4); the text without its mnemonic is what the choice announces.</summary>
+    private static readonly (ReplySpeechMode Mode, string Text)[] ReplySpeechChoices =
+    [
+        (ReplySpeechMode.None, "&None"),
+        (ReplySpeechMode.FirstLines, "&First lines only"),
+        (ReplySpeechMode.All, "&All lines"),
+    ];
     private PtyHost? _host;
     private StreamRecorder? _recorder;
     private int _exitCode;
@@ -48,8 +58,6 @@ internal sealed class MainForm : Form
     private bool _nothingToContinue;
     /// <summary>The folder Claude was last started in: a restart there with --continue replays what the window shows (FR-4.8).</summary>
     private string? _launchedFolder;
-    /// <summary>Visible lines from Claude after the last frame; a frame that adds one gets the tick (FR-7.8).</summary>
-    private int _contentLines;
     private string _findText = string.Empty;
     private Control? _focusBeforeNotice;
     private bool _noticeOpen;
@@ -303,7 +311,7 @@ internal sealed class MainForm : Form
         MinimumSize = new Size(600, 400);
 
         var project = new ToolStripMenuItem("&Project");
-        _currentFolderItem.Click += (_, _) => CopyFolder();
+        _currentFolderItem.Click += (_, _) => OpenFolder();
         project.DropDownItems.Add(_currentFolderItem);
         project.DropDownItems.Add(new ToolStripMenuItem("&Change folder...", null, (_, _) => ChangeFolder()));
         project.DropDownItems.Add(new ToolStripMenuItem("&New session...", null, (_, _) => NewSession()) { ShortcutKeys = Keys.Control | Keys.N });
@@ -346,7 +354,23 @@ internal sealed class MainForm : Form
         options.DropDownItems.Add(Toggle("Play &sounds: ready, sent, replying, done, question", _settings.SoundOnBell, v => _settings.SoundOnBell = v));
         options.DropDownItems.Add(Toggle("Cl&ick for each new line from Claude", _settings.ClickOnNewLine, v => _settings.ClickOnNewLine = v));
         options.DropDownItems.Add(Toggle("&Flash the taskbar button when Claude is done", _settings.FlashTaskbar, v => _settings.FlashTaskbar = v));
-        options.DropDownItems.Add(Toggle("Speak &replies as they arrive", _settings.SpeakReplies, v => _settings.SpeakReplies = v));
+        // FR-7.4: one of three, shown checked like a radio group; the choice is announced, since the menu closes on it.
+        var speech = new ToolStripMenuItem("Speak &replies as they arrive");
+        foreach (var (mode, text) in ReplySpeechChoices)
+        {
+            var item = new ToolStripMenuItem(text) { Checked = _settings.ReplySpeech == mode };
+            item.Click += (_, _) => SetReplySpeech(mode);
+            speech.DropDownItems.Add(item);
+            _replySpeechItems.Add((mode, item));
+        }
+
+        options.DropDownItems.Add(speech);
+        // FR-7.4: the tool: row of each call, spoken as it arrives, whatever the reply mode; starts with what arrives next.
+        options.DropDownItems.Add(Toggle("Speak each tool &call", _settings.SpeakToolCalls, v =>
+        {
+            _settings.SpeakToolCalls = v;
+            _arrivals.Skip(_model.Lines);
+        }));
         options.DropDownItems.Add(Toggle("Show the &time in the Input and Output lines", _settings.MarkerTimeStamps, v =>
         {
             _settings.MarkerTimeStamps = v;
@@ -427,6 +451,20 @@ internal sealed class MainForm : Form
         UpdateFolderUi();
     }
 
+    /// <summary>Options → Speak replies as they arrive → a mode (FR-7.4): speech starts with what arrives next.</summary>
+    private void SetReplySpeech(ReplySpeechMode mode)
+    {
+        _settings.ReplySpeech = mode;
+        foreach (var (candidate, item) in _replySpeechItems)
+        {
+            item.Checked = candidate == mode;
+        }
+
+        _arrivals.Skip(_model.Lines);
+        SaveSettings();
+        Announce("Speak replies: " + ReplySpeechChoices.First(c => c.Mode == mode).Text.Replace("&", string.Empty), true);
+    }
+
     private ToolStripMenuItem Toggle(string text, bool initial, Action<bool> apply)
     {
         var item = new ToolStripMenuItem(text) { CheckOnClick = true, Checked = initial };
@@ -473,6 +511,12 @@ internal sealed class MainForm : Form
             case Keys.Down when e.Control:
                 e.SuppressKeyPress = true;
                 Write("\x1b[B");
+                break;
+            case Keys.PageUp when e.Modifiers == Keys.None:
+            case Keys.PageDown when e.Modifiers == Keys.None:
+                // One screen of the field's rows, or its first / last row (FR-2.1): the control's own keys do nothing while the message fits.
+                e.Handled = e.SuppressKeyPress = true;
+                EditPaging.Page(_input, e.KeyCode == Keys.PageDown ? 1 : -1);
                 break;
             // Plain Up and Down only move the caret (D13): text appearing in the field on an arrow key confused the reading.
         }
@@ -613,7 +657,28 @@ internal sealed class MainForm : Form
     {
         _transcript.Sync(_model.Lines);
         UpdateStatus();
-        PlayFrameSounds();
+
+        // One pass over the transcript for the tick (FR-7.8) and the spoken reply and tool calls (FR-7.4). Nothing is
+        // spoken before Claude is ready in this run: what it prints until then is the replayed conversation, there for
+        // reading. The chimes hang on the send, the first reply line and the bell (FR-7.3), never on the working status.
+        var arrival = _arrivals.Update(_model.Lines, _model.Working, _readyAnnounced ? _settings.ReplySpeech : ReplySpeechMode.None, _readyAnnounced && _settings.SpeakToolCalls);
+        if (_settings.ClickOnNewLine)
+        {
+            // A frame that brings a tool call gets the tool tick in place of the line's (FR-7.8).
+            if (arrival.ToolCall)
+            {
+                Sounds.Tool();
+            }
+            else if (arrival.NewLine)
+            {
+                Sounds.Click();
+            }
+        }
+
+        if (arrival.Speech is { } speech)
+        {
+            Announce(speech, false);
+        }
 
         if (_model.PromptPending)
         {
@@ -638,97 +703,13 @@ internal sealed class MainForm : Form
         {
             _readyAnnounced = true;
             _model.HideReplay = false;
+            // Speech starts here: the replayed conversation gets its markers and is not read out.
+            _arrivals.Skip(_model.Lines);
             _model.MarkReplayedExchanges();
             Announce("Claude is ready", false);
             if (_settings.SoundOnBell)
             {
                 Sounds.Ready();
-            }
-        }
-
-        if (_settings.SpeakReplies)
-        {
-            SpeakNewReplyLines();
-        }
-    }
-
-    /// <summary>
-    /// The tick when a frame added a line from Claude (FR-7.8), counted without allocating. The chimes hang on the
-    /// send, the first reply line and the bell (FR-7.3), never on the working status, which flickers between steps.
-    /// </summary>
-    private void PlayFrameSounds()
-    {
-        var lines = _model.Lines;
-        var content = 0;
-        for (var i = 0; i < lines.Count; i++)
-        {
-            var line = lines[i];
-            if (!line.Hidden && !line.IsMarker)
-            {
-                content++;
-            }
-        }
-
-        if (content > _contentLines && _settings.ClickOnNewLine)
-        {
-            Sounds.Click();
-        }
-
-        _contentLines = content;
-    }
-
-    /// <summary>Speaks reply lines once they are final: committed, followed by another line, or Claude is idle (FR-7.4).</summary>
-    private void SpeakNewReplyLines()
-    {
-        var lines = _model.Lines;
-        var marker = -1;
-        var lastVisible = -1;
-        for (var i = lines.Count - 1; i >= 0; i--)
-        {
-            if (lastVisible < 0 && !lines[i].Hidden)
-            {
-                lastVisible = i;
-            }
-
-            if (lines[i].Kind == LineKind.OutputMarker)
-            {
-                marker = i;
-                break;
-            }
-        }
-
-        if (marker < 0)
-        {
-            return;
-        }
-
-        var inReply = false;
-        for (var i = marker + 1; i < lines.Count; i++)
-        {
-            var line = lines[i];
-            if (line.Hidden || line.IsMarker)
-            {
-                continue;
-            }
-
-            if (line.Kind == LineKind.ClaudeReply)
-            {
-                inReply = true;
-            }
-            else if (line.Kind != LineKind.Plain)
-            {
-                inReply = false;
-            }
-
-            if (!inReply || line.Text.Length == 0)
-            {
-                continue;
-            }
-
-            var final = line.Committed || i < lastVisible || !_model.Working;
-            if (final && _spoken.Add(line.Id))
-            {
-                Announce(line.Text, false);
             }
         }
     }
@@ -823,7 +804,7 @@ internal sealed class MainForm : Form
         Text = _folder is null ? "AxClaude" : $"{FolderName(_folder)} - AxClaude";
         _folderLabel.Text = _folder ?? "No project folder";
         StatusLayout.Fit(_status, _state, _folderLabel);
-        _currentFolderItem.Text = "Current folder: " + (_folder ?? "(none)").Replace("&", "&&");
+        _currentFolderItem.Text = "Open current &folder: " + (_folder ?? "(none)").Replace("&", "&&");
     }
 
     private static string FolderName(string folder)
@@ -1171,7 +1152,8 @@ internal sealed class MainForm : Form
 
     // ---- project folder ----
 
-    private void CopyFolder()
+    /// <summary>Project → Current folder, Ctrl+W (FR-8.2): the folder in the default file manager, one of the system's own windows (D23).</summary>
+    private void OpenFolder()
     {
         if (_folder is null)
         {
@@ -1179,9 +1161,19 @@ internal sealed class MainForm : Form
             return;
         }
 
-        if (CopyToClipboard(_folder))
+        if (!Directory.Exists(_folder))
         {
-            Announce("Copied", true);
+            Announce("The folder no longer exists", true);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_folder) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            Fail("The folder could not be opened: " + ex.Message);
         }
     }
 
@@ -1299,7 +1291,9 @@ internal sealed class MainForm : Form
         _claudeArgs = [.. arguments];
         var with = arguments.Count > 0 ? " with " + ClaudeLauncher.JoinArguments(arguments) : " with no extra arguments";
         Announce($"New session in {FolderName(folder)}", false);
-        Relaunch($"New session in {folder}{with}");
+        // A new session is a new conversation (or a resumed one): the window is cleared first, and what Claude prints
+        // then, a replay with its blocks included, arrives as at the first start of the app.
+        Relaunch($"New session in {folder}{with}", clearConversation: true);
     }
 
     // ---- Claude process ----
@@ -1473,13 +1467,27 @@ internal sealed class MainForm : Form
         UpdateStatus();
     }
 
-    private void Relaunch(string systemLine)
+    /// <summary>
+    /// Stops Claude and starts it again with the current folder and arguments, after the system line. The
+    /// conversation stays in the window (Restart Claude, a folder change) unless <paramref name="clearConversation"/>
+    /// is set (New session, FR-8.6), in which case the system line is the first line of the emptied window.
+    /// </summary>
+    private void Relaunch(string systemLine, bool clearConversation = false)
     {
         StopClaude();
-        _model.ResetScreen();
+        if (clearConversation)
+        {
+            _model.Clear();
+        }
+        else
+        {
+            _model.ResetScreen();
+        }
+
         _model.AddSystemLine(systemLine);
-        // The same folder with --continue replays the conversation the window already shows: hidden until Claude is ready (FR-4.8).
-        _model.HideReplay = _folder is not null && string.Equals(_folder, _launchedFolder, StringComparison.OrdinalIgnoreCase) && ClaudeArgs.Contains("--continue");
+        // The same folder with --continue replays the conversation the window already shows: hidden until Claude is
+        // ready (FR-4.8). A cleared window shows the replay with its blocks, as at startup.
+        _model.HideReplay = !clearConversation && _folder is not null && string.Equals(_folder, _launchedFolder, StringComparison.OrdinalIgnoreCase) && ClaudeArgs.Contains("--continue");
         if (_folder is not null)
         {
             StartClaude();

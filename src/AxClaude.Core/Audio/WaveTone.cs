@@ -51,24 +51,35 @@ public static class WaveTone
     }
 
     /// <summary>
-    /// A short tone that dies away at once: heard as one tick. It rises over the first 0.6 ms; a tone that starts
-    /// at full volume is heard as a click followed by a separate falling note.
+    /// Strikes, like a typewriter key or a tiny hammer: each is a burst of noise over a short tone that dies away at
+    /// once, the noise gone within a couple of milliseconds and the tone within <paramref name="millisecondsEach"/>,
+    /// the next strike following as soon as the last has faded. One strike is heard as a single tick; two or three in
+    /// a row, a few milliseconds apart, as one ratchety tick. The tone rises over its first 0.6 ms and the noise over
+    /// four samples: a sound that starts at full volume is heard as a click followed by a separate falling note. The
+    /// noise is the same every time.
     /// </summary>
-    public static byte[] Tick(double amplitude, double hertz, int milliseconds)
+    public static byte[] Strikes(double amplitude, int millisecondsEach, double noise, params double[] hertz)
     {
-        var count = Samples(milliseconds);
-        var attack = Math.Min(count / 4, SampleRate / 1500);
-        var samples = new short[count];
-        for (var i = 0; i < count; i++)
+        var each = Samples(millisecondsEach);
+        var attack = Math.Min(each / 4, SampleRate / 1500);
+        var chiff = Math.Max(1, Samples(1));
+        var random = new Random(7);
+        var samples = new short[each * hertz.Length];
+        for (var n = 0; n < hertz.Length; n++)
         {
-            // Down to about a quarter of a percent at the end, so the cut-off is not heard.
-            var envelope = Math.Exp(-6.0 * i / count);
-            if (i < attack)
+            for (var i = 0; i < each; i++)
             {
-                envelope *= (double)i / attack;
-            }
+                // Down to about a quarter of a percent at the end, so the cut-off is not heard.
+                var envelope = Math.Exp(-6.0 * i / each);
+                if (i < attack)
+                {
+                    envelope *= (double)i / attack;
+                }
 
-            samples[i] = Sample(hertz, i, amplitude * envelope);
+                var burst = noise * Math.Exp(-(double)i / chiff) * Math.Min(1.0, i / 4.0);
+                var value = Math.Sin(2 * Math.PI * hertz[n] * i / SampleRate) * envelope + (random.NextDouble() * 2 - 1) * burst;
+                samples[n * each + i] = (short)(Math.Clamp(value, -1.0, 1.0) * amplitude * short.MaxValue);
+            }
         }
 
         return Wav(samples);
