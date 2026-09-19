@@ -11,8 +11,6 @@ namespace AxClaude;
 
 internal sealed class MainForm : Form
 {
-    private const int MaxHistory = 100;
-
     private readonly StartupOptions _options;
     private readonly AppSettings _settings;
     private readonly string? _settingsError;
@@ -35,7 +33,6 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _attention = new() { Interval = 400 };
     private readonly System.Windows.Forms.Timer _exitSettle = new() { Interval = 300 };
     private readonly Queue<(string Text, int DelayAfter)> _writes = new();
-    private readonly List<string> _history = [];
     private readonly HashSet<int> _spoken = [];
     private PtyHost? _host;
     private StreamRecorder? _recorder;
@@ -45,8 +42,15 @@ internal sealed class MainForm : Form
     private bool _bellPending;
     private bool _promptAnnounced;
     private bool _readyAnnounced;
-    private int _historyIndex = -1;
-    private string _draft = string.Empty;
+    private bool _messageSent;
+    /// <summary>Claude's arguments after --ax-screen-reader, from the command line or the New session notice (FR-8.6); null is the default, --continue (FR-9.1). Restart keeps them.</summary>
+    private List<string>? _claudeArgs;
+    /// <summary>Claude found no conversation to continue in this folder: the default is no arguments until the folder changes (FR-9.1).</summary>
+    private bool _nothingToContinue;
+    /// <summary>The folder Claude was last started in: a restart there with --continue replays what the window shows (FR-4.8).</summary>
+    private string? _launchedFolder;
+    /// <summary>Visible lines from Claude after the last frame; a frame that adds one gets the tick (FR-7.8).</summary>
+    private int _contentLines;
     private string _findText = string.Empty;
     private Control? _focusBeforeNotice;
     private bool _noticeOpen;
@@ -153,7 +157,7 @@ internal sealed class MainForm : Form
         if (_updateFolder is { } update)
         {
             // FR-1.10: the downloaded version's installer waits for this process to end, installs and starts AxClaude again.
-            Updater.LaunchInstaller(update, _folder, continueConversation: _history.Count > 0);
+            Updater.LaunchInstaller(update, _folder, continueConversation: _messageSent);
         }
 
         base.OnFormClosing(e);
@@ -460,61 +464,11 @@ internal sealed class MainForm : Form
                 e.SuppressKeyPress = true;
                 Write("\x1b[B");
                 break;
-            case Keys.Up when e.Modifiers == Keys.None && CaretLine() == 0:
-                e.SuppressKeyPress = true;
-                RecallHistory(-1);
-                break;
-            case Keys.Down when e.Modifiers == Keys.None && CaretLine() == _input.GetLineFromCharIndex(_input.TextLength):
-                e.SuppressKeyPress = true;
-                RecallHistory(1);
-                break;
+            // Plain Up and Down only move the caret (D13): text appearing in the field on an arrow key confused the reading.
         }
     }
 
-    private int CaretLine() => _input.GetLineFromCharIndex(_input.SelectionStart);
-
-    /// <summary>Up on the first line and Down on the last line walk the messages sent in this session (FR-2.6).</summary>
-    private void RecallHistory(int step)
-    {
-        if (_historyIndex < 0)
-        {
-            if (step > 0 || _history.Count == 0)
-            {
-                Announce(step > 0 ? "No later message" : "No earlier message", true);
-                return;
-            }
-
-            _draft = _input.Text;
-            _historyIndex = _history.Count;
-        }
-
-        var next = _historyIndex + step;
-        if (next < 0)
-        {
-            Announce("No earlier message", true);
-            return;
-        }
-
-        if (next >= _history.Count)
-        {
-            _historyIndex = -1;
-            SetInputText(_draft);
-            Announce(_draft.Length == 0 ? "Message field is empty" : _draft, true);
-            return;
-        }
-
-        _historyIndex = next;
-        SetInputText(_history[next]);
-        Announce(_history[next], true);
-    }
-
-    private void SetInputText(string text)
-    {
-        _input.Text = text.Replace("\r\n", "\n").Replace("\n", "\r\n");
-        _input.Select(_input.TextLength, 0);
-    }
-
-    /// <summary>The literal line that heads a quoted conversation line in the message, so Claude can tell it from the user's words (FR-2.9).</summary>
+    /// <summary>The literal lines around a quoted conversation line in the message, so Claude can tell it from the user's words (FR-2.9).</summary>
     private const string QuoteMarker = "_ start of copied line from conversation history _";
 
     /// <summary>
@@ -529,7 +483,6 @@ internal sealed class MainForm : Form
         var quote = $"{QuoteMarker}\r\nLine {number} of {count}:\r\n{text}\r\n";
         _input.Text = existing.Length == 0 ? quote : existing + "\r\n\r\n" + quote;
         _input.Select(_input.TextLength, 0);
-        _historyIndex = -1;
         Announce($"Line {number} copied to the message", true);
     }
 
@@ -556,8 +509,6 @@ internal sealed class MainForm : Form
 
         var text = _input.Text.Replace("\r\n", "\n").Trim();
         _input.Clear();
-        _historyIndex = -1;
-        _draft = string.Empty;
         if (text.Length == 0)
         {
             Write("\r");
@@ -567,14 +518,7 @@ internal sealed class MainForm : Form
         var answer = _model.PromptPending;
         var queued = _model.Working;
         _model.Send(text);
-        if (_history.Count == 0 || _history[^1] != text)
-        {
-            _history.Add(text);
-            if (_history.Count > MaxHistory)
-            {
-                _history.RemoveAt(0);
-            }
-        }
+        _messageSent = true;
 
         // Text and Enter are separate writes: text plus CR in one chunk is treated as a paste (SPEC.md 4.4).
         // Lines of a multi-line message are joined with a lone newline write, Claude's Ctrl+J.

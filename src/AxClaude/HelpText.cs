@@ -37,7 +37,6 @@ internal static class HelpText
           Ctrl+Enter: send
           Escape: does nothing; a reminder says that Shift+Escape interrupts Claude
           Shift+Tab: next permission mode
-          Up on the first line, Down on the last line: earlier messages
           Ctrl+Up, Ctrl+Down: send Up or Down to Claude
 
         Conversation
