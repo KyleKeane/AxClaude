@@ -516,7 +516,7 @@ Released 1.0.0 on 2026-09-19 through the release workflow (§9), with the MIT li
 To do:
 
 - [ ] An NVDA run of the released build (1.0.2 or later): the renamed announcements (test plan 2.6, 5.4, 5.5, 6, 8.1, 8.4, 9.3, 9.9, 10.1), the bookmarks (4.12), the update flow (11), Ctrl+1 / Ctrl+2 (FR-6.5, 1.4a), the About notice with the disclaimer (D27), the reading breaks (FR-3.10, 3.4, 4.9, 4.11) and the selection (FR-3.11, 3.5, 4.6). Anything found goes into the next release through `release.ps1`.
-- [ ] 1.2.0 (2026-09-19, released before its NVDA run): the NVDA run of the New session notice, which now clears the conversation (test plan 8.6), the sounds, the tick and the tool tick (1.3, 7.6), the three speech modes and the spoken tool calls (9.2), the field's Page keys (2.7), Open current folder and Ctrl+W (7.1), the paragraph key (4.4), the `--continue` default (8.6) and the removed history recall (2.6, 6.1) before `release.ps1`.
+- [ ] 1.2.0 and 1.2.1 (2026-09-19, released before their NVDA run): the Ctrl+O guard (5.4), the NVDA run of the New session notice, which now clears the conversation (test plan 8.6), the sounds, the tick and the tool tick (1.3, 7.6), the three speech modes and the spoken tool calls (9.2), the field's Page keys (2.7), Open current folder and Ctrl+W (7.1), the paragraph key (4.4), the `--continue` default (8.6) and the removed history recall (2.6, 6.1) before `release.ps1`.
 
 ## Appendix A — Control sequences the screen model handles
 
