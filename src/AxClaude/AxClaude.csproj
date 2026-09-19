@@ -11,7 +11,7 @@
     <ApplicationVisualStyles>true</ApplicationVisualStyles>
     <InvariantGlobalization>true</InvariantGlobalization>
     <ApplicationIcon>AxClaude.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>AxClaude</Product>
     <Description>Accessible front end for the Claude Code CLI in screen reader mode</Description>
     <Authors>Dr. Kyle Keane</Authors>
