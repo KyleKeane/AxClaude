@@ -479,20 +479,22 @@ internal sealed class MainForm : Form
 
     /// <summary>The literal lines around a quoted conversation line in the message, so Claude can tell it from the user's words (FR-2.9).</summary>
     private const string QuoteMarker = "_ start of copied line from conversation history _";
+    private const string CommentMarker = "_ start of comment on the copied line _";
 
     /// <summary>
     /// Enter on a conversation line appends the line to the message under the marker and a line naming its number,
-    /// separated from what is there by a blank line, and leaves the message caret on a fresh line after it for the
-    /// comment (FR-2.9). Focus and the conversation caret stay where they are, so several lines can be collected
-    /// before replying.
+    /// separated from what is there by a blank line, then the comment marker, and moves the focus into the field
+    /// with the caret on the empty line under it, ready for the comment (FR-2.9). The conversation caret stays
+    /// where it is, so Ctrl+2 comes back to the same line.
     /// </summary>
     private void QuoteLineInMessage(int number, int count, string text)
     {
         var existing = _input.Text.TrimEnd('\r', '\n');
-        var quote = $"{QuoteMarker}\r\nLine {number} of {count}:\r\n{text}\r\n";
+        var quote = $"{QuoteMarker}\r\nLine {number} of {count}:\r\n{text}\r\n{CommentMarker}\r\n";
         _input.Text = existing.Length == 0 ? quote : existing + "\r\n\r\n" + quote;
         _input.Select(_input.TextLength, 0);
         Announce($"Line {number} copied to the message", true);
+        GoTo(_input);
     }
 
     /// <summary>m, or Navigate → Bookmark this line (FR-3.9): the model adds or removes the bookmark line and the result is spoken.</summary>

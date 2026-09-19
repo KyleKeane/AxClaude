@@ -566,7 +566,8 @@ public sealed class TranscriptMirror
         return Math.Clamp(column, 0, text.Length);
     }
 
-    private int IndexOf(Line row) => IndexOf(_shown, row);
+    /// <summary>The visible index of a line, or -1 when it is not shown (any more).</summary>
+    public int IndexOf(Line row) => IndexOf(_shown, row);
 
     /// <summary>Break rows sit near the end, where the search starts.</summary>
     private static int IndexOf(List<Line> rows, Line row)

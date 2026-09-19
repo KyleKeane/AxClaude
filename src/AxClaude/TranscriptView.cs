@@ -24,7 +24,8 @@ internal sealed class TranscriptView : TextBox
     /// </summary>
     private const int NavigationHoldMs = 250;
 
-    private sealed record QuickKey(Keys Key, string Name, Func<Line, bool> Matches);
+    /// <summary>A single-key jump target; <paramref name="Previous"/>, when given, must also hold for the line before it (the first line always qualifies).</summary>
+    private sealed record QuickKey(Keys Key, string Name, Func<Line, bool> Matches, Func<Line, bool>? Previous = null);
 
     /// <summary>k and Shift+K: the bookmarks dropped with m (FR-3.9); the Navigate menu reaches them too.</summary>
     private static readonly QuickKey BookmarkKey = new(Keys.K, "bookmark", l => l.Kind == LineKind.Bookmark);
@@ -32,16 +33,16 @@ internal sealed class TranscriptView : TextBox
     private static readonly QuickKey[] QuickKeys =
     [
         new(Keys.H, "heading", l => l.HeadingLevel > 0),
-        new(Keys.I, "input", l => l.Kind is LineKind.InputMarker or LineKind.UserEcho),
+        // A replayed you: row has its own marker in front of it (FR-4.8); it is not a second stop.
+        new(Keys.I, "input", l => l.Kind is LineKind.InputMarker or LineKind.UserEcho, Previous: p => p.Kind != LineKind.InputMarker),
         new(Keys.O, "response", l => l.Kind == LineKind.OutputMarker),
         new(Keys.R, "response", l => l.Kind == LineKind.OutputMarker),
         new(Keys.C, "Claude reply", l => l.Kind == LineKind.ClaudeReply),
         new(Keys.T, "tool line", l => l.Kind is LineKind.Tool or LineKind.ToolError),
-        new(Keys.P, "prompt", l => l.Kind == LineKind.Prompt),
+        new(Keys.P, "paragraph", l => l.Text.Length > 0, Previous: p => p.Text.Length == 0),
         new(Keys.E, "error", l => l.Kind is LineKind.Error or LineKind.Warning or LineKind.ToolError),
         new(Keys.D, "turn summary", l => l.Kind == LineKind.TurnSummary),
         new(Keys.S, "system line", l => l.Kind == LineKind.System),
-        new(Keys.B, "blank line", l => l.Text.Length == 0),
         BookmarkKey,
         new(Keys.D1, "heading level 1", l => l.HeadingLevel == 1),
         new(Keys.D2, "heading level 2", l => l.HeadingLevel == 2),
@@ -50,6 +51,10 @@ internal sealed class TranscriptView : TextBox
         new(Keys.D5, "heading level 5", l => l.HeadingLevel == 5),
         new(Keys.D6, "heading level 6", l => l.HeadingLevel == 6),
     ];
+
+    /// <summary>The lines the caret left through a jump, oldest first, for Backspace (FR-3.12); the cap keeps a long session from holding every jump.</summary>
+    private readonly List<Line> _jumpHistory = [];
+    private const int JumpHistoryLimit = 100;
 
     private readonly TranscriptMirror _mirror = new();
     private readonly System.Windows.Forms.Timer _hold = new();
@@ -337,6 +342,13 @@ internal sealed class TranscriptView : TextBox
                 return;
             }
 
+            if (e.KeyCode == Keys.Back && !e.Shift)
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                JumpBack();
+                return;
+            }
+
             if (e.KeyCode == Keys.L)
             {
                 e.Handled = e.SuppressKeyPress = true;
@@ -390,7 +402,7 @@ internal sealed class TranscriptView : TextBox
             var current = _mirror.LineIndexAt(SelectionStart);
             for (var i = current + step; i >= 0 && i < _mirror.LineCount; i += step)
             {
-                if (key.Matches(_mirror.LineAt(i)))
+                if (key.Matches(_mirror.LineAt(i)) && (key.Previous is null || i == 0 || key.Previous(_mirror.LineAt(i - 1))))
                 {
                     MoveTo(i);
                     return;
@@ -422,6 +434,7 @@ internal sealed class TranscriptView : TextBox
             return;
         }
 
+        RememberJump();
         Select(GetFirstCharIndexFromLine(target), 0);
         if (caretLine >= first && caretLine <= last)
         {
@@ -458,9 +471,56 @@ internal sealed class TranscriptView : TextBox
         LineChosen?.Invoke(_mirror.DisplayLineOf(index) + 1, _mirror.DisplayLineCount, _mirror.DisplayTextAt(index));
     }
 
-    /// <summary>Puts the caret on a visible line (at the start, or at a column), scrolls to it and announces its text.</summary>
-    private void MoveTo(int index, int column = 0, string prefix = "")
+    /// <summary>
+    /// Backspace: the caret goes back to the line it left at the last jump, one jump per press (FR-3.12). A line that
+    /// is no longer shown is skipped.
+    /// </summary>
+    private void JumpBack()
     {
+        while (_jumpHistory.Count > 0)
+        {
+            var line = _jumpHistory[^1];
+            _jumpHistory.RemoveAt(_jumpHistory.Count - 1);
+            var index = _mirror.IndexOf(line);
+            if (index >= 0)
+            {
+                MoveTo(index, prefix: "Back to ", remember: false);
+                return;
+            }
+        }
+
+        Announce("Nowhere to go back to", true);
+    }
+
+    /// <summary>Records the caret's line before a jump moves it away (FR-3.12).</summary>
+    private void RememberJump()
+    {
+        if (_mirror.LineCount == 0)
+        {
+            return;
+        }
+
+        var line = _mirror.LineAt(_mirror.LineIndexAt(SelectionStart));
+        if (_jumpHistory.Count > 0 && ReferenceEquals(_jumpHistory[^1], line))
+        {
+            return;
+        }
+
+        _jumpHistory.Add(line);
+        if (_jumpHistory.Count > JumpHistoryLimit)
+        {
+            _jumpHistory.RemoveAt(0);
+        }
+    }
+
+    /// <summary>Puts the caret on a visible line (at the start, or at a column), scrolls to it and announces its text. Every jump is remembered for Backspace unless it is the way back itself.</summary>
+    private void MoveTo(int index, int column = 0, string prefix = "", bool remember = true)
+    {
+        if (remember)
+        {
+            RememberJump();
+        }
+
         var line = _mirror.LineAt(index);
         Select(_mirror.StartAt(index) + _mirror.RenderedColumn(index, column), 0);
         ScrollCaretIntoView();

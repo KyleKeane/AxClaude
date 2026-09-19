@@ -49,14 +49,14 @@ internal static class HelpText
             (Input and Output lines are level 1, Claude's headings level 2 and deeper)
           c and Shift+C: next and previous "claude:" line
           t and Shift+T: next and previous tool line
-          p and Shift+P: next and previous question that needs an answer
+          p and Shift+P: next and previous paragraph (the first line after a blank line)
           e and Shift+E: next and previous error or warning
           d and Shift+D: next and previous "done" line at the end of a reply
           s and Shift+S: next and previous system line
-          b and Shift+B: next and previous blank line
           m: bookmark this line (a "Bookmark 1" line appears above it), or take the bookmark away again
           k and Shift+K: next and previous bookmark, read together with the line it marks
-          Enter: copy the line into the message field, to reply to it
+          Enter: copy the line into the message field under a marker line and go there, to comment on it
+          Backspace: back to the line you were on before the last jump; again for the jump before that
           Shift with the arrow keys: select text. Ctrl+C: copy the selection. New output waits while text is selected
           Escape: clear the selection, or go to the message field
 
