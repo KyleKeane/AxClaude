@@ -28,6 +28,8 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _recentFoldersItem = new("&Recent folders");
     private readonly ToolStripMenuItem _recordItem = new(RecordItemText);
     private const string RecordItemText = "&Record raw stream for a bug report...";
+    private readonly ToolStripMenuItem _installedItem = new($"&Installed: AxClaude {Program.Version}");
+    private readonly ToolStripMenuItem _latestItem = new();
     private readonly ToolStripMenuItem _updateItem = new("Check for &updates...");
     private readonly System.Windows.Forms.Timer _quiet = new() { Interval = 100 };
     private readonly System.Windows.Forms.Timer _attention = new() { Interval = 400 };
@@ -50,6 +52,8 @@ internal sealed class MainForm : Form
     private bool _noticeOpen;
     private bool _closeConfirmed;
     private ReleaseInfo? _update;
+    private ReleaseInfo? _latest;
+    private string _latestState = "not checked yet";
     private string? _updateFolder;
     private bool _updateBusy;
 
@@ -349,12 +353,17 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripMenuItem("Claude Code command &line (web)", null, (_, _) => OpenUrl("https://code.claude.com/docs/en/cli-reference")));
         help.DropDownItems.Add(new ToolStripMenuItem("Install or update Claude Code (&web)", null, (_, _) => OpenUrl(ClaudeLauncher.InstallUrl)));
         help.DropDownItems.Add(new ToolStripSeparator());
+        // FR-1.10: the version in use, the latest release GitHub named, and the way to update, always in the menu.
+        _installedItem.Click += (_, _) => ShowAbout();
+        help.DropDownItems.Add(_installedItem);
+        SetLatest(_latestState);
+        _latestItem.Click += (_, _) => OpenLatestRelease();
+        help.DropDownItems.Add(_latestItem);
         _updateItem.Click += (_, _) => CheckForUpdates(manual: true);
         help.DropDownItems.Add(_updateItem);
+        help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("Copy diag&nostics", null, (_, _) => CopyDiagnostics()));
-        help.DropDownItems.Add(new ToolStripMenuItem("&About", null, (_, _) =>
-            ShowText("About AxClaude",
-                $"AxClaude {Program.Version}\nA screen reader friendly window for Claude Code.\nMade by Dr. Kyle Keane, www.kylekeane.com. Free under the MIT licence.\n\nClaude Code documentation: https://code.claude.com/docs\nSettings: {AppSettings.DefaultPath}\nLog: {Log.FilePath}")));
+        help.DropDownItems.Add(new ToolStripMenuItem("&About", null, (_, _) => ShowAbout()));
 
         _menu.Items.AddRange([project, session, navigate, options, help]);
         MainMenuStrip = _menu;
@@ -1468,6 +1477,7 @@ internal sealed class MainForm : Form
 
         _updateBusy = true;
         _updateItem.Enabled = false;
+        SetLatest("checking...");
         try
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -1477,23 +1487,42 @@ internal sealed class MainForm : Form
                 return;
             }
 
-            if (release is not null && UpdateCheck.IsNewer(release, Program.Version))
+            _latest = release;
+            if (release is null)
+            {
+                SetLatest("none published yet");
+            }
+            else if (UpdateCheck.IsNewer(release, Program.Version))
             {
                 var version = release.Version.ToString(3);
                 _update = release;
+                SetLatest($"AxClaude {version} (newer than this one)");
                 _updateItem.Text = $"&Update to AxClaude {version}...";
                 Log.Info($"Update available: {release.Tag}, zip {release.ZipUrl ?? "missing"}");
-                if (manual)
+                if (!manual)
                 {
+                    _model.AddSystemLine($"AxClaude {version} is available. Help menu, Update to AxClaude {version}.");
+                }
+
+                if (manual || !_noticeOpen)
+                {
+                    // At startup the notice opens by itself: Enter updates, Escape keeps this version (FR-1.10).
                     ShowUpdateNotice(release);
                 }
                 else
                 {
-                    _model.AddSystemLine($"AxClaude {version} is available. Help menu, Update to AxClaude {version}.");
                     Announce($"AxClaude {version} is available. See the Help menu", false);
                 }
+
+                return;
             }
-            else if (manual)
+            else
+            {
+                var same = release.Version == UpdateCheck.ParseVersion(Program.Version);
+                SetLatest($"AxClaude {release.Version.ToString(3)} ({(same ? "this version" : "older than this build")})");
+            }
+
+            if (manual)
             {
                 ShowText("Check for updates",
                     $"You have the newest version, AxClaude {Program.Version}.\n" +
@@ -1504,6 +1533,7 @@ internal sealed class MainForm : Form
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException)
         {
             Log.Error("The update check failed", ex);
+            SetLatest("unknown, GitHub could not be reached");
             if (manual && !IsDisposed)
             {
                 ShowNotice("Check for updates",
@@ -1523,6 +1553,31 @@ internal sealed class MainForm : Form
             }
         }
     }
+
+    /// <summary>Help → Latest release: what GitHub named, or why nothing is known yet.</summary>
+    private void SetLatest(string state)
+    {
+        _latestState = state;
+        _latestItem.Text = "&Latest release: " + state;
+    }
+
+    /// <summary>Help → Latest release: opens the release page when one is known, otherwise checks.</summary>
+    private void OpenLatestRelease()
+    {
+        if (_latest is { } latest)
+        {
+            OpenUrl(latest.PageUrl);
+        }
+        else
+        {
+            CheckForUpdates(manual: true);
+        }
+    }
+
+    private void ShowAbout() =>
+        ShowText("About AxClaude",
+            $"AxClaude {Program.Version}\nA screen reader friendly window for Claude Code.\nMade by Dr. Kyle Keane, www.kylekeane.com. Free under the MIT licence.\n\n" +
+            $"Latest release on GitHub: {_latestState}\nClaude Code documentation: https://code.claude.com/docs\nSettings: {AppSettings.DefaultPath}\nLog: {Log.FilePath}");
 
     /// <summary>The release notes with Update now, Open release page and Later (FR-1.10).</summary>
     private void ShowUpdateNotice(ReleaseInfo release)

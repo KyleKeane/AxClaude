@@ -93,7 +93,7 @@ Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversat
 - **Session**: keys sent to Claude: Send message, Interrupt, Ctrl+C, Ctrl+D, Tab, Shift+Tab, Ctrl+O, Up, Down.
 - **Navigate**: the message field, the conversation, the latest reply, Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
 - **Options**: the announcements, the sound, the taskbar flash, speaking replies, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.
-- **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, Check for updates, Copy diagnostics, About.
+- **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, the version you have, the latest release on GitHub, Update or Check for updates, Copy diagnostics, About.
 
 ## Text size and fonts
 
@@ -105,9 +105,9 @@ Everything you change is saved in `%APPDATA%\AxClaude\settings.json`. Options, "
 
 ## Updates
 
-New versions are published on GitHub. When AxClaude starts, it asks GitHub once whether there is a newer one; Options, "Check for updates when AxClaude starts" turns that off. If there is one, AxClaude says "AxClaude 1.0.1 is available. See the Help menu", and a "System:" line in the conversation says the same.
+New versions are published on GitHub. When AxClaude starts, it asks GitHub once whether there is a newer one; Options, "Check for updates when AxClaude starts" turns that off. If there is one, the update notice opens by itself: Enter updates, Escape keeps the version you have, and a "System:" line in the conversation records it.
 
-Help, "Update to AxClaude 1.0.1" shows what is new, with three buttons. Update now downloads the new version, closes AxClaude, installs it and starts it again on the same folder; if you had a conversation open, it is picked up again. Open release page opens it in the browser. Later keeps the version you have, and the Help menu offers the update until you take it. Help, "Check for updates" asks GitHub at any time and tells you either way.
+The Help menu always shows the version you have ("Installed: AxClaude 1.0.0"), the latest release on GitHub ("Latest release: AxClaude 1.0.1 (newer than this one)", which opens the release page) and the update action. Help, "Update to AxClaude 1.0.1" shows what is new, with three buttons. Update now downloads the new version, closes AxClaude, installs it and starts it again on the same folder; if you had a conversation open, it is picked up again. Open release page opens it in the browser. Later keeps the version you have, and the Help menu offers the update until you take it. Help, "Check for updates" asks GitHub at any time and tells you either way.
 
 ## If something goes wrong
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2026-09-19
+
+- The Help menu always shows the version you have, the latest release on GitHub and the update action.
+- A newer release opens the update notice when AxClaude starts: Enter updates, Escape keeps the version you have. Options, "Check for updates when AxClaude starts" turns the check off.
+
 ## 1.0.0 - 2026-09-19
 
 First release.

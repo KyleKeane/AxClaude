@@ -59,8 +59,10 @@ if (-not (Select-String -Path $changelog -Pattern ('^## ' + [regex]::Escape($Ver
     exit 1
 }
 
+# The test project alone: it needs only AxClaude.Core, so it builds while the app itself is running from bin\Debug.
+# GitHub Actions builds and tests the whole solution before it publishes.
 Write-Host "Running the tests..."
-dotnet test (Join-Path $root 'AxClaude.sln') --nologo -v q
+dotnet test (Join-Path $root 'tests\AxClaude.Tests\AxClaude.Tests.csproj') --nologo -v q
 if ($LASTEXITCODE -ne 0) {
     Write-Host "The tests failed. Nothing was changed."
     exit $LASTEXITCODE
