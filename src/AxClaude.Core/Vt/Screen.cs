@@ -237,6 +237,7 @@ public sealed class Screen : IVtSink
         }
 
         int P(int index, int fallback) => index < values.Count && values[index] > 0 ? values[index] : fallback;
+        var first = values[0]; // ParseParameters always yields at least one value; 0 is the default of J and K.
 
         switch (final)
         {
@@ -270,10 +271,10 @@ public sealed class Screen : IVtSink
                 MoveCursor(_cx, P(0, 1) - 1);
                 break;
             case 'J':
-                EraseDisplay(index0(values));
+                EraseDisplay(first);
                 break;
             case 'K':
-                EraseLine(index0(values));
+                EraseLine(first);
                 break;
             case 'X':
                 _rows[_cy].Clear(_cx, _cx + P(0, 1));
@@ -306,8 +307,6 @@ public sealed class Screen : IVtSink
                 RestoreCursor();
                 break;
         }
-
-        static int index0(List<int> v) => v.Count > 0 ? v[0] : 0;
     }
 
     public void Osc(string content)

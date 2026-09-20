@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Text;
+
 namespace AxClaude.Core.Pty;
 
 /// <summary>Finds the Claude Code executable and builds the command line and environment for it.</summary>
@@ -20,7 +23,7 @@ public static class ClaudeLauncher
         }
 
         var candidates = new List<string>();
-        var path = System.Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         foreach (var directory in path.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             foreach (var name in new[] { "claude.exe", "claude.cmd" })
@@ -29,8 +32,8 @@ public static class ClaudeLauncher
             }
         }
 
-        var profile = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
-        var appData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         candidates.Add(Path.Combine(profile, ".local", "bin", "claude.exe"));
         candidates.Add(Path.Combine(appData, "npm", "claude.cmd"));
         return candidates;
@@ -71,7 +74,7 @@ public static class ClaudeLauncher
     public static Dictionary<string, string> BuildEnvironment()
     {
         var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Collections.DictionaryEntry entry in System.Environment.GetEnvironmentVariables())
+        foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
         {
             var key = (string)entry.Key;
             if (key.StartsWith("CLAUDE", StringComparison.OrdinalIgnoreCase))
@@ -96,7 +99,7 @@ public static class ClaudeLauncher
     public static IReadOnlyList<string> SplitArguments(string text)
     {
         var result = new List<string>();
-        var current = new System.Text.StringBuilder();
+        var current = new StringBuilder();
         var inQuotes = false;
         var hasToken = false;
         for (var i = 0; i < text.Length; i++)

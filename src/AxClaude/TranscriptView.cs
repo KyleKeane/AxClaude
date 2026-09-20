@@ -375,7 +375,7 @@ internal sealed class TranscriptView : TextBox
             Clipboard.SetText(SelectedText);
             Announce("Copied", true);
         }
-        catch (System.Runtime.InteropServices.ExternalException)
+        catch (ExternalException)
         {
             Announce("Could not copy. Try again", true);
         }

@@ -1,5 +1,6 @@
 using System.Text;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
@@ -72,7 +73,7 @@ public class ReplayTests
     private static List<Line> Replay(string fixture, string[] sent, bool quietFrameDuringDraft)
     {
         var directory = FixtureDirectory();
-        var bytes = File.ReadAllBytes(Path.Combine(directory, fixture));
+        var bytes = Fixture(fixture);
         var chunks = File.ReadAllLines(Path.Combine(directory, fixture + ".chunks.txt"))
             .Select(l => l.TrimStart('﻿'))
             .Where(l => l.Length > 0 && !l.StartsWith('#'))
@@ -118,22 +119,5 @@ public class ReplayTests
         Assert.Equal(fixture == Steering ? 1 : 0, maxQueued);
         Assert.Equal(0, model.QueuedMessages);
         return model.Lines.Where(l => !l.Hidden).ToList();
-    }
-
-    private static string FixtureDirectory()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "fixtures");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("tests/fixtures was not found above " + AppContext.BaseDirectory);
     }
 }

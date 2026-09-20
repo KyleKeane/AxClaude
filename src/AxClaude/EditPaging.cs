@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace AxClaude;
 
 /// <summary>
-/// Page Up and Page Down for the conversation and the message field (FR-2.1, FR-3 key table). The caret moves by one
+/// Page Up and Page Down for the conversation and the message field (FR-2.1, FR-5). The caret moves by one
 /// screen of wrapped rows, counted from the caret rather than from whatever is scrolled into view, and lands on the
 /// first or last row when less than a screen is left; it goes to the start of its new row, and the view scrolls with
 /// it so that the row keeps its place on screen. The edit control's own keys scroll the view by a page and keep the

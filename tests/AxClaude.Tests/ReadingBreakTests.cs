@@ -1,5 +1,6 @@
 using System.Text;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
@@ -10,20 +11,6 @@ namespace AxClaude.Tests;
 /// </summary>
 public class ReadingBreakTests
 {
-    private static Line L(string text) => new(0, LineKind.Plain, text);
-
-    private static Line Joined(string text) => new(0, LineKind.Plain, text) { JoinedToPrevious = true };
-
-    private static StringBuilder Apply(StringBuilder text, MirrorUpdate update)
-    {
-        foreach (var edit in update.Edits)
-        {
-            text.Remove(edit.Start, edit.OldLength).Insert(edit.Start, edit.Text);
-        }
-
-        return text;
-    }
-
     [Fact]
     public void Text_appended_after_the_mark_goes_on_a_line_of_its_own()
     {
@@ -153,9 +140,9 @@ public class ReadingBreakTests
     [MemberData(nameof(FixtureTests.Fixtures), MemberType = typeof(FixtureTests))]
     public void Marking_every_frame_keeps_the_rendering_consistent_and_clearing_restores_the_plain_text(string name)
     {
-        var bytes = File.ReadAllBytes(Path.Combine(FixtureDirectory(), name));
-        var size = name.Contains("120x40") ? (120, 40) : (240, 50);
-        var model = new SessionModel(size.Item1, size.Item2);
+        var bytes = Fixture(name);
+        var (columns, rows) = FixtureSize(name);
+        var model = new SessionModel(columns, rows);
         var mirror = new TranscriptMirror();
         var text = new StringBuilder();
 
@@ -185,22 +172,5 @@ public class ReadingBreakTests
         mirror.ClearBreaks();
         Apply(text, mirror.Update(model.Lines));
         Assert.Equal(TranscriptMirror.Render(model.Lines), text.ToString());
-    }
-
-    private static string FixtureDirectory()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "fixtures");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("tests/fixtures");
     }
 }

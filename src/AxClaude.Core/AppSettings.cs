@@ -66,7 +66,7 @@ public sealed class AppSettings
     /// <summary>A tick whenever a line from Claude arrives (FR-7.8).</summary>
     public bool ClickOnNewLine { get; set; } = true;
 
-    /// <summary>Time of sending in the You and Response markers (FR-4.6).</summary>
+    /// <summary>Time of sending in the Input and Output markers (FR-4.6).</summary>
     public bool MarkerTimeStamps { get; set; }
 
     /// <summary>Show reply rows that Claude wrapped at the console width as one line (FR-3.2a). File only, no menu item.</summary>

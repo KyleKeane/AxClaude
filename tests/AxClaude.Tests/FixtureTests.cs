@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
 /// <summary>Parses the recorded ConPTY sessions under tests/fixtures and compares the transcript with the golden files.</summary>
-public partial class FixtureTests
+public class FixtureTests
 {
     public static IEnumerable<object[]> Fixtures() =>
         Directory.GetFiles(FixtureDirectory(), "*.vt").OrderBy(f => f).Select(f => new object[] { Path.GetFileName(f) });
@@ -14,7 +15,7 @@ public partial class FixtureTests
     [MemberData(nameof(Fixtures))]
     public void Fixture_matches_expected_transcript(string name)
     {
-        var model = Parse(name, File.ReadAllBytes(Path.Combine(FixtureDirectory(), name)));
+        var model = ParseFixture(name);
         // The golden file is the transcript as the reader sees it: wrapped reply rows joined on one line (FR-3.2a).
         var actual = TranscriptMirror.Render(model.Lines).Replace("\r\n", "\n") + "\n";
         var expectedPath = Path.Combine(FixtureDirectory(), Path.ChangeExtension(name, ".expected.txt"));
@@ -34,11 +35,11 @@ public partial class FixtureTests
     [MemberData(nameof(Fixtures))]
     public void Fixture_parses_the_same_regardless_of_chunking(string name)
     {
-        var bytes = File.ReadAllBytes(Path.Combine(FixtureDirectory(), name));
-        var whole = Visible(Parse(name, bytes));
+        var bytes = Fixture(name);
+        var whole = Visible(ParseFixture(name));
 
         var random = new Random(name.Length);
-        var (columns, rows) = Size(name);
+        var (columns, rows) = FixtureSize(name);
         var chunked = new SessionModel(columns, rows);
         var offset = 0;
         while (offset < bytes.Length)
@@ -50,14 +51,14 @@ public partial class FixtureTests
 
         chunked.EndFrame();
         Assert.Equal(whole, Visible(chunked));
-        Assert.Equal(TranscriptMirror.Render(Parse(name, bytes).Lines), TranscriptMirror.Render(chunked.Lines));
+        Assert.Equal(TranscriptMirror.Render(ParseFixture(name).Lines), TranscriptMirror.Render(chunked.Lines));
     }
 
     [Fact]
     public void Wrapped_reply_rows_are_joined_and_tool_rows_are_not()
     {
         const string name = "conversation-claude2.1.277-120x40.vt";
-        var model = Parse(name, File.ReadAllBytes(Path.Combine(FixtureDirectory(), name)));
+        var model = ParseFixture(name);
         var lines = model.Lines.Where(l => !l.Hidden).ToList();
 
         // "Blue sits between green and violet ... one" fills the 120 columns; " of the three primary colors of light." is its rest.
@@ -84,7 +85,7 @@ public partial class FixtureTests
     public void Conversation_fixture_keeps_replies_and_hides_chrome()
     {
         const string name = "conversation-claude2.1.277-240x50.vt";
-        var model = Parse(name, File.ReadAllBytes(Path.Combine(FixtureDirectory(), name)));
+        var model = ParseFixture(name);
         var visible = model.Lines.Where(l => !l.Hidden).ToList();
         var texts = visible.Select(l => l.Text).ToList();
 
@@ -106,41 +107,4 @@ public partial class FixtureTests
         Assert.Equal("Arithmetic calculation", model.SessionName);
     }
 
-    private static SessionModel Parse(string name, byte[] bytes)
-    {
-        var (columns, rows) = Size(name);
-        var model = new SessionModel(columns, rows);
-        model.Feed(bytes);
-        model.EndFrame();
-        return model;
-    }
-
-    private static List<string> Visible(SessionModel model) =>
-        model.Lines.Where(l => !l.Hidden).Select(l => l.Text).ToList();
-
-    private static (int Columns, int Rows) Size(string name)
-    {
-        var match = SizeRegex().Match(name);
-        return match.Success ? (int.Parse(match.Groups[1].Value), int.Parse(match.Groups[2].Value)) : (120, 40);
-    }
-
-    private static string FixtureDirectory()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "fixtures");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("tests/fixtures was not found above " + AppContext.BaseDirectory);
-    }
-
-    [GeneratedRegex(@"-(\d+)x(\d+)\.vt$")]
-    private static partial Regex SizeRegex();
 }

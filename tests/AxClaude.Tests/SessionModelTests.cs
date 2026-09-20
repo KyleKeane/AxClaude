@@ -1,5 +1,6 @@
 using System.Text;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
@@ -482,7 +483,7 @@ public class SessionModelTests
         Assert.True(model.Send("second"));
         var bookmark = model.ToggleBookmark(model.Lines[0]);
         Assert.Equal("Bookmark 1", bookmark?.Bookmark.Text);
-        Assert.Equal(2, model.ResponseCount);
+        Assert.Equal(2, model.ExchangeCount);
         Assert.Equal("# Input 2", Visible(model).Last(l => l.StartsWith("# Input")));
 
         var changed = 0;
@@ -490,7 +491,7 @@ public class SessionModelTests
         model.Clear();
         Assert.Equal(1, changed);
         Assert.Empty(model.Lines);
-        Assert.Equal(0, model.ResponseCount);
+        Assert.Equal(0, model.ExchangeCount);
         Assert.Null(model.Mode);
         Assert.False(model.Working);
 
@@ -523,8 +524,4 @@ public class SessionModelTests
         Assert.Empty(Visible(model));
         Assert.False(model.Working);
     }
-
-    private static void Feed(SessionModel model, string text) => model.Feed(Encoding.UTF8.GetBytes(text));
-
-    private static List<string> Visible(SessionModel model) => model.Lines.Where(l => !l.Hidden).Select(l => l.Text).ToList();
 }

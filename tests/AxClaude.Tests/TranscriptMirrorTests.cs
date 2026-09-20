@@ -1,5 +1,6 @@
 using System.Text;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
@@ -9,22 +10,6 @@ namespace AxClaude.Tests;
 /// </summary>
 public class TranscriptMirrorTests
 {
-    private static Line L(string text) => new(0, LineKind.Plain, text);
-
-    private static StringBuilder Apply(StringBuilder text, MirrorUpdate update)
-    {
-        foreach (var edit in update.Edits)
-        {
-            text.Remove(edit.Start, edit.OldLength).Insert(edit.Start, edit.Text);
-        }
-
-        return text;
-    }
-
-    private static string Join(IEnumerable<Line> lines) => TranscriptMirror.Render(lines);
-
-    private static Line Joined(string text) => new(0, LineKind.Plain, text) { JoinedToPrevious = true };
-
     [Fact]
     public void Appended_lines_are_one_edit_at_the_end_and_leave_the_caret_on_its_line()
     {
@@ -245,9 +230,9 @@ public class TranscriptMirrorTests
     [MemberData(nameof(FixtureTests.Fixtures), MemberType = typeof(FixtureTests))]
     public void Edits_reproduce_the_visible_text_and_keep_the_caret_on_its_line_for_every_frame(string name)
     {
-        var bytes = File.ReadAllBytes(Path.Combine(FixtureDirectory(), name));
-        var size = name.Contains("120x40") ? (120, 40) : (240, 50);
-        var model = new SessionModel(size.Item1, size.Item2);
+        var bytes = Fixture(name);
+        var (columns, rows) = FixtureSize(name);
+        var model = new SessionModel(columns, rows);
         var mirror = new TranscriptMirror();
         var text = new StringBuilder();
         var caret = 0;
@@ -267,7 +252,7 @@ public class TranscriptMirrorTests
 
             var update = mirror.Update(model.Lines);
             Apply(text, update);
-            Assert.Equal(Join(model.Lines), text.ToString());
+            Assert.Equal(TranscriptMirror.Render(model.Lines), text.ToString());
             Assert.Equal(mirror.Length, text.Length);
 
             caret = update.MapPosition(caret);
@@ -298,22 +283,5 @@ public class TranscriptMirrorTests
 
         model.EndFrame();
         Assert.True(frames > 1, $"Only {frames} frames");
-    }
-
-    private static string FixtureDirectory()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "fixtures");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("tests/fixtures was not found above " + AppContext.BaseDirectory);
     }
 }

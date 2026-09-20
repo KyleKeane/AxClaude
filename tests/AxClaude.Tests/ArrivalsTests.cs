@@ -1,5 +1,6 @@
 using System.Text;
 using AxClaude.Core.Transcript;
+using static AxClaude.Tests.TestHelpers;
 
 namespace AxClaude.Tests;
 
@@ -233,7 +234,7 @@ public class ArrivalsTests
     /// <summary>Feeds the recording in small chunks; each message is sent, as the app does, before its draft appears in the stream.</summary>
     private static void Replay(SessionModel model, string fixture, string[] sent)
     {
-        var bytes = File.ReadAllBytes(Path.Combine(FixtureDirectory(), fixture));
+        var bytes = Fixture(fixture);
         var sendAt = new List<int>();
         var search = 0;
         foreach (var text in sent)
@@ -266,23 +267,4 @@ public class ArrivalsTests
         model.EndFrame();
         Assert.Equal(sent.Length, next);
     }
-
-    private static string FixtureDirectory()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests", "fixtures");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("tests/fixtures was not found above " + AppContext.BaseDirectory);
-    }
-
-    private static void Feed(SessionModel model, string text) => model.Feed(Encoding.UTF8.GetBytes(text));
 }

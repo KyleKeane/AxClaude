@@ -44,7 +44,9 @@ public sealed partial class SessionModel : ILineStore
     public int Columns { get; }
     public int Rows { get; }
     public IReadOnlyList<Line> Lines => _lines;
-    public int ResponseCount { get; private set; }
+
+    /// <summary>Messages sent since the start, or since <see cref="Clear"/>: the n of the last exchange block (FR-4.1).</summary>
+    public int ExchangeCount { get; private set; }
 
     /// <summary>Claude's cursor sits on a prompt row, so it is waiting for an answer (FR-7.2).</summary>
     public bool PromptPending { get; private set; }
@@ -76,7 +78,7 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>Show reply rows that Claude hard-wrapped at the console width as one line (FR-3.2a).</summary>
     public bool JoinWrappedLines { get; set; } = true;
 
-    /// <summary>Put the time of sending into the markers: <c>You (14:32): …</c> and <c>Response 3 (14:32):</c> (FR-4.6).</summary>
+    /// <summary>Put the time of sending into the markers: <c># Input 3 (14:32)</c> and <c># Output 3 Reply from Claude (14:32)</c> (FR-4.6).</summary>
     public bool TimeStamps { get; set; }
 
     /// <summary>The clock the time stamps use; tests replace it.</summary>
@@ -140,19 +142,19 @@ public sealed partial class SessionModel : ILineStore
             return false;
         }
 
-        ResponseCount++;
+        ExchangeCount++;
         // The exchange block (FR-4.1): both markers are level 1 headings, so the heading keys stop at every exchange;
         // Claude's own headings are level 2 and deeper (LineClassifier.HeadingLevel). Classify skips app lines, so
         // the levels stick and a message line is never mistaken for a label.
         var stamp = TimeStamps ? $" ({Clock():HH:mm})" : string.Empty;
-        var block = new List<Line> { new(_nextId++, LineKind.InputMarker, $"# Input {ResponseCount}{stamp}") { HeadingLevel = 1 } };
+        var block = new List<Line> { new(_nextId++, LineKind.InputMarker, $"# Input {ExchangeCount}{stamp}") { HeadingLevel = 1 } };
         foreach (var messageLine in trimmed.Replace("\r\n", "\n").Split('\n'))
         {
             block.Add(new Line(_nextId++, LineKind.UserMessage, messageLine.TrimEnd()));
         }
 
         block.Add(new Line(_nextId++, LineKind.UserMessage, string.Empty));
-        block.Add(new Line(_nextId++, LineKind.OutputMarker, $"# Output {ResponseCount} Reply from Claude{stamp}") { HeadingLevel = 1 });
+        block.Add(new Line(_nextId++, LineKind.OutputMarker, $"# Output {ExchangeCount} Reply from Claude{stamp}") { HeadingLevel = 1 });
         block.Add(new Line(_nextId++, LineKind.UserMessage, string.Empty));
         var send = new PendingSend(trimmed, block, DateTime.UtcNow);
         _pending.Add(send);
@@ -376,7 +378,7 @@ public sealed partial class SessionModel : ILineStore
         _pending.Clear();
         _runBoundary = null;
         _responseStartedFor = null;
-        ResponseCount = 0;
+        ExchangeCount = 0;
         _bookmarkCount = 0;
         QueuedMessages = 0;
         StartRun();
@@ -772,8 +774,8 @@ public sealed partial class SessionModel : ILineStore
     /// </summary>
     private void HandleEchoes()
     {
-        // The echo work is a separate method: its lambdas capture locals, and a closure declared inside this loop
-        // would be allocated on every iteration over the whole transcript, echo or not.
+        // The work for an echo is a separate method, called only for the rare echo row: a lambda capturing a local
+        // of this loop's body would allocate a closure on every iteration over the whole transcript (D24).
         for (var i = 0; i < _lines.Count; i++)
         {
             var line = _lines[i];
@@ -782,41 +784,39 @@ public sealed partial class SessionModel : ILineStore
                 i = HandleEcho(i, line);
             }
         }
-
     }
 
     /// <summary>Handles the new echo at <paramref name="index"/>; returns the index of the last row it covers.</summary>
     private int HandleEcho(int index, Line line)
     {
         line.EchoHandled = true;
-        List<Line>? block = null;
         // Echoes normally arrive in send order, but a message sent while Claude was busy is echoed later than one
-        // sent after it was answered, so prefer the send whose text the echo repeats. An echo that repeats
-        // nothing is left alone: a you: row quoted in a tool result, replayed at startup or printed for a slash
-        // command is not the message, and a held block whose echo never comes goes in once Claude is idle.
-        var send = _pending.FirstOrDefault(p => (block = EchoBlock(index, p.Text)) is not null);
-        if (send is null)
+        // sent after it was answered, so the echo belongs to the first send whose text it repeats. An echo that
+        // repeats nothing is left alone: a you: row quoted in a tool result, replayed at startup or printed for a
+        // slash command is not the message, and a held block whose echo never comes goes in once Claude is idle.
+        for (var i = 0; i < _pending.Count; i++)
         {
-            return index;
+            var send = _pending[i];
+            if (EchoBlock(index, send.Text) is not { } block)
+            {
+                continue;
+            }
+
+            _pending.RemoveAt(i);
+            if (_lines.LastIndexOf(send.Block[0]) < 0)
+            {
+                InsertBlock(send, _lines.LastIndexOf(line));
+            }
+
+            foreach (var row in block)
+            {
+                row.EchoHidden = true;
+            }
+
+            return _lines.LastIndexOf(block[^1]);
         }
 
-        _pending.Remove(send);
-        if (_lines.LastIndexOf(send.Block[0]) < 0)
-        {
-            InsertBlock(send, _lines.LastIndexOf(line));
-        }
-
-        if (block is null)
-        {
-            return index;
-        }
-
-        foreach (var l in block)
-        {
-            l.EchoHidden = true;
-        }
-
-        return _lines.LastIndexOf(block[^1]);
+        return index;
     }
 
     /// <summary>
@@ -900,7 +900,7 @@ public sealed partial class SessionModel : ILineStore
 
         var wanted = _lines.Count / 10;
         var count = 0;
-        while (count < wanted && count < _lines.Count && _lines[count].Row is null)
+        while (count < wanted && _lines[count].Row is null)
         {
             count++;
         }
@@ -926,20 +926,6 @@ public sealed partial class SessionModel : ILineStore
         }
 
         return (line is null || line.Text.Length == 0) && cy > 0 && _screen.LineAt(cy - 1) is { } above && LineClassifier.IsPromptText(above.Text);
-    }
-
-    private Line? LastContentLine()
-    {
-        for (var i = _lines.Count - 1; i >= 0; i--)
-        {
-            var line = _lines[i];
-            if (!line.Hidden && !line.IsMarker && line.Text.Length > 0)
-            {
-                return line;
-            }
-        }
-
-        return null;
     }
 
     private int AnchorIndex()
