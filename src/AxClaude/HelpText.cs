@@ -17,6 +17,7 @@ internal static class HelpText
         Anywhere
           Ctrl+1: go to the message field. Ctrl+2: go to the conversation. Both say where you are, also when you are there already
           Ctrl+Tab, Ctrl+Shift+Tab or F6: switch between the message field and the conversation
+          Tab: from the message field to the conversation and back (Shift+Tab in the field goes to Claude instead)
           Ctrl+Enter: send the message (an empty field sends a plain Enter)
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
           Ctrl+Shift+S: make Claude take up the waiting message now instead of after its current step
@@ -60,7 +61,7 @@ internal static class HelpText
           k and Shift+K: next and previous bookmark, read together with the line it marks
           Enter: copy the line into the message field under a marker line and go there, to comment on it
           Backspace: back to the line you were on before the last jump; again for the jump before that
-          Shift with the arrow keys: select text. Ctrl+C: copy the selection. New output waits while text is selected
+          Shift with the arrow keys, or Ctrl+A: select text. Ctrl+C: copy the selection. New output waits while text is selected
           Escape: clear the selection, or go to the message field
 
         Notices

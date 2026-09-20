@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Fixed: the ticks stuttered on the speaker and went ragged once many had played. Every sound went through winmm's PlaySound, which opens and closes the audio device for each call and backs up under quick succession. The sounds now play through one wave-out device that stays open for the whole run: each sound is prepared once and queued with a single write, a chime replaces whatever plays, and a tick is dropped while the previous one is still on its way, so they never pile up. A tick that arrives during a chime now follows it instead of being lost.
+- The tool tick is two lower knocks of 12 ms each instead of two 5 ms strikes, so it can be heard on a small speaker. The option that turns the ticks off is now called "Tick for each new line and tool call from Claude"; it always covered both.
+- Restart Claude (Ctrl+Shift+R) says "Restarting Claude".
+- `run.ps1 -New` starts a new conversation; a bare `--` never reached the app because PowerShell takes it for itself.
+- `tools/PtyCapture` records through the app's own console host and child environment (`PtyHost`, `ClaudeLauncher`), so a recording shows exactly what the app sees, and the tool no longer carries a second copy of the ConPTY code.
+- The specification, the guide, the test plan and the working notes were checked against the code and brought up to date; the test project shares its helpers in one place.
+
 ## 1.2.1 - 2026-09-19
 
 - Fixed: Ctrl+O is no longer sent to Claude. In screen reader mode Claude's detailed view redraws the whole conversation from the first message on screen, which gave the conversation a second copy of every message and made Speak replies read old replies again. Ctrl+O now says why it does nothing and points at `--verbose` for tool output; the Session menu item is gone.

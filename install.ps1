@@ -15,6 +15,7 @@
   .\install.ps1                 # install or update
   .\install.ps1 -Uninstall      # remove
   .\install.ps1 -NoContextMenu  # install without the File Explorer entry
+  .\install.ps1 -NoStartMenu    # install without the Start menu entry
 
   If PowerShell refuses to run scripts: powershell -ExecutionPolicy Bypass -File .\install.ps1
 

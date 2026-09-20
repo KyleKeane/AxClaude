@@ -7,7 +7,7 @@ A small Windows app that runs Claude Code in screen reader mode inside a hidden 
 - `docs/user-guide.md`: the guide for users. It ships in the zip as `README.md` and under Help, User guide.
 - `SPEC.md`: the specification, the design decisions and the status.
 - `CLAUDE.md`: the working rules for developing with Claude Code in this repository.
-- `docs/nvda-test-plan.md`: the manual test plan run with NVDA before a release.
+- `docs/nvda-test-plan.md`: the manual test plan for NVDA.
 - `tools/PtyCapture`: records raw console output; the recordings are the parser's test fixtures.
 
 ## Build and run
@@ -16,6 +16,7 @@ A small Windows app that runs Claude Code in screen reader mode inside a hidden 
 .\run.ps1                                  # build, then start on the current folder
 .\run.ps1 C:\path\to\project               # start on that folder
 .\run.ps1 C:\path\to\project -- --resume   # arguments after -- go to claude (default: --continue)
+.\run.ps1 C:\path\to\project -New          # a new conversation (PowerShell swallows a bare --)
 .\run.ps1 -NoBuild                         # start without building
 .\run.ps1 -Test                            # run the unit tests
 ```

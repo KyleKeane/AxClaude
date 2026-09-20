@@ -2,14 +2,14 @@
 
 Accessible Windows front end for the Claude Code CLI, built for a blind developer who uses the NVDA screen reader. The app hosts `claude --ax-screen-reader` inside a ConPTY pseudo console and presents everything Claude prints as a line-by-line transcript with NVDA-style single-key navigation, plus a plain input field at the bottom.
 
-`SPEC.md` is the source of truth for scope, behaviour and the phased plan. When behaviour changes, update the spec in the same commit.
+`SPEC.md` is the source of truth for scope, behaviour and the design decisions. When behaviour changes, update the spec in the same commit.
 
 ## Stack and constraints
 
 - .NET 10 (LTS), C#, WinForms. WinForms is deliberate: its controls are native Win32 controls (EDIT, menus, status bar) that NVDA reads reliably. Do not switch to WPF, Avalonia or a web view.
-- No third-party runtime dependencies. ConPTY is called through P/Invoke; `tools/PtyCapture/Program.cs` is the reference implementation to copy from.
+- No third-party runtime dependencies. ConPTY is called through P/Invoke in `PtyHost`, the one implementation; `tools/PtyCapture` records through it.
 - Everything that does not need a window lives in `src/AxClaude.Core` and is unit tested with recorded fixtures under `tests/fixtures`.
-- Development runs with `dotnet run`. Self-contained single-file publishing comes later (see SPEC.md, milestone M4).
+- Development runs with `run.ps1` or `dotnet run`; `publish.ps1` builds the self-contained single-file executable (SPEC.md §9).
 
 ## Commands
 
@@ -20,7 +20,7 @@ dotnet test AxClaude.sln
 AXCLAUDE_UPDATE_EXPECTED=1 dotnet test   # regenerate tests/fixtures/*.expected.txt after a deliberate parser change; review the diff
 dotnet run --project tools/PtyCapture -- --out session.vt --script demo.script -- claude --ax-screen-reader
 dotnet run --project tools/PtyCapture -- --dump session.vt
-.\run.ps1 "C:\path" --                # a new conversation instead of the default --continue
+.\run.ps1 "C:\path" -New              # a new conversation instead of the default --continue (PowerShell swallows a bare --)
 .\publish.ps1 -NoInstall              # self-contained exe + install.ps1 + guide into publish\win-x64 and publish\AxClaude-<version>-win-x64.zip
 .\publish.ps1                         # the same, then install for this user (Start menu, Explorer entry, axclaude command)
 .\install.ps1 -Uninstall              # remove the installation (from the repo root or the installed folder)
@@ -40,10 +40,10 @@ The app records the same format with `--record file.vt` or Options → Record ra
 - `src/AxClaude.Core/Audio`: `WaveTone` (the chimes and the tick as WAV bytes, generated in code; no media files ship).
 - `src/AxClaude.Core/Updates`: `UpdateCheck` (the latest GitHub release: JSON parsing, version comparison; the repository name lives here). `src/AxClaude/Updater.cs`: the download into `%LOCALAPPDATA%\AxClaude\updates` and the hand-over to the new version's `install.ps1 -WaitForProcess`, which installs after the app exits and starts it again (SPEC.md FR-1.10, D25).
 - `.github/workflows/release.yml`: a `v*` tag builds the zip with `publish.ps1` and creates the GitHub release with the CHANGELOG section as notes (`tools/release-notes.ps1`); `release.ps1` makes the tag. `build.yml` runs the tests on every push.
-- `src/AxClaude`: `MainForm` (window, menus, timers, sending, find, save, announcements, fonts, process lifecycle), `TranscriptView` (applies the mirror's edits to the TextBox, quick keys, find, announcements, the hold after a key press), `StatusLayout` (keeps both status labels inside the strip), `StartupOptions`, `OverlayPanel` (the notices: every dialog of the app's own, drawn inside the window in place of the conversation and the message field, SPEC.md D23; also the New session controls, FR-8.6), `Sounds` (plays the generated sounds through winmm `PlaySound` from pinned memory), `HelpText` (the F1 shortcuts, the embedded `docs/user-guide.md`, the Claude-not-found text), `Log` (diagnostic log), `Program` (crash handler, `--help`, `--version`).
+- `src/AxClaude`: `MainForm` (window, menus, timers, sending, find, save, announcements, fonts, process lifecycle), `TranscriptView` (applies the mirror's edits to the TextBox, quick keys, find, announcements, the hold after a key press), `EditPaging` (Page Up and Page Down for the conversation and the message field), `StatusLayout` (keeps both status labels inside the strip), `StartupOptions`, `OverlayPanel` (the notices: every dialog of the app's own, drawn inside the window in place of the conversation and the message field, SPEC.md D23; also the New session controls, FR-8.6), `Sounds` (plays the generated sounds through one winmm wave-out device that stays open; every sound is prepared once and queued with a single write), `HelpText` (the F1 shortcuts, the embedded `docs/user-guide.md`, the Claude-not-found text), `Log` (diagnostic log), `Program` (crash handler, `--help`, `--version`).
 - `docs/user-guide.md`: the guide for users; embedded in the executable (`AxClaude.csproj`) and shipped as `README.md` in the zip. `docs/nvda-test-plan.md`: the manual test plan.
 - `install.ps1` (shipped in the zip, per-user install and `-Uninstall`), `publish.ps1` (build, zip, install), `tools/make-icon.ps1` (draws `src/AxClaude/AxClaude.ico`).
-- `tests/AxClaude.Tests`: golden-file and chunking tests over `tests/fixtures/*.vt` (the golden files show joined wrapped rows, as the reader sees them), chunk-by-chunk replays with the app's send timing (`ReplayTests`, using `*.vt.chunks.txt`), session model, mirror and settings tests.
+- `tests/AxClaude.Tests`: golden-file and chunking tests over `tests/fixtures/*.vt` (the golden files show joined wrapped rows, as the reader sees them), chunk-by-chunk replays with the app's send timing (`ReplayTests`, using `*.vt.chunks.txt`), session model, arrivals (the tick and the spoken replies), mirror, reading break, settings, update parsing, sound and argument splitting tests. `TestHelpers` holds what they share: the fixture files, feeding a model, applying mirror edits.
 
 ## Rules that matter in this repository
 
@@ -56,7 +56,7 @@ The app records the same format with `--record file.vt` or Options → Record ra
 
 ## Windows gotchas already learned (do not rediscover)
 
-- Clear this process's standard handles around `CreateProcess` when attaching a child to a pseudo console (see `PtySession.Start` in `tools/PtyCapture/Program.cs`). Otherwise a child started from a process with redirected stdio inherits those pipes, sees no TTY, and Claude Code silently switches to non-interactive print mode.
+- Clear this process's standard handles around `CreateProcess` when attaching a child to a pseudo console (see `PtyHost.Start`). Otherwise a child started from a process with redirected stdio inherits those pipes, sees no TTY, and Claude Code silently switches to non-interactive print mode.
 - Strip every `CLAUDE*` environment variable from the child's environment so a nested Claude Code session is not detected, and set `TERM=xterm-256color`.
 - Enter is always a separate `\r` write: `text\r` in one write becomes a pasted two-line draft. Do not wrap the user's own words in bracketed-paste markers (`ESC[200~ … ESC[201~`): Claude then treats them as pasted material and may not act on instructions in them. Multi-line messages use single `\n` writes (Ctrl+J) between lines.
 - Startup can show dialogs before the prompt (workspace trust, one-time onboarding questions). They are flat `y/n` or numbered prompts in screen reader mode; the app must simply show them and let the user answer.
@@ -82,7 +82,7 @@ The app records the same format with `--record file.vt` or Options → Record ra
 - `SessionModel.EndFrame` walks the whole transcript several times per frame. A lambda inside one of those loops that captures a local declared in the loop body makes the compiler allocate a closure on every iteration (that was 700 KB a frame in `HandleEchoes`); keep such work in a separate method called only for the rare line. The steady state is 0.12 ms and zero allocation at 18 000 lines; measure with a scratch console app against `AxClaude.Core` before and after touching that path.
 - The Bash tool in this environment mangles backslashes inside heredocs. Use the Write tool for source files.
 - A tool result, a replayed conversation or a slash command can print any row, including `you: …`, `Permission Required:`, `Enter y/n:` and `[Screen Reader Mode: …]`. Text alone never proves Claude's state: an echo must repeat a sent text, a question is pending only while the cursor sits on the prompt row, and the replay boundary of a restart is a remembered line, not a text match. Rows that scroll away inside one frame are classified when they are committed.
-- winmm `PlaySound` plays one sound per process: a call replaces the running sound unless it passes `SND_NOSTOP`, in which case the new sound is dropped instead. Do not use `SND_NOSTOP` for the tick: when winmm still counts an earlier sound as playing (a device that never finished it), every tick is dropped for good while the chimes go on replacing it. The tick yields while a chime lasts by the clock instead (`Sounds`). With `SND_MEMORY | SND_ASYNC` the buffer is read after the call returns, so the wave data is pinned for the life of the process.
+- winmm `PlaySound` opens and closes the audio device on every call and backs up when called in quick succession: the ticks stuttered and were reported as clogged (1.2.1), and its `SND_NOSTOP` flag silenced them for good once the device never finished a sound (1.1.0). `Sounds` keeps one `waveOut` device open for the life of the process, prepares every sound's buffer once and plays it with a single `waveOutWrite`. A chime calls `waveOutReset` first (it replaces whatever plays); a tick is dropped while its own buffer is still queued (`WHDR_INQUEUE`), so a tick during a chime follows the chime and ticks never pile up. The wave data and the headers are pinned or unmanaged for the life of the process, since the device reads and writes them after the call returns.
 - UIA notifications raised back to back are not all spoken: NVDA read the first few of a burst of per-line notifications and dropped the rest. Claude prints a whole message in one frame in screen reader mode, so anything spoken per line must be joined into one notification per frame (`Arrivals`, SPEC.md D32).
 
 ## Manual verification

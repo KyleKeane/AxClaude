@@ -10,6 +10,11 @@ namespace AxClaude;
 
 internal sealed class MainForm : Form
 {
+    private const string RecordItemText = "&Record raw stream for a bug report...";
+
+    /// <summary>Spoken for Ctrl+O, which the app does not pass on (D14).</summary>
+    private const string CtrlOGuard = "Ctrl+O is off here: Claude's detailed view redraws the conversation in screen reader mode. For tool output, start the session with --verbose.";
+
     private readonly StartupOptions _options;
     private readonly AppSettings _settings;
     private readonly string? _settingsError;
@@ -24,10 +29,6 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _currentFolderItem = new() { ShortcutKeys = Keys.Control | Keys.W };
     private readonly ToolStripMenuItem _recentFoldersItem = new("&Recent folders");
     private readonly ToolStripMenuItem _recordItem = new(RecordItemText);
-    private const string RecordItemText = "&Record raw stream for a bug report...";
-
-    /// <summary>Spoken for Ctrl+O, which the app does not pass on (D14).</summary>
-    private const string CtrlOGuard = "Ctrl+O is off here: Claude's detailed view redraws the conversation in screen reader mode. For tool output, start the session with --verbose.";
     private readonly ToolStripMenuItem _installedItem = new($"&Installed: AxClaude {Program.Version}");
     private readonly ToolStripMenuItem _latestItem = new();
     private readonly ToolStripMenuItem _updateItem = new("Check for &updates...");
@@ -136,9 +137,9 @@ internal sealed class MainForm : Form
             StartRecording(record);
         }
 
-        if (_folder is null)
+        if (_folder is null && PickFolder(null) is { } chosen)
         {
-            ChooseFolder();
+            SetFolder(chosen);
         }
 
         if (_folder is null)
@@ -334,7 +335,7 @@ internal sealed class MainForm : Form
         _recentFoldersItem.DropDownOpening += (_, _) => FillRecentFolders();
         _recentFoldersItem.DropDownItems.Add(new ToolStripMenuItem("(none)") { Enabled = false });
         project.DropDownItems.Add(_recentFoldersItem);
-        project.DropDownItems.Add(new ToolStripMenuItem("&Restart Claude", null, (_, _) => Relaunch("Restarting Claude")) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.R });
+        project.DropDownItems.Add(new ToolStripMenuItem("&Restart Claude", null, (_, _) => RestartClaude()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.R });
         project.DropDownItems.Add(new ToolStripSeparator());
         project.DropDownItems.Add(new ToolStripMenuItem("&Save conversation as...", null, (_, _) => SaveConversation()) { ShortcutKeyDisplayString = "Ctrl+S" });
         project.DropDownItems.Add(new ToolStripSeparator());
@@ -367,7 +368,7 @@ internal sealed class MainForm : Form
         var options = new ToolStripMenuItem("&Options");
         options.DropDownItems.Add(Toggle("&Announce when Claude is done", _settings.AnnounceBell, v => _settings.AnnounceBell = v));
         options.DropDownItems.Add(Toggle("Play &sounds: ready, sent, replying, done, question", _settings.SoundOnBell, v => _settings.SoundOnBell = v));
-        options.DropDownItems.Add(Toggle("Cl&ick for each new line from Claude", _settings.ClickOnNewLine, v => _settings.ClickOnNewLine = v));
+        options.DropDownItems.Add(Toggle("Tick for each &new line and tool call from Claude", _settings.ClickOnNewLine, v => _settings.ClickOnNewLine = v));
         options.DropDownItems.Add(Toggle("&Flash the taskbar button when Claude is done", _settings.FlashTaskbar, v => _settings.FlashTaskbar = v));
         // FR-7.4: one of three, shown checked like a radio group; the choice is announced, since the menu closes on it.
         var speech = new ToolStripMenuItem("Speak &replies as they arrive");
@@ -533,7 +534,7 @@ internal sealed class MainForm : Form
                 e.Handled = e.SuppressKeyPress = true;
                 EditPaging.Page(_input, e.KeyCode == Keys.PageDown ? 1 : -1);
                 break;
-            // Plain Up and Down only move the caret (D13): text appearing in the field on an arrow key confused the reading.
+                // Plain Up and Down only move the caret (D13): text appearing in the field on an arrow key confused the reading.
         }
     }
 
@@ -1205,30 +1206,24 @@ internal sealed class MainForm : Form
         return dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath) ? dialog.SelectedPath : null;
     }
 
-    private bool ChooseFolder()
+    /// <summary>Makes the folder the project folder: the title, the status bar and the Project menu follow, and the default arguments apply there again (FR-9.1).</summary>
+    private void SetFolder(string folder)
     {
-        if (PickFolder(_folder) is not { } folder)
-        {
-            return false;
-        }
-
         _folder = folder;
         _nothingToContinue = false;
         UpdateFolderUi();
-        return true;
     }
 
+    /// <summary>Project → Change folder… (FR-8.3): the picker, then Claude restarts in the chosen folder.</summary>
     private void ChangeFolder()
     {
-        if (!ChooseFolder())
+        if (PickFolder(_folder) is { } folder)
         {
-            return;
+            SwitchFolder(folder);
         }
-
-        Announce($"Project folder changed to {FolderName(_folder!)}", false);
-        Relaunch($"Project folder changed to {_folder}");
     }
 
+    /// <summary>Restarts Claude in another folder (Change folder, Recent folders), with a system line and an announcement.</summary>
     private void SwitchFolder(string folder)
     {
         if (!Directory.Exists(folder))
@@ -1237,9 +1232,7 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _folder = folder;
-        _nothingToContinue = false;
-        UpdateFolderUi();
+        SetFolder(folder);
         Announce($"Project folder changed to {FolderName(folder)}", false);
         Relaunch($"Project folder changed to {folder}");
     }
@@ -1300,9 +1293,7 @@ internal sealed class MainForm : Form
         }
 
         var arguments = _overlay.SelectedPreset?.Arguments ?? ClaudeLauncher.SplitArguments(_overlay.CustomArguments);
-        _folder = folder;
-        _nothingToContinue = false;
-        UpdateFolderUi();
+        SetFolder(folder);
         _claudeArgs = [.. arguments];
         var with = arguments.Count > 0 ? " with " + ClaudeLauncher.JoinArguments(arguments) : " with no extra arguments";
         Announce($"New session in {FolderName(folder)}", false);
@@ -1315,6 +1306,13 @@ internal sealed class MainForm : Form
 
     /// <summary>The arguments Claude gets after --ax-screen-reader: the chosen ones, or the default (FR-9.1).</summary>
     private IReadOnlyList<string> ClaudeArgs => _claudeArgs ?? (_nothingToContinue ? [] : ["--continue"]);
+
+    /// <summary>Project → Restart Claude (Ctrl+Shift+R, FR-1.8): the same folder and arguments; the conversation stays.</summary>
+    private void RestartClaude()
+    {
+        Announce("Restarting Claude", false);
+        Relaunch("Restarting Claude");
+    }
 
     private void StartClaude()
     {

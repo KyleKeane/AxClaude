@@ -6,6 +6,7 @@
   .\run.ps1                       # current folder is the project
   .\run.ps1 C:\src\myproject      # that folder is the project
   .\run.ps1 C:\src\myproject -- --resume     # extra arguments go to claude (default: --continue)
+  .\run.ps1 C:\src\myproject -New            # a new conversation (PowerShell swallows a bare --)
   .\run.ps1 -NoBuild              # skip the build, just start
   .\run.ps1 -Test                 # run the unit tests instead
 
@@ -18,6 +19,7 @@ param(
 
     [switch]$NoBuild,
     [switch]$Test,
+    [switch]$New,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ClaudeArgs
@@ -48,7 +50,10 @@ if (-not (Test-Path $exe)) {
 
 $Project = (Resolve-Path $Project).Path
 Write-Host "Starting AxClaude on $Project"
-if ($ClaudeArgs -and $ClaudeArgs.Count -gt 0) {
+if ($New) {
+    # A bare -- never reaches the app: PowerShell takes it as the end of the script's own parameters.
+    & $exe $Project '--'
+} elseif ($ClaudeArgs -and $ClaudeArgs.Count -gt 0) {
     & $exe $Project '--' @ClaudeArgs
 } else {
     & $exe $Project
