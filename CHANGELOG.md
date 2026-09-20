@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 - 2026-09-20
 
+- Change folder and Recent folders clear the conversation before Claude starts in the new folder, as New session does: the window holds only the "Project folder changed" line and what Claude prints there, with that folder's earlier exchanges under their "from previous session" headings when it has any. Restart Claude keeps the conversation.
 - Fixed: the ticks stuttered on the speaker and went ragged once many had played. Every sound went through winmm's PlaySound, which opens and closes the audio device for each call and backs up under quick succession. The sounds now play through one wave-out device that stays open for the whole run: each sound is prepared once and queued with a single write, a chime replaces whatever plays, and a tick is dropped while the previous one is still on its way, so they never pile up. A tick that arrives during a chime now follows it instead of being lost.
 - The tool tick is two lower knocks of 12 ms each instead of two 5 ms strikes, so it can be heard on a small speaker. The option that turns the ticks off is now called "Tick for each new line and tool call from Claude"; it always covered both.
 - Restart Claude (Ctrl+Shift+R) says "Restarting Claude".

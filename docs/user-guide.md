@@ -74,7 +74,7 @@ The Help menu opens the Claude Code documentation in your browser: the commands,
 
 ## Read the conversation
 
-Every message you send is printed like this: the line `# Input 1`, your message, a blank line, the line `# Output 1 Reply from Claude`, a blank line, then Claude's reply. Both `#` lines are level 1 headings. When AxClaude starts on a folder with a conversation, the earlier exchanges come back under `# Input 1 from previous session` and `# Output 1 from previous session Reply from Claude`, with the message as a `you:` line; new messages count from 1 as usual. Restart Claude (Ctrl+Shift+R) keeps the conversation as it is; New session (Ctrl+N) clears it first. Options, "Show the time in the Input and Output lines" adds the time.
+Every message you send is printed like this: the line `# Input 1`, your message, a blank line, the line `# Output 1 Reply from Claude`, a blank line, then Claude's reply. Both `#` lines are level 1 headings. When AxClaude starts on a folder with a conversation, the earlier exchanges come back under `# Input 1 from previous session` and `# Output 1 from previous session Reply from Claude`, with the message as a `you:` line; new messages count from 1 as usual. Restart Claude (Ctrl+Shift+R) keeps the conversation as it is. New session (Ctrl+N), Change folder and Recent folders clear it first, so another folder starts with an empty window and its own earlier conversation, when it has one. Options, "Show the time in the Input and Output lines" adds the time.
 
 In the conversation, these keys move to a line and speak it. Add Shift to go backwards.
 

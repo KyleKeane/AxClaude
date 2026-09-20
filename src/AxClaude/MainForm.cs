@@ -1234,7 +1234,9 @@ internal sealed class MainForm : Form
 
         SetFolder(folder);
         Announce($"Project folder changed to {FolderName(folder)}", false);
-        Relaunch($"Project folder changed to {folder}");
+        // Another folder is another conversation (FR-8.3): the window is cleared, and what Claude prints there, a
+        // replay with its blocks when the folder has one, arrives as at the first start of the app.
+        Relaunch($"Project folder changed to {folder}", clearConversation: true);
     }
 
     // ---- New session (FR-8.6) ----
@@ -1482,8 +1484,8 @@ internal sealed class MainForm : Form
 
     /// <summary>
     /// Stops Claude and starts it again with the current folder and arguments, after the system line. The
-    /// conversation stays in the window (Restart Claude, a folder change) unless <paramref name="clearConversation"/>
-    /// is set (New session, FR-8.6), in which case the system line is the first line of the emptied window.
+    /// conversation stays in the window (Restart Claude) unless <paramref name="clearConversation"/> is set (New
+    /// session, a folder change; FR-8.3, FR-8.6), in which case the system line is the first line of the emptied window.
     /// </summary>
     private void Relaunch(string systemLine, bool clearConversation = false)
     {
