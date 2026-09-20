@@ -25,7 +25,7 @@ description: Record a new ConPTY fixture of Claude Code in screen reader mode wi
 
    Send the text and the `\r` as separate writes. Use a scratch folder as `--cwd` so the recording does not touch a real project.
 
-2. Run: `dotnet run --project tools/PtyCapture -- --cwd <scratch folder> --out <name>.vt --cols 200 --rows 50 --script <script> -- "%USERPROFILE%\.local\bin\claude.exe" --ax-screen-reader`. The tool strips `CLAUDE*` variables from the child environment, so it can be run from inside a Claude Code session.
+2. Run: `dotnet run --project tools/PtyCapture -- --cwd <scratch folder> --out <name>.vt --cols 240 --rows 50 --script <script> -- "%USERPROFILE%\.local\bin\claude.exe" --ax-screen-reader`. The tool starts the command through the app's own `PtyHost` with the app's child environment (`ClaudeLauncher.BuildEnvironment`: no `CLAUDE*` variables, so it can be run from inside a Claude Code session, and the startup pauses set to 0 as in the app), so the recording shows what the app sees.
 
 3. Inspect with `dotnet run --project tools/PtyCapture -- --dump <name>.vt`. Look for the account name in the header, absolute paths outside the scratch folder, session ids and anything else personal. If present, re-record with a neutral folder or note the lines to redact in the fixture README; never hand-edit the bytes of a `.vt` file, because the cursor positions in it depend on the original text lengths.
 

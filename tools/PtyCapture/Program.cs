@@ -1,7 +1,7 @@
-// PtyCapture: records the raw byte stream that a Windows pseudo console (ConPTY)
-// emits while running a command, driven by a small script. The recordings are
-// used as fixtures for the VT parser tests and for studying how Claude Code
-// renders in --ax-screen-reader mode.
+// PtyCapture: records the raw byte stream that a Windows pseudo console (ConPTY) emits while running a command,
+// driven by a small script. The recordings are the parser's test fixtures and the material for studying how Claude
+// Code renders in --ax-screen-reader mode. The console and the child's environment are the app's own (PtyHost and
+// ClaudeLauncher in AxClaude.Core), so a recording shows what the app sees.
 //
 // Usage:
 //   PtyCapture --out <file.vt> [--cwd <dir>] [--cols N] [--rows N] [--script <file>] -- <command line>
@@ -14,12 +14,11 @@
 //   wait <ms> <text>   wait up to <ms> until output since the last mark contains <text>
 //   quiet <ms> <max>   wait until no output arrives for <ms> milliseconds (give up after <max>)
 //   sleep <ms>         sleep
-//   exit <ms>          wait up to <ms> for the process to exit, then terminate it
+//   exit <ms>          wait up to <ms> for the process to exit, then stop it
 
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
+using AxClaude.Core.Pty;
 
 namespace PtyCapture;
 
@@ -28,7 +27,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         string? cwd = null, outPath = null, scriptPath = null, dumpPath = null;
-        short cols = 120, rows = 40;
+        int cols = 120, rows = 40;
         var command = new List<string>();
 
         for (var i = 0; i < args.Length; i++)
@@ -39,8 +38,8 @@ internal static class Program
                 case "--out": outPath = args[++i]; break;
                 case "--script": scriptPath = args[++i]; break;
                 case "--dump": dumpPath = args[++i]; break;
-                case "--cols": cols = short.Parse(args[++i]); break;
-                case "--rows": rows = short.Parse(args[++i]); break;
+                case "--cols": cols = int.Parse(args[++i]); break;
+                case "--rows": rows = int.Parse(args[++i]); break;
                 case "--":
                     command.AddRange(args.Skip(i + 1));
                     i = args.Length;
@@ -66,48 +65,40 @@ internal static class Program
         }
 
         cwd ??= Environment.CurrentDirectory;
-        var commandLine = string.Join(' ', command.Select(Quote));
-        var script = scriptPath is null ? new List<string>() : File.ReadAllLines(scriptPath).ToList();
-
+        var commandLine = ClaudeLauncher.BuildCommandLine(command[0], command.Skip(1));
+        string[] script = scriptPath is null ? [] : File.ReadAllLines(scriptPath);
         Console.Error.WriteLine($"[capture] cwd={cwd} size={cols}x{rows}");
         Console.Error.WriteLine($"[capture] command: {commandLine}");
 
-        using var recorder = new Recorder(outPath);
-        using var session = PtySession.Start(commandLine, cwd, cols, rows, ChildEnvironment());
-        var stopwatch = Stopwatch.StartNew();
-
-        var reader = new Thread(() =>
+        using var recorder = new StreamRecorder(outPath);
+        var output = new Output();
+        var clock = Stopwatch.StartNew();
+        var exited = new ManualResetEventSlim();
+        using var host = PtyHost.Start(new PtyOptions(commandLine, cwd, cols, rows, ClaudeLauncher.BuildEnvironment()));
+        host.DataReceived += data =>
         {
-            var buffer = new byte[65536];
-            try
-            {
-                while (true)
-                {
-                    var n = session.Output.Read(buffer, 0, buffer.Length);
-                    if (n <= 0) break;
-                    recorder.Append(buffer.AsSpan(0, n), stopwatch.ElapsedMilliseconds);
-                }
-            }
-            catch (IOException) { /* pipe closed */ }
-            catch (ObjectDisposedException) { }
-            Console.Error.WriteLine($"[capture] output pipe closed at {stopwatch.ElapsedMilliseconds} ms");
-        }) { IsBackground = true, Name = "pty-reader" };
-        reader.Start();
+            recorder.Write(data);
+            output.Append(data, clock.ElapsedMilliseconds);
+        };
+        host.Exited += code =>
+        {
+            Console.Error.WriteLine($"[capture] process exited with code {code} at {clock.ElapsedMilliseconds} ms");
+            exited.Set();
+        };
+        Console.Error.WriteLine($"[capture] started pid {host.ProcessId}");
 
-        var runner = new ScriptRunner(session, recorder, stopwatch);
+        var runner = new ScriptRunner(host, output, exited, clock);
         foreach (var line in script)
         {
             runner.Execute(line);
         }
 
-        if (!session.HasExited)
+        if (!host.HasExited)
         {
-            Console.Error.WriteLine("[capture] script finished; terminating process");
-            session.Terminate();
+            Console.Error.WriteLine("[capture] script finished; stopping the process");
         }
 
-        session.ClosePseudoConsole();
-        reader.Join(TimeSpan.FromSeconds(5));
+        host.Dispose(); // Closes the console, which ends the client, and waits for the last of its output.
         Console.Error.WriteLine($"[capture] wrote {recorder.Length} bytes to {outPath}");
         return 0;
     }
@@ -119,50 +110,26 @@ internal static class Program
         stream.CopyTo(memory);
         return memory.ToArray();
     }
-
-    private static string Quote(string arg) =>
-        arg.Length > 0 && arg.IndexOfAny([' ', '\t', '"']) < 0 ? arg : "\"" + arg.Replace("\"", "\\\"") + "\"";
-
-    // The child must not think it is running inside this Claude Code session (or any other).
-    private static Dictionary<string, string> ChildEnvironment()
-    {
-        var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
-        {
-            var key = (string)entry.Key;
-            if (key.StartsWith("CLAUDE", StringComparison.OrdinalIgnoreCase)) continue;
-            env[key] = (string?)entry.Value ?? string.Empty;
-        }
-        env["TERM"] = "xterm-256color";
-        return env;
-    }
 }
 
-internal sealed class Recorder : IDisposable
+/// <summary>The output so far, kept in memory for the script's wait and quiet commands.</summary>
+internal sealed class Output
 {
-    private readonly FileStream _file;
-    private readonly StreamWriter _index;
     private readonly MemoryStream _memory = new();
     private readonly object _lock = new();
-    public long LastOutputAt { get; private set; }
-    public long Length { get { lock (_lock) return _memory.Length; } }
+    private long _lastAt;
 
-    public Recorder(string path)
-    {
-        _file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
-        _index = new StreamWriter(path + ".chunks.txt", false, Encoding.UTF8) { AutoFlush = true };
-        _index.WriteLine("# offset length elapsedMs");
-    }
+    /// <summary>The clock reading at which the last chunk arrived.</summary>
+    public long LastAt { get { lock (_lock) { return _lastAt; } } }
+
+    public long Length { get { lock (_lock) { return _memory.Length; } } }
 
     public void Append(ReadOnlySpan<byte> data, long elapsedMs)
     {
         lock (_lock)
         {
-            _index.WriteLine($"{_memory.Length} {data.Length} {elapsedMs}");
             _memory.Write(data);
-            _file.Write(data);
-            _file.Flush();
-            LastOutputAt = elapsedMs;
+            _lastAt = elapsedMs;
         }
     }
 
@@ -170,19 +137,12 @@ internal sealed class Recorder : IDisposable
     {
         lock (_lock)
         {
-            var bytes = _memory.GetBuffer().AsSpan((int)offset, (int)(_memory.Length - offset));
-            return Encoding.UTF8.GetString(bytes);
+            return Encoding.UTF8.GetString(_memory.GetBuffer().AsSpan((int)offset, (int)(_memory.Length - offset)));
         }
-    }
-
-    public void Dispose()
-    {
-        _index.Dispose();
-        _file.Dispose();
     }
 }
 
-internal sealed class ScriptRunner(PtySession session, Recorder recorder, Stopwatch clock)
+internal sealed class ScriptRunner(PtyHost host, Output output, ManualResetEventSlim exited, Stopwatch clock)
 {
     private long _mark;
     private bool _lastFound;
@@ -199,63 +159,63 @@ internal sealed class ScriptRunner(PtySession session, Recorder recorder, Stopwa
         switch (verb)
         {
             case "send":
-                session.Write(Unescape(rest));
+                host.Write(Unescape(rest));
                 break;
             case "mark":
-                _mark = recorder.Length;
+                _mark = output.Length;
                 break;
             case "iffound":
                 if (_lastFound) Execute(rest);
                 break;
             case "wait":
-            {
-                var parts = rest.Split(' ', 2);
-                var timeout = int.Parse(parts[0]);
-                var needle = Unescape(parts[1]);
-                var deadline = clock.ElapsedMilliseconds + timeout;
-                _lastFound = false;
-                while (clock.ElapsedMilliseconds < deadline)
                 {
-                    if (recorder.TextSince(_mark).Contains(needle, StringComparison.Ordinal))
+                    var parts = rest.Split(' ', 2);
+                    var timeout = int.Parse(parts[0]);
+                    var needle = Unescape(parts[1]);
+                    var deadline = clock.ElapsedMilliseconds + timeout;
+                    _lastFound = false;
+                    while (clock.ElapsedMilliseconds < deadline)
                     {
-                        Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   found");
-                        _lastFound = true;
-                        return;
+                        if (output.TextSince(_mark).Contains(needle, StringComparison.Ordinal))
+                        {
+                            Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   found");
+                            _lastFound = true;
+                            return;
+                        }
+                        if (host.HasExited) { Console.Error.WriteLine("[script]   process exited"); return; }
+                        Thread.Sleep(50);
                     }
-                    if (session.HasExited) { Console.Error.WriteLine("[script]   process exited"); return; }
-                    Thread.Sleep(50);
+                    Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   TIMEOUT waiting for {needle}");
+                    break;
                 }
-                Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   TIMEOUT waiting for {needle}");
-                break;
-            }
             case "quiet":
-            {
-                var parts = rest.Split(' ');
-                var quietFor = int.Parse(parts[0]);
-                var max = int.Parse(parts[1]);
-                var deadline = clock.ElapsedMilliseconds + max;
-                while (clock.ElapsedMilliseconds < deadline)
                 {
-                    if (clock.ElapsedMilliseconds - recorder.LastOutputAt >= quietFor) return;
-                    if (session.HasExited) return;
-                    Thread.Sleep(50);
+                    var parts = rest.Split(' ');
+                    var quietFor = int.Parse(parts[0]);
+                    var max = int.Parse(parts[1]);
+                    var deadline = clock.ElapsedMilliseconds + max;
+                    while (clock.ElapsedMilliseconds < deadline)
+                    {
+                        if (clock.ElapsedMilliseconds - output.LastAt >= quietFor) return;
+                        if (host.HasExited) return;
+                        Thread.Sleep(50);
+                    }
+                    Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   never went quiet");
+                    break;
                 }
-                Console.Error.WriteLine($"[script t={clock.ElapsedMilliseconds}]   never went quiet");
-                break;
-            }
             case "sleep":
                 Thread.Sleep(int.Parse(rest));
                 break;
             case "exit":
-            {
-                var timeout = int.Parse(rest);
-                if (!session.WaitForExit(timeout))
                 {
-                    Console.Error.WriteLine("[script]   process did not exit; terminating");
-                    session.Terminate();
+                    var timeout = int.Parse(rest);
+                    if (!exited.Wait(timeout))
+                    {
+                        Console.Error.WriteLine("[script]   process did not exit; stopping it");
+                        host.Dispose();
+                    }
+                    break;
                 }
-                break;
-            }
             default:
                 Console.Error.WriteLine($"[script]   unknown command '{verb}'");
                 break;
@@ -345,221 +305,4 @@ internal static class Dump
                 return i + 1;
         }
     }
-}
-
-internal sealed class PtySession : IDisposable
-{
-    private IntPtr _pseudoConsole;
-    private PROCESS_INFORMATION _process;
-    private SafeFileHandle? _inputWrite;
-    private SafeFileHandle? _outputRead;
-    private bool _consoleClosed;
-
-    public FileStream Input { get; private set; } = null!;
-    public FileStream Output { get; private set; } = null!;
-
-    public static PtySession Start(string commandLine, string cwd, short cols, short rows, Dictionary<string, string> environment)
-    {
-        var session = new PtySession();
-
-        if (!Native.CreatePipe(out var inputRead, out var inputWrite, IntPtr.Zero, 0)) throw Native.Error("CreatePipe(input)");
-        if (!Native.CreatePipe(out var outputRead, out var outputWrite, IntPtr.Zero, 0)) throw Native.Error("CreatePipe(output)");
-
-        var size = new COORD { X = cols, Y = rows };
-        var hr = Native.CreatePseudoConsole(size, inputRead, outputWrite, 0, out session._pseudoConsole);
-        if (hr != 0) throw new InvalidOperationException($"CreatePseudoConsole failed: 0x{hr:X8}");
-
-        // The pseudo console duplicated its ends of the pipes; release ours.
-        inputRead.Dispose();
-        outputWrite.Dispose();
-
-        var attributeListSize = IntPtr.Zero;
-        Native.InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
-        var startup = new STARTUPINFOEX();
-        startup.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
-        startup.lpAttributeList = Marshal.AllocHGlobal(attributeListSize);
-        if (!Native.InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0, ref attributeListSize)) throw Native.Error("InitializeProcThreadAttributeList");
-        if (!Native.UpdateProcThreadAttribute(startup.lpAttributeList, 0, (IntPtr)Native.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                session._pseudoConsole, (IntPtr)IntPtr.Size, IntPtr.Zero, IntPtr.Zero)) throw Native.Error("UpdateProcThreadAttribute");
-
-        var envBlock = BuildEnvironmentBlock(environment);
-        var envPtr = Marshal.StringToHGlobalUni(envBlock);
-        // If this process was started with redirected stdio (pipes), CreateProcess would
-        // propagate those pipe handles to the child even with bInheritHandles=false, and the
-        // child would then not see a console on its stdin/stdout. Clearing our standard
-        // handles for the duration of the call makes the child receive handles to the
-        // pseudo console instead.
-        var savedStdIn = Native.GetStdHandle(Native.STD_INPUT_HANDLE);
-        var savedStdOut = Native.GetStdHandle(Native.STD_OUTPUT_HANDLE);
-        var savedStdErr = Native.GetStdHandle(Native.STD_ERROR_HANDLE);
-        Native.SetStdHandle(Native.STD_INPUT_HANDLE, IntPtr.Zero);
-        Native.SetStdHandle(Native.STD_OUTPUT_HANDLE, IntPtr.Zero);
-        Native.SetStdHandle(Native.STD_ERROR_HANDLE, IntPtr.Zero);
-        try
-        {
-            if (!Native.CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, false,
-                    Native.EXTENDED_STARTUPINFO_PRESENT | Native.CREATE_UNICODE_ENVIRONMENT,
-                    envPtr, cwd, ref startup, out session._process))
-            {
-                throw Native.Error("CreateProcess");
-            }
-        }
-        finally
-        {
-            Native.SetStdHandle(Native.STD_INPUT_HANDLE, savedStdIn);
-            Native.SetStdHandle(Native.STD_OUTPUT_HANDLE, savedStdOut);
-            Native.SetStdHandle(Native.STD_ERROR_HANDLE, savedStdErr);
-            Marshal.FreeHGlobal(envPtr);
-            Native.DeleteProcThreadAttributeList(startup.lpAttributeList);
-            Marshal.FreeHGlobal(startup.lpAttributeList);
-        }
-
-        session._inputWrite = inputWrite;
-        session._outputRead = outputRead;
-        session.Input = new FileStream(inputWrite, FileAccess.Write, 1, false);
-        session.Output = new FileStream(outputRead, FileAccess.Read, 65536, false);
-        Console.Error.WriteLine($"[capture] started pid {session._process.dwProcessId}");
-        return session;
-    }
-
-    public bool HasExited => Native.WaitForSingleObject(_process.hProcess, 0) == 0;
-
-    public bool WaitForExit(int timeoutMs) => Native.WaitForSingleObject(_process.hProcess, (uint)timeoutMs) == 0;
-
-    public void Write(string text)
-    {
-        var bytes = Encoding.UTF8.GetBytes(text);
-        Input.Write(bytes, 0, bytes.Length);
-        Input.Flush();
-    }
-
-    public void Terminate()
-    {
-        Native.TerminateProcess(_process.hProcess, 1);
-        WaitForExit(5000);
-    }
-
-    public void ClosePseudoConsole()
-    {
-        if (_consoleClosed) return;
-        _consoleClosed = true;
-        Native.ClosePseudoConsole(_pseudoConsole);
-    }
-
-    public void Dispose()
-    {
-        ClosePseudoConsole();
-        Input?.Dispose();
-        Output?.Dispose();
-        _inputWrite?.Dispose();
-        _outputRead?.Dispose();
-        if (_process.hProcess != IntPtr.Zero) Native.CloseHandle(_process.hProcess);
-        if (_process.hThread != IntPtr.Zero) Native.CloseHandle(_process.hThread);
-    }
-
-    private static string BuildEnvironmentBlock(Dictionary<string, string> environment)
-    {
-        var sb = new StringBuilder();
-        foreach (var pair in environment.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            sb.Append(pair.Key).Append('=').Append(pair.Value).Append('\0');
-        }
-        sb.Append('\0');
-        return sb.ToString();
-    }
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct COORD { public short X; public short Y; }
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct STARTUPINFO
-{
-    public int cb;
-    public IntPtr lpReserved;
-    public IntPtr lpDesktop;
-    public IntPtr lpTitle;
-    public int dwX;
-    public int dwY;
-    public int dwXSize;
-    public int dwYSize;
-    public int dwXCountChars;
-    public int dwYCountChars;
-    public int dwFillAttribute;
-    public int dwFlags;
-    public short wShowWindow;
-    public short cbReserved2;
-    public IntPtr lpReserved2;
-    public IntPtr hStdInput;
-    public IntPtr hStdOutput;
-    public IntPtr hStdError;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct STARTUPINFOEX
-{
-    public STARTUPINFO StartupInfo;
-    public IntPtr lpAttributeList;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct PROCESS_INFORMATION
-{
-    public IntPtr hProcess;
-    public IntPtr hThread;
-    public int dwProcessId;
-    public int dwThreadId;
-}
-
-internal static class Native
-{
-    public const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
-    public const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
-    public const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
-    public const int STD_INPUT_HANDLE = -10;
-    public const int STD_OUTPUT_HANDLE = -11;
-    public const int STD_ERROR_HANDLE = -12;
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern IntPtr GetStdHandle(int nStdHandle);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool SetStdHandle(int nStdHandle, IntPtr hHandle);
-
-    public static Exception Error(string what) =>
-        new InvalidOperationException($"{what} failed: Win32 error {Marshal.GetLastWin32Error()}");
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool CreatePipe(out SafeFileHandle hReadPipe, out SafeFileHandle hWritePipe, IntPtr lpPipeAttributes, int nSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern int CreatePseudoConsole(COORD size, SafeFileHandle hInput, SafeFileHandle hOutput, uint dwFlags, out IntPtr phPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern int ResizePseudoConsole(IntPtr hPC, COORD size);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern void ClosePseudoConsole(IntPtr hPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool InitializeProcThreadAttributeList(IntPtr lpAttributeList, int dwAttributeCount, int dwFlags, ref IntPtr lpSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool UpdateProcThreadAttribute(IntPtr lpAttributeList, uint dwFlags, IntPtr attribute, IntPtr lpValue, IntPtr cbSize, IntPtr lpPreviousValue, IntPtr lpReturnSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern void DeleteProcThreadAttributeList(IntPtr lpAttributeList);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    public static extern bool CreateProcess(string? lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
-        bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string? lpCurrentDirectory, ref STARTUPINFOEX lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool CloseHandle(IntPtr hObject);
 }
