@@ -17,7 +17,8 @@
   .\install.ps1 -NoContextMenu  # install without the File Explorer entry
   .\install.ps1 -NoStartMenu    # install without the Start menu entry
 
-  If PowerShell refuses to run scripts: powershell -ExecutionPolicy Bypass -File .\install.ps1
+  install.cmd, next to this script, runs it with the execution policy bypassed: double-click it, or install.cmd -Uninstall.
+  Downloaded on its own from the releases page, install.cmd fetches the latest release and runs this script from it.
 
   AxClaude's own Update now (Help menu) runs the downloaded version's copy of this script as
     install.ps1 -WaitForProcess <pid> -Start <folder> [-ContinueConversation] -LogFile <file>
@@ -95,7 +96,7 @@ if (-not $sameFolder) {
     $attempt = 0
     while ($true) {
         try {
-            foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1') {
+            foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1', 'install.cmd') {
                 $file = Join-Path $source $name
                 if (Test-Path $file) { Copy-Item $file $target -Force }
             }

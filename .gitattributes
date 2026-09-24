@@ -7,3 +7,6 @@
 *.png binary
 *.ico binary
 *.wav binary
+
+# Batch files must keep Windows line endings: cmd.exe misreads some lines with LF alone.
+*.cmd text eol=crlf

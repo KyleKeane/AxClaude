@@ -1,5 +1,6 @@
-# Builds the zip that publish.ps1 builds locally and attaches it to a GitHub release. The app installs updates from
-# these releases (SPEC.md FR-1.10). Started by pushing a version tag, which release.ps1 does, or by hand from the
+# Builds the zip that publish.ps1 builds locally and attaches it to a GitHub release, with install.cmd on its own so
+# it can be downloaded alone and install the latest release. The app installs updates from these releases (SPEC.md
+# FR-1.10). Started by pushing a version tag, which release.ps1 does, or by hand from the
 # Actions tab (or `gh workflow run release.yml -f tag=v1.0.1`) for a tag that already exists.
 name: Release
 
@@ -60,7 +61,7 @@ jobs:
           $zip = (Get-Item "publish\AxClaude-$env:VERSION-win-x64.zip").FullName
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:TAG $zip --clobber
+            gh release upload $env:TAG $zip install.cmd --clobber
           } else {
-            gh release create $env:TAG $zip --title "AxClaude $env:VERSION" --notes-file notes.md
+            gh release create $env:TAG $zip install.cmd --title "AxClaude $env:VERSION" --notes-file notes.md
           }

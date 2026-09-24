@@ -9,6 +9,7 @@
 - Fixed: answers of more than one character did not reach Claude. Claude takes an answer as typed keys and ignores several characters sent at once, so "12" in a long list, "1,3" for several answers and your own words were dropped; every answer now goes one keystroke per character.
 - Fixed: choosing "Other" left you with nowhere to type.
 - A question that Claude redraws in passing no longer closes its notice or is announced again.
+- Installing is a double-click: download `install.cmd` from the release page and open it, and it fetches and installs the latest AxClaude. The zip has it too. No PowerShell setting has to change.
 
 ## 1.4.0 - 2026-09-24
 

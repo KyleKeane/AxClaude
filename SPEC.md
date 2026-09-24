@@ -245,7 +245,7 @@ AxClaude.exe [<folder>] [--project <folder>] [--claude <path>] [--cols N] [--row
 
 - FR-9.1: Everything after `--` goes to `claude` verbatim (`--resume <id>`, `--model opus`, `--permission-mode plan`). Without `--`, Claude gets `--continue`: the last conversation in the folder carries on. In a folder without one Claude prints `No conversation found to continue` and exits; the app then announces "No conversation to continue. Starting a new one", adds that as a system line and starts Claude again without the flag, and leaves the flag off for that folder until the folder changes. An explicit `--continue` (after `--` or from New session) gets no such rescue: Claude's own line and "Claude stopped" follow. A bare `--` gives no arguments: a new conversation.
 - FR-9.2: `--no-ax` omits `--ax-screen-reader` (testing only). `--record` writes the raw stream to a file (the PtyCapture format with the `.chunks.txt` index); Options → Record raw stream for a bug report… does the same at run time. `--cols`, `--rows`, `--claude` override the settings file.
-- FR-9.3: A GUI executable started from a console returns at once. `publish.ps1` builds `publish\win-x64` (the self-contained `AxClaude.exe`, `install.ps1`, the guide as `README.md`) and zips it as `publish\AxClaude-<version>-win-x64.zip`; `install.ps1` (run by `publish.ps1` unless `-NoInstall`) puts the files in `%LOCALAPPDATA%\Programs\AxClaude`, writes the `axclaude.cmd` shim in `%USERPROFILE%\.local\bin` (on `PATH` since Claude Code's installer uses it), the Start menu entry and the Explorer entry, and unblocks the files so SmartScreen warns at most once.
+- FR-9.3: A GUI executable started from a console returns at once. `publish.ps1` builds `publish\win-x64` (the self-contained `AxClaude.exe`, `install.cmd`, `install.ps1`, the guide as `README.md`) and zips it as `publish\AxClaude-<version>-win-x64.zip`; `install.ps1` (run by `publish.ps1` unless `-NoInstall`) puts the files in `%LOCALAPPDATA%\Programs\AxClaude`, writes the `axclaude.cmd` shim in `%USERPROFILE%\.local\bin` (on `PATH` since Claude Code's installer uses it), the Start menu entry and the Explorer entry, and unblocks the files so SmartScreen warns at most once.
 - FR-9.4: In development: `dotnet run --project src/AxClaude -- <folder>` or `run.ps1`.
 - FR-9.5 SHOULD: `--help` (`-h`, `-?`, `/?`) shows the usage in a message box; `--version` the version; a bad command line its error. These are the only message boxes: no window exists yet (D23).
 
@@ -378,7 +378,7 @@ tests/fixtures/           *.vt recordings, *.vt.chunks.txt timing, *.expected.tx
 tools/PtyCapture/         recorder, through PtyHost; tools/release-notes.ps1 (the CHANGELOG section of a version)
 docs/                     user-guide.md (embedded, shipped as README.md), nvda-test-plan.md
 .github/workflows/        build.yml (tests on push), release.yml (tag → zip → GitHub release); release.ps1 starts it
-publish.ps1, install.ps1  build the zip; install or remove for the current user
+publish.ps1, install.ps1, install.cmd  build the zip; install or remove for the current user
 ```
 
 ### 7.2 Data flow
@@ -457,7 +457,7 @@ The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLAC
 - **D15 System.Text.Json for settings.** Ships with the runtime.
 - **D16 A message sent while Claude works stays out of the conversation until Claude takes it up.** Claude Code owns the queue and draws the waiting message; the app only reports it and prints the block when the echo arrives. Placing the markers at once put them in the middle of the running reply and moved them later.
 - **D17 Wrapped rows are joined in the view, not in the model.** Each screen row keeps its `Line`, so rewrites and caret mapping keep working; only the separator changes. File-only switch.
-- **D18 Installation is a script.** `install.ps1` does everything a per-user installer would with no dependency, no elevation and nothing to sign.
+- **D18 Installation is a script.** `install.ps1` does everything a per-user installer would with no dependency, no elevation and nothing to sign. `install.cmd` is how a person starts it: a downloaded `.ps1` is refused by the default execution policy and blocked as a file from the internet, and a batch file is not, so it runs `install.ps1` with `-ExecutionPolicy Bypass` for that one run. Next to `install.ps1` (the zip, the installed folder) it passes its arguments on; downloaded on its own (a release asset of its own) it fetches the latest release's zip from the GitHub API into `%TEMP%\AxClaude-install` and runs the `install.ps1` in it. The updater (D25) still runs `install.ps1` itself.
 - **D19 The user guide is one Markdown file**, embedded for Help → User guide and copied into the zip as `README.md`, so the two can never differ.
 - **D20 Escape is guarded in the message field.** Blind users press Escape by reflex, and an unguarded one interrupted the running turn. Ctrl+Escape was the first choice, but Windows opens the Start menu on it, and swallowing it needs a global keyboard hook, which must not be installed next to a screen reader.
 - **D21 Quoting a conversation line is a literal text block.** No protocol, no hidden state; the user edits or deletes it like any text. The marker under the quote tells Claude where the user's own words begin.
@@ -477,7 +477,7 @@ The view applies the edits with `Select` + `SelectedText` (EM_SETSEL / EM_REPLAC
 ## 9. Repository, build and run
 
 - `dotnet build AxClaude.sln`, `dotnet test AxClaude.sln`, `dotnet run --project src/AxClaude -- "C:\path"`, or `run.ps1`.
-- `publish.ps1`: `dotnet publish src/AxClaude -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` into `publish\win-x64`, plus `install.ps1`, `LICENSE` and the guide as `README.md`, zipped as `publish\AxClaude-<version>-win-x64.zip`, then `install.ps1` unless `-NoInstall`. The version is `<Version>` in `AxClaude.csproj`.
+- `publish.ps1`: `dotnet publish src/AxClaude -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` into `publish\win-x64`, plus `install.cmd`, `install.ps1`, `LICENSE` and the guide as `README.md`, zipped as `publish\AxClaude-<version>-win-x64.zip`, then `install.ps1` unless `-NoInstall`. The version is `<Version>` in `AxClaude.csproj`.
 - Warnings are errors in Release; nullable enabled everywhere.
 - Git: `main` is always buildable; imperative commit subjects; Co-Authored-By trailer for commits made with Claude.
 - Licence: MIT (`LICENSE`), copyright Dr. Kyle Keane, www.kylekeane.com; the same line is in `AxClaude.csproj` (`Authors`, `Copyright`), Help → About, the guide and the README. The only condition is that the notice stays with copies.

@@ -4,8 +4,8 @@
   zipped for sending, and installs it for the current user unless -NoInstall is given.
 
 .DESCRIPTION
-  Output: publish\win-x64\ (AxClaude.exe, install.ps1, README.md, LICENSE) and publish\AxClaude-<version>-win-x64.zip.
-  Send the zip to someone: they extract it and run install.ps1 (see README.md inside). Without -NoInstall the
+  Output: publish\win-x64\ (AxClaude.exe, install.cmd, install.ps1, README.md, LICENSE) and publish\AxClaude-<version>-win-x64.zip.
+  Send the zip to someone: they extract it and double-click install.cmd (see README.md inside). Without -NoInstall the
   script then runs install.ps1 from publish\win-x64 on this machine (Start menu entry, File Explorer entry and
   the axclaude console command; see install.ps1 -? for details and -Uninstall).
 
@@ -35,6 +35,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $exe = Join-Path $out 'AxClaude.exe'
 Copy-Item (Join-Path $root 'install.ps1') $out -Force
+Copy-Item (Join-Path $root 'install.cmd') $out -Force
 Copy-Item (Join-Path $root 'LICENSE') $out -Force
 Copy-Item (Join-Path $root 'docs\user-guide.md') (Join-Path $out 'README.md') -Force
 Get-ChildItem $out -Filter '*.pdb' | Remove-Item -Force
