@@ -55,11 +55,14 @@ internal sealed class MainForm : Form
     private bool _bellPending;
     private bool _promptAnnounced;
 
-    /// <summary>The question the answer notice shows (D33); null while no answer notice is open.</summary>
-    private Question? _shownQuestion;
+    /// <summary>The signature of the question or screen the open notice shows (D33); null while none of Claude's is shown.</summary>
+    private string? _shownWait;
 
-    /// <summary>The signature of the question that got its notice, was answered, or was left to the message field: it does not open again while Claude waits on it.</summary>
-    private string? _handledQuestion;
+    /// <summary>The signature of the question or screen that got its notice, was answered, or was left to the message field: it does not open again while Claude waits on it.</summary>
+    private string? _handledWait;
+
+    /// <summary>When a key was last sent from a screen notice: the screen that follows is the user's doing and opens without the chime.</summary>
+    private long _screenKeyAt;
 
     /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
     private SlashCommand? _lastCommand;
@@ -579,9 +582,10 @@ internal sealed class MainForm : Form
     /// number.
     /// </summary>
     private bool IsAnswer(string text) =>
-        _model.PendingQuestion is { Options.Count: > 0 } question
+        _model.PendingScreen is null
+        && (_model.PendingQuestion is { Options.Count: > 0 } question
             ? question.OptionFor(text) is not null
-            : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit);
+            : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit));
 
     /// <summary>m, or Navigate → Bookmark this line (FR-3.9): the model adds or removes the bookmark line and the result is spoken.</summary>
     private void ToggleBookmark(Line line)
@@ -610,7 +614,8 @@ internal sealed class MainForm : Form
             // D33: text sent into a question is lost (Claude answers "Please answer y or n." and drops it) or taken
             // as a key of the screen. It stays in the field; the same text sent again goes anyway (a typed answer).
             _keptMessage = text;
-            var about = _model.PendingQuestion is { } waiting ? $" to {waiting.Title}" : string.Empty;
+            var about = _model.PendingQuestion is { } waiting ? $" to {waiting.Title}"
+                : _model.PendingScreen is { } screen ? $" on its screen {screen.Title}" : string.Empty;
             Announce($"Claude is waiting for an answer{about}. Your message was not sent and is still in the field. Press Ctrl+Enter again to send it anyway.", true);
             return;
         }
@@ -738,12 +743,16 @@ internal sealed class MainForm : Form
             Announce(speech, false);
         }
 
-        // An answer notice whose question went away or changed closes (D33): Claude moved on without it.
-        var question = _model.PendingQuestion;
-        if (_shownQuestion is { } shown && _noticeOpen && question?.Signature != shown.Signature)
+        // The notice of a question or screen that went away or changed closes (D33): Claude moved on without it. When
+        // something else waits now, its own notice follows; when nothing does, that is said.
+        var waiting = WaitSignature;
+        if (_shownWait is { } shown && _noticeOpen && waiting != shown)
         {
             DismissNotice();
-            Announce("The question closed", false);
+            if (waiting is null)
+            {
+                Announce("The question closed", false);
+            }
         }
 
         if (_model.PromptPending)
@@ -754,8 +763,8 @@ internal sealed class MainForm : Form
                 _model.ShowHiddenLines();
             }
 
-            // A new question, or the next one of a multi-step screen, waits for the screen to settle like the first.
-            if (!_promptAnnounced || (question is not null && question.Signature != _handledQuestion && !_attention.Enabled && _shownQuestion is null))
+            // A new question or screen, or the next step of one, waits for the screen to settle like the first.
+            if (!_promptAnnounced || (waiting is not null && waiting != _handledWait && !_attention.Enabled && _shownWait is null))
             {
                 _attention.Stop();
                 _attention.Start();
@@ -764,7 +773,7 @@ internal sealed class MainForm : Form
         else
         {
             _promptAnnounced = false;
-            _handledQuestion = null;
+            _handledWait = null;
         }
 
         if (!_readyAnnounced && _host is not null && _model.Mode is not null && !_model.Working && !_model.PromptPending)
@@ -786,19 +795,27 @@ internal sealed class MainForm : Form
     {
         if (_model.PromptPending)
         {
-            // A list of answers opens the answer notice, which has its own chime (D33); anything else is announced.
-            if (_model.PendingQuestion is { } question && question.Signature != _handledQuestion && !_noticeOpen
+            // A list of answers opens the answer notice and a screen waiting on its hint row the screen notice, each
+            // with its own chime (D33); anything else is announced.
+            if (_model.PendingQuestion is { } question && question.Signature != _handledWait && !_noticeOpen
                 && QuestionRouter.Route(question, _lastCommand).Dialog == QuestionDialog.AnswerNotice)
             {
                 _promptAnnounced = true;
-                _handledQuestion = question.Signature;
+                _handledWait = question.Signature;
                 ShowClaudeQuestion(question);
+                Signal(question: true, chime: false);
+            }
+            else if (_model.PendingScreen is { } screen && screen.Signature != _handledWait && !_noticeOpen)
+            {
+                _promptAnnounced = true;
+                _handledWait = screen.Signature;
+                ShowClaudeScreen(screen);
                 Signal(question: true, chime: false);
             }
             else if (!_promptAnnounced)
             {
                 _promptAnnounced = true;
-                _handledQuestion = _model.PendingQuestion?.Signature;
+                _handledWait = WaitSignature;
                 Announce("Claude needs your answer", false);
                 Signal(question: true);
             }
@@ -1648,7 +1665,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = true;
-        _shownQuestion = notice.Question;
+        _shownWait = null;
         _overlay.Populate(notice with { Text = WithKeyLine(notice.Text, notice.Choices) });
         _overlay.Visible = true;
         _overlay.BringToFront();
@@ -1718,8 +1735,53 @@ internal sealed class MainForm : Form
     /// Claude waits on a list of answers (D33): the answer notice sends the chosen key and Enter, or Escape to cancel.
     /// Alt+M leaves the question to the message field, and it does not open again while Claude waits on it.
     /// </summary>
-    private void ShowClaudeQuestion(Question question) =>
+    private void ShowClaudeQuestion(Question question)
+    {
         ShowQuestion(question, option => SendAnswer(option.Key), () => Write("\x1b"));
+        _shownWait = question.Signature;
+    }
+
+    /// <summary>What Claude waits on now, as a signature: the question, or else the screen; null when it waits on nothing.</summary>
+    private string? WaitSignature => _model.PendingQuestion?.Signature ?? _model.PendingScreen?.Signature;
+
+    /// <summary>
+    /// The screen notice (D33): a screen of Claude's that waits on its hint row (/status, /tasks, /help …), with its
+    /// lines, which the conversation does not show for a tab screen, and a button for every key the hint row names.
+    /// A button sends its key and closes the notice; while Claude still waits, the screen it shows next opens a new
+    /// notice, without the chime since the user caused it. Alt+M leaves the screen to the message field.
+    /// </summary>
+    private void ShowClaudeScreen(ClaudeScreen screen)
+    {
+        var choices = new List<OverlayChoice>();
+        foreach (var key in screen.Keys)
+        {
+            // "View" for Enter and "Close" for Escape read well in the key line; other keys carry their name.
+            var action = char.ToUpperInvariant(key.Action[0]) + key.Action[1..];
+            var enter = key.Send == "\r";
+            var escape = key.Send == "\x1b";
+            choices.Add(new OverlayChoice(enter || escape ? action : $"{action} ({key.Name})", () => SendScreenKey(key.Send), IsDefault: enter, IsCancel: escape));
+        }
+
+        choices.Add(new OverlayChoice("Answer in the &message field", () =>
+        {
+            _input.Select();
+            Announce("Claude's screen is still open", false);
+        }));
+        var lines = screen.Lines.Count > 0 ? string.Join("\n", screen.Lines) : "(nothing else on the screen)";
+        ShowNotice(new Notice(screen.Title, lines, choices)
+        {
+            Unprompted = Environment.TickCount64 - _screenKeyAt > 3000,
+        });
+        _shownWait = screen.Signature;
+    }
+
+    /// <summary>Sends a screen's key. The screen that shows next opens again even when its title and keys are the same (a moved selection, another tab).</summary>
+    private void SendScreenKey(string key)
+    {
+        _screenKeyAt = Environment.TickCount64;
+        _handledWait = null;
+        Write(key);
+    }
 
     /// <summary>The answer's key and Enter as separate writes through the send queue, like a message (Enter in the same write would be a paste).</summary>
     private void SendAnswer(string key)
@@ -1782,7 +1844,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = false;
-        _shownQuestion = null;
+        _shownWait = null;
         _transcript.KeepCaret = false;
         _transcript.Visible = true;
         _input.Visible = true;

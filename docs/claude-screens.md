@@ -10,13 +10,13 @@ The app does not need to know the command to choose the dialog: the shape of Cla
 
 1. **None.** The command prints text into the conversation and Claude is back at the `$` prompt, or the session changes or ends, or another program opens. Nothing to answer.
 2. **Answer notice** (built, branch `answer-notice`). The cursor sits on `Select with numbers [1-N]. …` or `Enter y/n:` under numbered or `y.`/`n.` answers. The notice shows the title, Claude's lines, and the answers as radio buttons.
-3. **Screen notice** (proposed). The cursor sits on a key-hint row (`↑/↓ to select · Enter to view · Esc to close`) or on a tab row (`Settings  Status   Config   Usage   Stats`). The notice would show the screen's text read-only and one button per key the hint row names, with Escape for Claude's own Escape.
-4. **Typed input** (proposed). A command that wants text after it, or an "Other" answer: the message field, guarded so that a message is not sent into a question by mistake.
+3. **Screen notice** (built, branch `answer-notice`). The cursor sits on a key-hint row (`↑/↓ to select · Enter to view · Esc to close`) or on a tab row (`Settings  Status   Config   Usage   Stats`). The notice would show the screen's text read-only and one button per key the hint row names, with Escape for Claude's own Escape.
+4. **Typed input.** A command that wants text after it, or an "Other" answer: the message field, guarded so that a message is not sent into a question by mistake (SPEC.md FR-2.10: Ctrl+Enter twice sends it anyway).
 
 ## Two gaps in the app today
 
-- **Screens that wait on a hint row are not noticed.** Only the rows `Enter y/n`, `Enter selection`, `Select with numbers` and `Permission Required:` count as a question, so `/status`, `/tasks`, `/ide`, `/rewind`, `/autocompact` and the others below give no "Claude needs your answer", and a message typed then goes into the screen.
-- **Tab screens are hidden from the conversation.** `/status`, `/usage`, `/cost`, `/help`, `/config` and `/permissions` put the cursor on the tab row at the top, and every row below the cursor is treated as chrome (FR-3.5), so their content never reaches the conversation.
+- **Screens that wait on a hint row were not noticed** (fixed: they open the screen notice and count as waiting). Only the rows `Enter y/n`, `Enter selection`, `Select with numbers` and `Permission Required:` count as a question, so `/status`, `/tasks`, `/ide`, `/rewind`, `/autocompact` and the others below give no "Claude needs your answer", and a message typed then goes into the screen.
+- **Tab screens are hidden from the conversation** (still so; the screen notice shows their lines). `/status`, `/usage`, `/cost`, `/help`, `/config` and `/permissions` put the cursor on the tab row at the top, and every row below the cursor is treated as chrome (FR-3.5), so their content never reaches the conversation.
 
 ## Answer notice: numbered lists
 

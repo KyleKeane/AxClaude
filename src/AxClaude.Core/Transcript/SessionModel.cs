@@ -61,6 +61,12 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>The question Claude waits on, read off the screen (<see cref="QuestionReader"/>); null while none is pending.</summary>
     public Question? PendingQuestion { get; private set; }
 
+    /// <summary>
+    /// The screen of Claude's that waits for keys named on its hint row (<see cref="ScreenReader"/>: <c>/status</c>,
+    /// <c>/tasks</c>, <c>/help</c> …); null when none waits. <see cref="PromptPending"/> is set while one does.
+    /// </summary>
+    public ClaudeScreen? PendingScreen { get; private set; }
+
     /// <summary>A spinner row or an "esc to interrupt" hint was on screen at the end of the last frame.</summary>
     public bool Working { get; private set; }
 
@@ -153,6 +159,9 @@ public sealed partial class SessionModel : ILineStore
         PlaceBlocksWithoutEcho();
         PromptPending = CursorWaitsForAnswer();
         PendingQuestion = PromptPending ? ReadPendingQuestion() : null;
+        // A screen of Claude's that waits on its hint row waits for the user just as a question does (D33).
+        PendingScreen = PromptPending ? null : ReadPendingScreen();
+        PromptPending |= PendingScreen is not null;
         CheckResponseStarted();
         Trim();
         Changed?.Invoke();
@@ -424,6 +433,7 @@ public sealed partial class SessionModel : ILineStore
         Spinner = null;
         PromptPending = false;
         PendingQuestion = null;
+        PendingScreen = null;
         TranscriptViewOpen = false;
         Mode = null;
         Background = null;
@@ -991,15 +1001,36 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>The question on the rows around the cursor: its prompt row is the cursor row or the row above a blank cursor row.</summary>
     private Question? ReadPendingQuestion()
     {
+        var rows = ScreenRows();
+        var cy = _screen.CursorRow;
+        var promptRow = LineClassifier.IsPromptText(rows[cy].Trim()) ? cy : cy - 1;
+        return QuestionReader.Read(rows, promptRow);
+    }
+
+    /// <summary>
+    /// The screen waiting on the cursor row. Runs at every frame end, so the rows are only gathered when the cursor
+    /// row can be a hint or tab row: Claude's prompt row never is.
+    /// </summary>
+    private ClaudeScreen? ReadPendingScreen()
+    {
+        var text = _screen.LineAt(_screen.CursorRow)?.Text;
+        if (text is null || !(text.Contains("Esc", StringComparison.Ordinal) || text.Contains("   ", StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        return ScreenReader.Read(ScreenRows(), _screen.CursorRow);
+    }
+
+    private string[] ScreenRows()
+    {
         var rows = new string[Rows];
         for (var r = 0; r < Rows; r++)
         {
             rows[r] = _screen.LineAt(r)?.Text ?? string.Empty;
         }
 
-        var cy = _screen.CursorRow;
-        var promptRow = LineClassifier.IsPromptText(rows[cy].Trim()) ? cy : cy - 1;
-        return QuestionReader.Read(rows, promptRow);
+        return rows;
     }
 
     private int AnchorIndex()

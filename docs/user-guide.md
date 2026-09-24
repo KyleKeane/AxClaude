@@ -30,7 +30,11 @@ Claude works in one project folder at a time. Pick how you start:
 
 Ctrl+N starts a new session from inside AxClaude. The notice shows the folder, with a Choose folder button under it, then a list of ways to start Claude: a new conversation, continue the last conversation, choose a conversation to resume, plan mode, edits accepted without asking, and Custom, where you type Claude Code's own command line options, one or more on each line. Enter stops the current session, clears the conversation and starts the new one in the empty window; with "Continue the last conversation" the earlier exchanges come back under their "from previous session" headings, and messages count from 1 again. Escape keeps the current session. Restart Claude (Ctrl+Shift+R) keeps the options you chose and the conversation.
 
-The first time Claude Code sees a folder it asks whether you trust it. Questions like this appear in the conversation as plain text. Type your answer in the message field and press Ctrl+Enter. AxClaude says "Claude needs your answer" whenever a question is waiting.
+The first time Claude Code sees a folder it asks whether you trust it. Questions like this, and the lists that commands such as `/model` open, come up as an **answer notice**: a quick high trill, then "Claude asks:" with the question's title, and the focus on the current answer. Up and Down Arrow or the answer's number (or y and n) choose, Enter answers, Escape cancels the question. Alt+M, "Answer in the message field", leaves the question open and takes you to the field, for an answer you type yourself. Claude's full question, with all its hints, stays in the conversation. For a second after the notice opens, Enter and the answer keys do nothing, so keys you were typing for a message cannot answer by accident.
+
+Screens that Claude shows until you press a key, such as `/status`, `/tasks` and `/help`, come up as a **screen notice**: the screen's text, and a button for every key the screen offers, for example "View" (Enter), "Close" (Escape) or "Select (Down)". A button sends its key to Claude; if the screen is still open afterwards, the notice comes back with what it shows now.
+
+While Claude waits for an answer, Ctrl+Enter only sends an answer. A message you typed stays in the field, and AxClaude says so; press Ctrl+Enter again to send it all the same. Anything else Claude asks is announced with "Claude needs your answer".
 
 ## The window
 
