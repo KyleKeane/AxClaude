@@ -21,6 +21,10 @@ public static partial class QuestionReader
     [GeneratedRegex(@"^\s*[☐☒✔✓■□]\s*")]
     private static partial Regex CheckBoxRegex();
 
+    // With several questions in one call, a tab row above each: "←   ☐ Colour   ☐ Fruit   ✔ Submit   →".
+    [GeneratedRegex(@"^←.*→$")]
+    private static partial Regex QuestionTabsRegex();
+
     /// <summary>
     /// The question whose prompt row (the row the cursor sits on) is <paramref name="promptRow"/>, or null when
     /// that row is not a prompt row. <paramref name="rows"/> are the screen's rows, top to bottom.
@@ -55,6 +59,13 @@ public static partial class QuestionReader
             options.Add(new QuestionOption(match.Groups[1].Value, match.Groups[3].Value, match.Groups[2].Success));
         }
 
+        // No answers above the prompt row: no question. Claude also clears a question's rows for a frame while it
+        // redraws it, which is not a new question either.
+        if (options.Count == 0)
+        {
+            return null;
+        }
+
         options.Reverse();
 
         // A single blank row can sit inside a question (/resume has one between its search row and the answers);
@@ -81,6 +92,11 @@ public static partial class QuestionReader
 
             blanks = 0;
             text.Add(line);
+            if (CheckBoxRegex().IsMatch(rows[row]))
+            {
+                // A question's own header (" ☐ Colour") is its first row: what is above it is the message before.
+                break;
+            }
         }
 
         text.Reverse();
@@ -94,17 +110,22 @@ public static partial class QuestionReader
         }
 
         title = CheckBoxRegex().Replace(title, string.Empty).TrimEnd(':', ' ');
-        return new Question(title, text, options, hints);
+        // "Select with numbers [1-4] (comma- or space-separated for several)": more than one answer may be given.
+        var several = rows[promptRow].Contains("for several", StringComparison.Ordinal);
+        return new Question(title, text, options, hints) { AllowsSeveral = several };
     }
 
-    /// <summary>A row that belongs to what came before the question.</summary>
+    /// <summary>
+    /// A row that belongs to what came before the question, or the tab row of several questions in one call. A
+    /// warning or an error belongs to the question ("You have not answered all questions" on the review screen).
+    /// </summary>
     private static bool EndsBlock(string line)
     {
-        if (LineClassifier.IsChrome(line) || LineClassifier.IsBarePrompt(line) || LineClassifier.IsDraftRow(line))
+        if (QuestionTabsRegex().IsMatch(line) || LineClassifier.IsChrome(line) || LineClassifier.IsBarePrompt(line) || LineClassifier.IsDraftRow(line))
         {
             return true;
         }
 
-        return LineClassifier.Classify(line, inPromptBlock: false) is not (LineKind.Plain or LineKind.Prompt);
+        return LineClassifier.Classify(line, inPromptBlock: false) is not (LineKind.Plain or LineKind.Prompt or LineKind.Warning or LineKind.Error);
     }
 }

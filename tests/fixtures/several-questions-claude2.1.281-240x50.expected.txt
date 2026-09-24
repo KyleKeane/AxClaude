@@ -1,0 +1,13 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+you: Please use the AskUserQuestion tool once, with two questions in the same call. First question, header Colour: which colour do you prefer, options red, green, blue. Second question, header Fruit, with multiSelect set to true: which fruits do you like, options apple, banana, cherry. After I answer, reply with my answers in one short sentence.
+●  User answered Claude's questions:
+· Which colour do you prefer? → Green
+· Which fruits do you like? → Apple, Cherry
+claude: You prefer green and like apples and cherries.
+Worked for 4s · done 2:23 AM
+you: /exit
+Resume this session with:
+claude --resume bd206a8a-db7f-4cd1-983d-4c3a88567146

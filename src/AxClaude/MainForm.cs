@@ -591,7 +591,7 @@ internal sealed class MainForm : Form
     private bool IsAnswer(string text) =>
         _model.PendingScreen is null
         && (_model.PendingQuestion is { Options.Count: > 0 } question
-            ? question.OptionFor(text) is not null
+            ? question.Accepts(text)
             : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit));
 
     /// <summary>m, or Navigate → Bookmark this line (FR-3.9): the model adds or removes the bookmark line and the result is spoken.</summary>
@@ -636,12 +636,21 @@ internal sealed class MainForm : Form
         }
 
         var answer = _model.PromptPending;
+        if (answer && IsAnswer(text))
+        {
+            // Typed like the answer notice's keys, one keystroke each ("1,3" for several answers).
+            SendAnswer(text);
+            Announce("Answer sent", false);
+            return;
+        }
+
         // A question that follows belongs to the slash command sent last (QuestionRouter); an answer keeps it for the
         // next step of the same screen, a message ends it.
         if (!answer)
         {
             _lastCommand = SlashCommands.Find(text);
         }
+
         var queued = _model.Working;
         _model.Send(text);
         _messageSent = true;
@@ -750,16 +759,12 @@ internal sealed class MainForm : Form
             Announce(speech, false);
         }
 
-        // The notice of a question or screen that went away or changed closes (D33): Claude moved on without it. When
-        // something else waits now, its own notice follows; when nothing does, that is said.
+        // What Claude waits on is acted on once the screen has settled for the attention timer (AnnounceAttention):
+        // opening a notice, and closing one whose question went away, since Claude redraws a question in passing.
         var waiting = WaitSignature;
-        if (_shownWait is { } shown && _noticeOpen && waiting != shown)
+        if (_shownWait is { } shown && _noticeOpen && waiting != shown && !_attention.Enabled)
         {
-            DismissNotice();
-            if (waiting is null)
-            {
-                Announce("The question closed", false);
-            }
+            _attention.Start();
         }
 
         if (_model.PromptPending)
@@ -800,6 +805,17 @@ internal sealed class MainForm : Form
 
     private void AnnounceAttention()
     {
+        // The notice of a question or screen that went away or changed closes (D33): Claude moved on without it. When
+        // something else waits now, its own notice follows below; when nothing does, that is said.
+        if (_shownWait is { } shown && _noticeOpen && WaitSignature != shown)
+        {
+            DismissNotice();
+            if (WaitSignature is null)
+            {
+                Announce("The question closed", false);
+            }
+        }
+
         if (_model.PromptPending)
         {
             // A list of answers opens the answer notice and a screen waiting on its hint row the screen notice, each
@@ -819,11 +835,13 @@ internal sealed class MainForm : Form
                 ShowClaudeScreen(screen);
                 Signal(question: true, chime: false);
             }
-            else if (!_promptAnnounced)
+            else if (!_promptAnnounced || WaitSignature != _handledWait)
             {
                 _promptAnnounced = true;
                 _handledWait = WaitSignature;
-                Announce("Claude needs your answer", false);
+                Announce(_settings.QuestionNotices && _model.PendingQuestion is { AllowsSeveral: true } several
+                    ? $"Claude asks: {several.Title} Several answers are allowed: type their numbers separated by commas, for example 1,3, and press Ctrl+Enter."
+                    : "Claude needs your answer", false);
                 Signal(question: true);
             }
         }
@@ -1790,7 +1808,7 @@ internal sealed class MainForm : Form
         Write(key);
     }
 
-    /// <summary>The answer's key and Enter as separate writes through the send queue, like a message (Enter in the same write would be a paste).</summary>
+    /// <summary>An answer through the send queue: each character as a keystroke of its own, then Enter.</summary>
     private void SendAnswer(string key)
     {
         if (_host is null)
@@ -1798,7 +1816,13 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _writes.Enqueue((key, 100));
+        // One keystroke per character: Claude's answer field takes typed keys, and several characters in one write
+        // are a paste, which it ignores ("12" in a long list, "1,3" for several answers). Then Enter.
+        for (var i = 0; i < key.Length; i++)
+        {
+            _writes.Enqueue((key[i].ToString(), i == key.Length - 1 ? 100 : 60));
+        }
+
         _writes.Enqueue(("\r", 50));
         if (!_writing)
         {

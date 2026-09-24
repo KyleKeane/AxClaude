@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1 - 2026-09-24
+
+- Claude's questions with several parts come one at a time with the right title ("Which colour do you prefer?", not the end of your own message), and the review at the end opens the answer notice too.
+- A question that allows several answers is announced with how to answer it: type the numbers separated by commas, for example 1,3, and press Ctrl+Enter. It does not open the answer notice, which gives one answer.
+- Fixed: answers of more than one character did not reach Claude. Claude takes the answer to a question as typed keys and ignores several characters sent at once, so "12" in a long list and "1,3" for several answers were dropped; every answer now goes one keystroke per character.
+- A question that Claude redraws in passing no longer closes its notice or is announced again.
+
 ## 1.4.0 - 2026-09-24
 
 - Claude's questions open an answer notice: the workspace trust question, the lists of commands such as `/model`, `/effort`, `/theme` and `/resume`, and Claude's own multiple-choice questions. A quick high trill, "Claude asks:" with the title, and the focus on the current answer; the arrow keys or the answer's number choose, Enter answers, Escape cancels. Alt+M, "Answer in the message field", leaves the question open for an answer you type. The next question of the same screen opens its own notice, and a notice whose question went away closes. Claude's full question stays in the conversation.

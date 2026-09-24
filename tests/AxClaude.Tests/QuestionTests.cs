@@ -159,6 +159,53 @@ public class QuestionTests
     }
 
     [Fact]
+    public void Several_questions_in_one_call_read_one_by_one_and_several_answers_go_to_the_message_field()
+    {
+        var (_, seen) = QuestionsIn("several-questions-claude2.1.281-240x50.vt");
+        Assert.Equal(["Which colour do you prefer?", "Which fruits do you like?", "Review your answers"], seen.Select(q => q.Title));
+
+        // One answer: the answer notice. The tab row above it and the message above that are not the question.
+        var colour = seen[0];
+        Assert.False(colour.AllowsSeveral);
+        Assert.Equal(5, colour.Options.Count);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(colour, null).Dialog);
+
+        // Several answers: the message field, where "1,3" answers (the recording typed 1, comma, 3 as three keystrokes
+        // and the review shows "→ Apple, Cherry").
+        var fruit = seen[1];
+        Assert.True(fruit.AllowsSeveral);
+        Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(fruit, null).Dialog);
+        Assert.True(fruit.Accepts("1,3"));
+        Assert.True(fruit.Accepts("1, 3"));
+        Assert.False(fruit.Accepts("1,9"));
+        Assert.False(colour.Accepts("1,3"));
+
+        var review = seen[2];
+        Assert.Contains("→ Apple, Cherry", review.Text);
+        Assert.Equal(["y", "n"], review.Options.Select(o => o.Key));
+    }
+
+    [Fact]
+    public void A_warning_belongs_to_the_question_it_is_in()
+    {
+        string[] rows =
+        [
+            "←   ☒ Colour   ☐ Fruit   ✔ Submit   →",
+            "Review your answers",
+            "warning: You have not answered all questions",
+            "Which colour do you prefer?",
+            "→ Green",
+            "Ready to submit your answers?",
+            "y. Submit answers",
+            "n. Cancel",
+            "Enter y/n:",
+        ];
+        var review = QuestionReader.Read(rows, 8)!;
+        Assert.Equal("Review your answers", review.Title);
+        Assert.Equal("warning: You have not answered all questions", review.Text[0]);
+    }
+
+    [Fact]
     public void The_model_picker_recording_gives_a_pending_question_for_the_answer_notice()
     {
         var (model, seen) = QuestionsIn("model-picker-claude2.1.281-240x50.vt");
@@ -214,13 +261,19 @@ public class QuestionTests
     }
 
     [Fact]
-    public void Panels_and_questions_without_answers_stay_in_the_message_field()
+    public void Panels_and_questions_with_several_answers_stay_in_the_message_field()
     {
         var question = QuestionReader.Read(ModelRows, 9)!;
         var panel = new SlashCommand("config", CommandInteraction.Panel, "docs");
         Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(question, panel).Dialog);
+        Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(question with { AllowsSeveral = true }, null).Dialog);
+    }
 
-        var bare = question with { Options = [] };
-        Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(bare, null).Dialog);
+    [Fact]
+    public void A_prompt_row_without_answers_above_it_is_no_question()
+    {
+        // Claude clears a question's rows for a frame while it redraws it.
+        string[] rows = ["Which fruits do you like?", "", "", "", "Select with numbers [1-4]. Then Enter to submit or Escape to cancel:"];
+        Assert.Null(QuestionReader.Read(rows, 4));
     }
 }

@@ -1,0 +1,27 @@
+﻿quiet 3000 20000
+send Please use the AskUserQuestion tool once, with two questions in the same call. First question, header Colour: which colour do you prefer, options red, green, blue. Second question, header Fruit, with multiSelect set to true: which fruits do you like, options apple, banana, cherry. After I answer, reply with my answers in one short sentence.
+sleep 200
+send \r
+wait 90000 \x07
+quiet 3000 20000
+send 2
+sleep 100
+send \r
+quiet 2500 10000
+send 1
+sleep 60
+send ,
+sleep 60
+send 3
+sleep 100
+send \r
+quiet 3000 10000
+send y
+sleep 100
+send \r
+wait 60000 \x07
+quiet 4000 30000
+send /exit
+sleep 200
+send \r
+exit 10000
