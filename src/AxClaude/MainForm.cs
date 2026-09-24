@@ -64,6 +64,9 @@ internal sealed class MainForm : Form
     /// <summary>When a key was last sent from a screen notice: the screen that follows is the user's doing and opens without the chime.</summary>
     private long _screenKeyAt;
 
+    /// <summary>The words of an own answer sent with Other, typed when Claude shows its "Enter text for" row (within ten seconds).</summary>
+    private (string Text, long At)? _ownAnswer;
+
     /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
     private SlashCommand? _lastCommand;
 
@@ -761,6 +764,18 @@ internal sealed class MainForm : Form
             Announce(speech, false);
         }
 
+        // The words of an own answer go as soon as Claude asks for them after Other.
+        if (_ownAnswer is { } own && _model.AwaitsText)
+        {
+            _ownAnswer = null;
+            if (Environment.TickCount64 - own.At < 10_000)
+            {
+                _promptAnnounced = true;
+                _handledWait = WaitSignature;
+                SendAnswer(own.Text);
+            }
+        }
+
         // What Claude waits on is acted on once the screen has settled for the attention timer (AnnounceAttention):
         // opening a notice, and closing one whose question went away, since Claude redraws a question in passing.
         var waiting = WaitSignature;
@@ -847,10 +862,8 @@ internal sealed class MainForm : Form
                     _input.Select();
                 }
 
-                Announce(!_settings.QuestionNotices ? "Claude needs your answer"
-                    : _model.AwaitsText ? "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter."
-                    : _model.PendingQuestion is { AllowsSeveral: true } several
-                    ? $"Claude asks: {several.Title} Several answers are allowed: type their numbers separated by commas, for example 1,3, and press Ctrl+Enter."
+                Announce(_settings.QuestionNotices && _model.AwaitsText
+                    ? "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter."
                     : "Claude needs your answer", false);
                 Signal(question: true);
             }
@@ -1729,26 +1742,20 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>
-    /// The answer notice: Claude's question with its title and text, and the answers as radio buttons. An answer key
-    /// or the arrow keys choose, Enter answers, Escape cancels the question, and Alt+M leaves the question open and
-    /// goes to the message field. Claude's questions are not opened by the user: the notice chimes and holds.
+    /// The answer notice (D33): Claude's question with its title and text, and the answers as radio buttons, or check
+    /// boxes when it takes several. An answer key or the arrow keys choose, Enter answers, Escape cancels the
+    /// question, and Alt+M leaves it open and goes to the message field, where it does not open again while Claude
+    /// waits on it. A question with an Other answer also has the field "Your own answer": text there is the answer.
+    /// Claude's questions are not opened by the user: the notice chimes and holds.
     /// </summary>
-    private void ShowQuestion(Question question, Action<QuestionOption> answer, Action cancel)
+    private void ShowClaudeQuestion(Question question)
     {
+        var other = question.Options.FirstOrDefault(option => option.Text.Equals("Other", StringComparison.OrdinalIgnoreCase));
         ShowNotice(new Notice(
             question.Title,
             QuestionText(question),
             [
-                new OverlayChoice("&Answer", () =>
-                {
-                    if (_overlay.SelectedAnswer is { } option)
-                    {
-                        answer(option);
-                        // The answer's name without Claude's explanation after the dash.
-                        var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
-                        Announce($"Answer sent: {option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}", false);
-                    }
-                }, IsDefault: true),
+                new OverlayChoice("&Answer", () => AnswerQuestion(question, other), IsDefault: true),
                 new OverlayChoice("Answer in the &message field", () =>
                 {
                     _input.Select();
@@ -1756,24 +1763,45 @@ internal sealed class MainForm : Form
                 }),
                 new OverlayChoice("Cancel &question", () =>
                 {
-                    cancel();
+                    Write("\x1b");
                     Announce("Question cancelled", false);
                 }, IsCancel: true),
             ])
         {
             Question = question,
+            Input = other is null ? null : new OverlayInput("&Your own answer:", "Your own answer", string.Empty, string.Empty, Required: false),
             Unprompted = true,
         });
+        _shownWait = question.Signature;
     }
 
     /// <summary>
-    /// Claude waits on a list of answers (D33): the answer notice sends the chosen key and Enter, or Escape to cancel.
-    /// Alt+M leaves the question to the message field, and it does not open again while Claude waits on it.
+    /// Sends what the answer notice holds: the chosen answer's key, the ticked keys joined with commas, or, with text in
+    /// "Your own answer", the Other key (with the ticked ones), after which Claude asks for the words ("Enter text for
+    /// option 4 (Other)") and they follow (<see cref="_ownAnswer"/>).
     /// </summary>
-    private void ShowClaudeQuestion(Question question)
+    private void AnswerQuestion(Question question, QuestionOption? other)
     {
-        ShowQuestion(question, option => SendAnswer(option.Key), () => Write("\x1b"));
-        _shownWait = question.Signature;
+        var own = _overlay.InputText.Trim();
+        var chosen = _overlay.SelectedAnswers.ToList();
+        if (other is not null && own.Length > 0)
+        {
+            chosen = question.AllowsSeveral ? [.. chosen.Where(option => option != other), other] : [other];
+            _ownAnswer = (own, Environment.TickCount64);
+        }
+
+        if (chosen.Count == 0)
+        {
+            return;
+        }
+
+        SendAnswer(string.Join(",", chosen.Select(option => option.Key)));
+        // Each answer's name without Claude's explanation after the dash.
+        Announce("Answer sent: " + string.Join(", ", chosen.Select(option =>
+        {
+            var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
+            return option == other && own.Length > 0 ? own : $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
+        })), false);
     }
 
     /// <summary>What Claude waits on now, as a signature: the question, or else the screen; null when it waits on nothing.</summary>

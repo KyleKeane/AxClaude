@@ -170,11 +170,11 @@ public class QuestionTests
         Assert.Equal(5, colour.Options.Count);
         Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(colour, null).Dialog);
 
-        // Several answers: the message field, where "1,3" answers (the recording typed 1, comma, 3 as three keystrokes
-        // and the review shows "→ Apple, Cherry").
+        // Several answers: the answer notice with check boxes, which sends "1,3" (the recording typed 1, comma, 3 as
+        // three keystrokes and the review shows "→ Apple, Cherry"); typed in the message field, "1,3" answers too.
         var fruit = seen[1];
         Assert.True(fruit.AllowsSeveral);
-        Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(fruit, null).Dialog);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(fruit, null).Dialog);
         Assert.True(fruit.Accepts("1,3"));
         Assert.True(fruit.Accepts("1, 3"));
         Assert.False(fruit.Accepts("1,9"));
@@ -289,12 +289,12 @@ public class QuestionTests
     }
 
     [Fact]
-    public void Panels_and_questions_with_several_answers_stay_in_the_message_field()
+    public void A_panel_command_leaves_its_lists_to_the_message_field()
     {
         var question = QuestionReader.Read(ModelRows, 9)!;
         var panel = new SlashCommand("config", CommandInteraction.Panel, "docs");
         Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(question, panel).Dialog);
-        Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(question with { AllowsSeveral = true }, null).Dialog);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question with { AllowsSeveral = true }, null).Dialog);
     }
 
     [Fact]

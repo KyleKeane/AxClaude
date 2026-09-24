@@ -11,10 +11,11 @@ internal sealed record OverlayChoice(string Text, Action? Action = null, bool Is
 }
 
 /// <summary>
-/// A text field on a notice (Find): its label, its accessible name, the initial text, and what to say when the default
-/// button is pressed while the field is empty (the notice then stays open).
+/// A text field on a notice (Find, the own answer of an answer notice): its label, its accessible name, the initial
+/// text, and, when <paramref name="Required"/>, what to say when the default button is pressed while the field is
+/// empty (the notice then stays open).
 /// </summary>
-internal sealed record OverlayInput(string Label, string AccessibleName, string Initial, string EmptyMessage);
+internal sealed record OverlayInput(string Label, string AccessibleName, string Initial, string EmptyMessage, bool Required = true);
 
 /// <summary>A recommended way to start Claude in the New session notice (FR-8.6): the radio button's text and the arguments it stands for.</summary>
 internal sealed record OverlayPreset(string Text, IReadOnlyList<string> Arguments);
@@ -90,7 +91,8 @@ internal sealed class OverlayPanel : Panel
     private readonly Panel _answerRow = new();
     private readonly GroupBox _answerGroup = new();
     private readonly FlowLayoutPanel _answerList = new();
-    private readonly List<RadioButton> _answers = [];
+    // Radio buttons for one answer, check boxes when the question takes several.
+    private readonly List<ButtonBase> _answers = [];
     private readonly FlowLayoutPanel _buttons = new();
     private OverlayInput? _inputSpec;
     private OverlaySession? _sessionSpec;
@@ -214,7 +216,7 @@ internal sealed class OverlayPanel : Panel
         _buttons.AutoSize = true;
         _buttons.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _buttons.Padding = new Padding(0, 6, 0, 0);
-        _buttons.TabIndex = 4;
+        _buttons.TabIndex = 5;
 
         // Docked controls are laid out from the last in the collection to the first: the buttons take the bottom,
         // the title the top, the field the strip under the title, then the text takes what is left, or, in a New
@@ -251,15 +253,11 @@ internal sealed class OverlayPanel : Panel
     /// <summary>The text of the Custom field in the New session notice.</summary>
     public string CustomArguments => _custom.Text;
 
-    /// <summary>The answer chosen in an answer notice; null when the notice shows no question.</summary>
-    public QuestionOption? SelectedAnswer
-    {
-        get
-        {
-            var index = _answers.FindIndex(radio => radio.Checked);
-            return _question is { } question && index >= 0 && index < question.Options.Count ? question.Options[index] : null;
-        }
-    }
+    /// <summary>The answers chosen in an answer notice, one or, for a question that takes several, any number; empty when it shows no question.</summary>
+    public IReadOnlyList<QuestionOption> SelectedAnswers =>
+        _question is { } question ? question.Options.Where((_, i) => i < _answers.Count && IsChecked(_answers[i])).ToList() : [];
+
+    private static bool IsChecked(ButtonBase answer) => answer is RadioButton radio ? radio.Checked : ((CheckBox)answer).Checked;
 
     /// <summary>The font of the text, kept in step with the conversation's by the window.</summary>
     public void SetTextFont(Font font)
@@ -310,6 +308,9 @@ internal sealed class OverlayPanel : Panel
 
         SetText();
         _inputRow.Visible = input is not null;
+        // Find's field sits under the title; an answer notice's own-answer field under the answers, before the buttons.
+        _inputRow.Dock = question is null ? DockStyle.Top : DockStyle.Bottom;
+        _inputRow.TabIndex = question is null ? 1 : 4;
         if (input is not null)
         {
             _inputLabel.Text = input.Label;
@@ -363,10 +364,10 @@ internal sealed class OverlayPanel : Panel
     /// <summary>Puts the focus where reading starts: in the text field when there is one, otherwise at the top of the text.</summary>
     public void FocusStart()
     {
-        if (_question is not null && _answers.Find(radio => radio.Checked) is { } answer)
+        if (_question is not null && _answers.Count > 0)
         {
-            // An answer notice starts on the chosen answer, as a dialog does; the text is one Shift+Tab away.
-            answer.Select();
+            // An answer notice starts on the chosen answer (or the first), as a dialog does; the text is one Shift+Tab away.
+            (_answers.Find(IsChecked) ?? _answers[0]).Select();
             return;
         }
 
@@ -410,7 +411,8 @@ internal sealed class OverlayPanel : Panel
             return true;
         }
 
-        if (_question is not null && AnswerKey(keyData) is { } key && ChooseAnswer(key))
+        // In the own-answer field every key is text.
+        if (_question is not null && !_input.Focused && AnswerKey(keyData) is { } key && ChooseAnswer(key))
         {
             return true;
         }
@@ -449,9 +451,9 @@ internal sealed class OverlayPanel : Panel
     }
 
     /// <summary>
-    /// Chooses the answer with this key and moves the focus to it, so the screen reader reads it. A digit typed
-    /// right after another makes a two-digit number when the question has that many answers. False when no
-    /// answer has the key.
+    /// Chooses the answer with this key (ticks or unticks it, when the question takes several) and moves the focus to
+    /// it, so the screen reader reads it. A digit typed right after another makes a two-digit number when the
+    /// question has that many answers. False when no answer has the key.
     /// </summary>
     private bool ChooseAnswer(string key)
     {
@@ -481,16 +483,24 @@ internal sealed class OverlayPanel : Panel
             return false;
         }
 
-        var radio = _answers[IndexOf(question, option)];
-        radio.Checked = true;
-        if (radio.Focused)
+        var answer = _answers[IndexOf(question, option)];
+        if (answer is CheckBox box)
         {
-            // No focus change, so nothing would be read: say the answer.
-            Announce(radio.Text, true);
+            box.Checked = !box.Checked;
         }
         else
         {
-            radio.Select();
+            ((RadioButton)answer).Checked = true;
+        }
+
+        if (answer.Focused)
+        {
+            // No focus change, so nothing would be read: say the answer.
+            Announce(answer is CheckBox ticked ? $"{ticked.Text} {(ticked.Checked ? "checked" : "not checked")}" : answer.Text, true);
+        }
+        else
+        {
+            answer.Select();
         }
 
         return true;
@@ -522,30 +532,36 @@ internal sealed class OverlayPanel : Panel
         for (var i = 0; i < question.Options.Count; i++)
         {
             var option = question.Options[i];
-            var radio = new RadioButton
-            {
-                Text = $"{option.Key}. {option.Text}" + (option.Current ? " (current)" : string.Empty),
-                AutoSize = true,
-                Margin = new Padding(0, 2, 0, 2),
-                TabIndex = i,
-                UseMnemonic = false,
-                UseVisualStyleBackColor = true,
-            };
+            // Several answers: a check box each, ticked where Claude marks the answer (selected); one answer: radio
+            // buttons with the current one chosen.
+            ButtonBase answer = question.AllowsSeveral ? new CheckBox { Checked = option.Current } : new RadioButton();
+            answer.Text = $"{option.Key}. {option.Text}" + (option.Current && !question.AllowsSeveral ? " (current)" : string.Empty);
+            answer.AutoSize = true;
+            answer.Margin = new Padding(0, 2, 0, 2);
+            answer.TabIndex = i;
+            answer.UseMnemonic = false;
+            answer.UseVisualStyleBackColor = true;
             if (option.Current)
             {
                 selected = i;
             }
 
-            _answers.Add(radio);
-            _answerList.Controls.Add(radio);
+            _answers.Add(answer);
+            _answerList.Controls.Add(answer);
         }
 
         if (_answers.Count > 0)
         {
-            var first = _answers[selected];
-            first.Checked = true;
+            var first = _answers[question.AllowsSeveral ? 0 : selected];
+            if (first is RadioButton radio)
+            {
+                radio.Checked = true;
+            }
+
             // How to finish is read once, with the answer the focus lands on, and not again while arrowing.
-            first.AccessibleDescription = "Choose an answer and press Enter, or press Escape to cancel.";
+            first.AccessibleDescription = question.AllowsSeveral
+                ? "Tick answers with Space or their numbers, then press Enter, or press Escape to cancel."
+                : "Choose an answer and press Enter, or press Escape to cancel.";
             first.Leave += (_, _) => first.AccessibleDescription = null;
         }
 
@@ -572,11 +588,19 @@ internal sealed class OverlayPanel : Panel
 
     private void Choose(OverlayChoice choice)
     {
-        if (choice.IsDefault && _inputSpec is { } spec && _input.Text.Length == 0)
+        if (choice.IsDefault && _inputSpec is { Required: true } spec && _input.Text.Length == 0)
         {
             // Nothing to act on yet (Find with an empty field): say so and stay.
             Announce(spec.EmptyMessage, true);
             _input.Select();
+            return;
+        }
+
+        if (choice.IsDefault && _question is not null && _input.Text.Trim().Length == 0 && SelectedAnswers.Count == 0)
+        {
+            // A question that takes several answers, with none ticked and no own answer.
+            Announce("Tick at least one answer with Space or its number.", true);
+            _answers.FirstOrDefault()?.Select();
             return;
         }
 
