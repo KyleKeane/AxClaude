@@ -54,6 +54,18 @@ internal sealed class MainForm : Form
     private bool _writing;
     private bool _bellPending;
     private bool _promptAnnounced;
+
+    /// <summary>The question the answer notice shows (D33); null while no answer notice is open.</summary>
+    private Question? _shownQuestion;
+
+    /// <summary>The signature of the question that got its notice, was answered, or was left to the message field: it does not open again while Claude waits on it.</summary>
+    private string? _handledQuestion;
+
+    /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
+    private SlashCommand? _lastCommand;
+
+    /// <summary>A message kept out of a waiting question by the guard (FR-2.10, D33), sent after all when Ctrl+Enter is pressed again with the same text.</summary>
+    private string? _keptMessage;
     private bool _readyAnnounced;
     private bool _messageSent;
     /// <summary>Claude's arguments after --ax-screen-reader, from the command line or the New session notice (FR-8.6); null is the default, --continue (FR-9.1). Restart keeps them.</summary>
@@ -570,6 +582,15 @@ internal sealed class MainForm : Form
         GoTo(_input);
     }
 
+    /// <summary>
+    /// Text that answers the waiting question: one of its keys, or, when the question could not be read, y, n or a
+    /// number.
+    /// </summary>
+    private bool IsAnswer(string text) =>
+        _model.PendingQuestion is { Options.Count: > 0 } question
+            ? question.OptionFor(text) is not null
+            : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit);
+
     /// <summary>m, or Navigate → Bookmark this line (FR-3.9): the model adds or removes the bookmark line and the result is spoken.</summary>
     private void ToggleBookmark(Line line)
     {
@@ -592,6 +613,17 @@ internal sealed class MainForm : Form
         }
 
         var text = _input.Text.Replace("\r\n", "\n").Trim();
+        if (text.Length > 0 && _model.PromptPending && !IsAnswer(text) && text != _keptMessage)
+        {
+            // D33: text sent into a question is lost (Claude answers "Please answer y or n." and drops it) or taken
+            // as a key of the screen. It stays in the field; the same text sent again goes anyway (a typed answer).
+            _keptMessage = text;
+            var about = _model.PendingQuestion is { } waiting ? $" to {waiting.Title}" : string.Empty;
+            Announce($"Claude is waiting for an answer{about}. Your message was not sent and is still in the field. Press Ctrl+Enter again to send it anyway.", true);
+            return;
+        }
+
+        _keptMessage = null;
         _input.Clear();
         if (text.Length == 0)
         {
@@ -600,6 +632,12 @@ internal sealed class MainForm : Form
         }
 
         var answer = _model.PromptPending;
+        // A question that follows belongs to the slash command sent last (QuestionRouter); an answer keeps it for the
+        // next step of the same screen, a message ends it.
+        if (!answer)
+        {
+            _lastCommand = SlashCommands.Find(text);
+        }
         var queued = _model.Working;
         _model.Send(text);
         _messageSent = true;
@@ -708,6 +746,14 @@ internal sealed class MainForm : Form
             Announce(speech, false);
         }
 
+        // An answer notice whose question went away or changed closes (D33): Claude moved on without it.
+        var question = _model.PendingQuestion;
+        if (_shownQuestion is { } shown && _noticeOpen && question?.Signature != shown.Signature)
+        {
+            DismissNotice();
+            Announce("The question closed", false);
+        }
+
         if (_model.PromptPending)
         {
             if (_model.HideReplay)
@@ -716,7 +762,8 @@ internal sealed class MainForm : Form
                 _model.ShowHiddenLines();
             }
 
-            if (!_promptAnnounced)
+            // A new question, or the next one of a multi-step screen, waits for the screen to settle like the first.
+            if (!_promptAnnounced || (question is not null && question.Signature != _handledQuestion && !_attention.Enabled && _shownQuestion is null))
             {
                 _attention.Stop();
                 _attention.Start();
@@ -725,6 +772,7 @@ internal sealed class MainForm : Form
         else
         {
             _promptAnnounced = false;
+            _handledQuestion = null;
         }
 
         if (!_readyAnnounced && _host is not null && _model.Mode is not null && !_model.Working && !_model.PromptPending)
@@ -746,9 +794,19 @@ internal sealed class MainForm : Form
     {
         if (_model.PromptPending)
         {
-            if (!_promptAnnounced)
+            // A list of answers opens the answer notice, which has its own chime (D33); anything else is announced.
+            if (_model.PendingQuestion is { } question && question.Signature != _handledQuestion && !_noticeOpen
+                && QuestionRouter.Route(question, _lastCommand).Dialog == QuestionDialog.AnswerNotice)
             {
                 _promptAnnounced = true;
+                _handledQuestion = question.Signature;
+                ShowClaudeQuestion(question);
+                Signal(question: true, chime: false);
+            }
+            else if (!_promptAnnounced)
+            {
+                _promptAnnounced = true;
+                _handledQuestion = _model.PendingQuestion?.Signature;
                 Announce("Claude needs your answer", false);
                 Signal(question: true);
             }
@@ -766,10 +824,14 @@ internal sealed class MainForm : Form
         _bellPending = false;
     }
 
-    /// <summary>The chime (two equal notes for a question, three falling notes when Claude is done, FR-7.3) and the taskbar flash that go with an attention announcement.</summary>
-    private void Signal(bool question)
+    /// <summary>
+    /// The chime (two equal notes for a question, three falling notes when Claude is done, FR-7.3) and the taskbar
+    /// flash that go with an attention announcement; without <paramref name="chime"/> only the flash (the answer
+    /// notice plays its own chime).
+    /// </summary>
+    private void Signal(bool question, bool chime = true)
     {
-        if (_settings.SoundOnBell)
+        if (_settings.SoundOnBell && chime)
         {
             if (question)
             {
@@ -1594,6 +1656,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = true;
+        _shownQuestion = notice.Question;
         _overlay.Populate(notice with { Text = WithKeyLine(notice.Text, notice.Choices) });
         _overlay.Visible = true;
         _overlay.BringToFront();
@@ -1660,6 +1723,34 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>
+    /// Claude waits on a list of answers (D33): the answer notice sends the chosen key and Enter, or Escape to cancel.
+    /// Alt+M leaves the question to the message field, and it does not open again while Claude waits on it.
+    /// </summary>
+    private void ShowClaudeQuestion(Question question) =>
+        ShowQuestion(question, option => SendAnswer(option.Key), () => Write("\x1b"));
+
+    /// <summary>The answer's key and Enter as separate writes through the send queue, like a message (Enter in the same write would be a paste).</summary>
+    private void SendAnswer(string key)
+    {
+        if (_host is null)
+        {
+            return;
+        }
+
+        _writes.Enqueue((key, 100));
+        _writes.Enqueue(("\r", 50));
+        if (!_writing)
+        {
+            PumpWrites();
+        }
+
+        if (_settings.SoundOnBell)
+        {
+            Sounds.Sent();
+        }
+    }
+
+    /// <summary>
     /// The notice's text: Claude's own lines between the title and the answers, and where the rest is. The answers
     /// are only the radio buttons and Claude's key hints stay in the conversation, so no line of the text looks like
     /// something to choose.
@@ -1699,6 +1790,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = false;
+        _shownQuestion = null;
         _transcript.KeepCaret = false;
         _transcript.Visible = true;
         _input.Visible = true;

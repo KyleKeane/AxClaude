@@ -13,6 +13,9 @@ public sealed record QuestionOption(string Key, string Text, bool Current = fals
 /// </summary>
 public sealed record Question(string Title, IReadOnlyList<string> Text, IReadOnlyList<QuestionOption> Options, IReadOnlyList<string> Hints)
 {
+    /// <summary>What tells one question from the next: the title and the answers. The same question redrawn keeps it.</summary>
+    public string Signature => Title + "\n" + string.Join("\n", Options.Select(option => option.Key + ". " + option.Text));
+
     /// <summary>The answer a key stands for, or null. Keys compare without regard to case.</summary>
     public QuestionOption? OptionFor(string key) =>
         Options.FirstOrDefault(option => string.Equals(option.Key, key, StringComparison.OrdinalIgnoreCase));

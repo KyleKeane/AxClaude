@@ -1,0 +1,14 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+you: /model
+Select model
+Switch between Claude models. Your pick becomes the default for new sessions. For other/previous model names, specify with --model.
+1. (selected) Default (recommended) — Opus 5.5 with 1M context · Best for everyday, complex tasks
+2. Opus (1M context) — Opus 5.5 with 1M context · Best for everyday, complex tasks
+3. Fable — Fable 5.1 · Most capable for your hardest and longest-running tasks
+4. Sonnet — Sonnet 5 · Efficient for routine tasks
+5. Haiku — Haiku 4.5 · Fastest for quick answers
+Select with numbers [1-5]. Then Enter to submit or Escape to cancel:

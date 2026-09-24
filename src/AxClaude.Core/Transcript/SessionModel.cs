@@ -58,6 +58,9 @@ public sealed partial class SessionModel : ILineStore
     /// <summary>Claude's cursor sits on a prompt row, so it is waiting for an answer (FR-7.2).</summary>
     public bool PromptPending { get; private set; }
 
+    /// <summary>The question Claude waits on, read off the screen (<see cref="QuestionReader"/>); null while none is pending.</summary>
+    public Question? PendingQuestion { get; private set; }
+
     /// <summary>A spinner row or an "esc to interrupt" hint was on screen at the end of the last frame.</summary>
     public bool Working { get; private set; }
 
@@ -149,6 +152,7 @@ public sealed partial class SessionModel : ILineStore
         HandleEchoes();
         PlaceBlocksWithoutEcho();
         PromptPending = CursorWaitsForAnswer();
+        PendingQuestion = PromptPending ? ReadPendingQuestion() : null;
         CheckResponseStarted();
         Trim();
         Changed?.Invoke();
@@ -419,6 +423,7 @@ public sealed partial class SessionModel : ILineStore
         Working = false;
         Spinner = null;
         PromptPending = false;
+        PendingQuestion = null;
         TranscriptViewOpen = false;
         Mode = null;
         Background = null;
@@ -981,6 +986,20 @@ public sealed partial class SessionModel : ILineStore
         }
 
         return (line is null || line.Text.Length == 0) && cy > 0 && _screen.LineAt(cy - 1) is { } above && LineClassifier.IsPromptText(above.Text);
+    }
+
+    /// <summary>The question on the rows around the cursor: its prompt row is the cursor row or the row above a blank cursor row.</summary>
+    private Question? ReadPendingQuestion()
+    {
+        var rows = new string[Rows];
+        for (var r = 0; r < Rows; r++)
+        {
+            rows[r] = _screen.LineAt(r)?.Text ?? string.Empty;
+        }
+
+        var cy = _screen.CursorRow;
+        var promptRow = LineClassifier.IsPromptText(rows[cy].Trim()) ? cy : cy - 1;
+        return QuestionReader.Read(rows, promptRow);
     }
 
     private int AnchorIndex()

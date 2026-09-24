@@ -110,6 +110,49 @@ public class QuestionTests
     }
 
     [Fact]
+    public void The_model_picker_recording_gives_a_pending_question_for_the_answer_notice()
+    {
+        const string name = "model-picker-claude2.1.281-240x50.vt";
+        var bytes = TestHelpers.Fixture(name);
+        var chunks = File.ReadAllLines(Path.Combine(TestHelpers.FixtureDirectory(), name + ".chunks.txt"))
+            .Where(l => l.Length > 0 && char.IsDigit(l[0]))
+            .Select(l => l.Split(' ').Select(int.Parse).ToArray());
+        var model = new SessionModel(240, 50);
+        var seen = new List<Question>();
+        model.Changed += () =>
+        {
+            if (model.PendingQuestion is { } q && (seen.Count == 0 || seen[^1].Signature != q.Signature))
+            {
+                seen.Add(q);
+            }
+        };
+
+        var previous = 0;
+        foreach (var chunk in chunks)
+        {
+            if (chunk[2] - previous >= 100)
+            {
+                model.EndFrame();
+            }
+
+            model.Feed(bytes.AsSpan(chunk[0], chunk[1]));
+            previous = chunk[2];
+        }
+
+        // One question while the picker was open, read the same way however often it was redrawn.
+        var question = Assert.Single(seen);
+        Assert.Equal("Select model", question.Title);
+        Assert.Equal(["1", "2", "3", "4", "5"], question.Options.Select(o => o.Key));
+        Assert.True(question.Options[0].Current);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question, SlashCommands.Find("/model")).Dialog);
+
+        // The recording's Escape went out a millisecond before Ctrl+C and was not taken as a key of its own: the
+        // picker was still open when the recorder stopped Claude.
+        Assert.True(model.PromptPending);
+        Assert.Equal(question.Signature, model.PendingQuestion?.Signature);
+    }
+
+    [Fact]
     public void Only_a_prompt_row_holds_a_question()
     {
         Assert.Null(QuestionReader.Read(ModelRows, 8));

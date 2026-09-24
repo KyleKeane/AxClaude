@@ -1,0 +1,11 @@
+﻿quiet 3000 20000
+send /tasks
+sleep 200
+send \r
+quiet 2500 12000
+send \x1b
+quiet 1500 8000
+send \x03
+sleep 400
+send \x03
+exit 8000

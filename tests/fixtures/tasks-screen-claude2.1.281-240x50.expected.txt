@@ -1,0 +1,8 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+you: /tasks
+Background
+No tasks currently running
+↑/↓ to select · Enter to view · Esc to close
