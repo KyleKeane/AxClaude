@@ -17,8 +17,9 @@ public static partial class QuestionReader
     [GeneratedRegex(@"^(\d+|[yn])\. (?:(\(selected\)) )?(.*)$")]
     private static partial Regex OptionRegex();
 
-    // AskUserQuestion draws its header as " ☐ Colour" (a check box per question when there are several).
-    [GeneratedRegex(@"^\s*[☐☒✔✓■□]\s*")]
+    // AskUserQuestion draws its header as " ☐ Colour" (☒ once answered); only the recorded marks, since a plan's own
+    // rows can start with other ticks.
+    [GeneratedRegex(@"^\s*[☐☒✔]\s*")]
     private static partial Regex CheckBoxRegex();
 
     // With several questions in one call, a tab row above each: "←   ☐ Colour   ☐ Fruit   ✔ Submit   →".
@@ -74,7 +75,8 @@ public static partial class QuestionReader
         // two in a row end it, as do the rows that came before it.
         var text = new List<string>();
         var blanks = 0;
-        var first = promptRow;
+        // The first row: the top answer until a text row above it is found.
+        var first = row + 1;
         for (; row >= 0 && promptRow - row <= MaxRows; row--)
         {
             var line = rows[row].Trim();

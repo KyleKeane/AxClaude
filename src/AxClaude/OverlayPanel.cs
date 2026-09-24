@@ -319,6 +319,11 @@ internal sealed class OverlayPanel : Panel
             _input.SelectAll();
             LayoutInput();
         }
+        else
+        {
+            // A notice without the field must not see what was last typed in it (a Find text).
+            _input.Text = string.Empty;
+        }
 
         var old = _buttons.Controls.Cast<Control>().ToList();
         _buttons.Controls.Clear();
@@ -464,7 +469,8 @@ internal sealed class OverlayPanel : Panel
 
         var now = Environment.TickCount64;
         var digit = char.IsAsciiDigit(key[0]);
-        var joined = digit && _typedNumber.Length > 0 && now - _typedAt < NumberJoinMs ? _typedNumber + key : null;
+        // Two digits make one number for radio buttons only: a check box ticked by the first digit would stay ticked.
+        var joined = digit && !question.AllowsSeveral && _typedNumber.Length > 0 && now - _typedAt < NumberJoinMs ? _typedNumber + key : null;
         _typedAt = now;
         QuestionOption? option;
         if (joined is not null && question.OptionFor(joined) is { } both)
@@ -552,7 +558,8 @@ internal sealed class OverlayPanel : Panel
 
         if (_answers.Count > 0)
         {
-            var first = _answers[question.AllowsSeveral ? 0 : selected];
+            // The answer FocusStart lands on: the chosen radio button, or the first ticked check box, else the first.
+            var first = question.AllowsSeveral ? _answers.Find(IsChecked) ?? _answers[0] : _answers[selected];
             if (first is RadioButton radio)
             {
                 radio.Checked = true;

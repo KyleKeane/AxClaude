@@ -11,7 +11,7 @@ The app does not need to know the command to choose the dialog: the shape of Cla
 1. **None.** The command prints text into the conversation and Claude is back at the `$` prompt, or the session changes or ends, or another program opens. Nothing to answer.
 2. **Answer notice** (built, branch `answer-notice`). The cursor sits on `Select with numbers [1-N]. …` or `Enter y/n:` under numbered or `y.`/`n.` answers. The notice shows the title, Claude's lines, and the answers as radio buttons.
 3. **Screen notice** (built, branch `answer-notice`). The cursor sits on a key-hint row (`↑/↓ to select · Enter to view · Esc to close`) or on a tab row (`Settings  Status   Config   Usage   Stats`). The notice would show the screen's text read-only and one button per key the hint row names, with Escape for Claude's own Escape.
-4. **Typed input.** A command that wants text after it, or an "Other" answer: the message field, guarded so that a message is not sent into a question by mistake (SPEC.md FR-2.10: Ctrl+Enter twice sends it anyway).
+4. **Typed input.** A command that wants text after it goes in the message field, guarded so that a message is not sent into a question by mistake (SPEC.md FR-2.10). "Other" is answered in the answer notice's "Your own answer" field; on an `Enter text for` row the message field sends your words without the guard, one keystroke at a time.
 
 ## Two gaps in the app today
 

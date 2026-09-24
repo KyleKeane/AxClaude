@@ -323,7 +323,7 @@ internal sealed class MainForm : Form
                 return true;
             case Keys.Shift | Keys.Escape:
                 // The interrupt key (FR-2.3). Ctrl+Escape opens the Start menu and never reaches the app.
-                Write("\x1b");
+                Interrupt();
                 return true;
             case Keys.Shift | Keys.Tab when _input.Focused:
                 // What a Claude Code user expects Shift+Tab to do: cycle the permission mode.
@@ -367,7 +367,7 @@ internal sealed class MainForm : Form
         var session = new ToolStripMenuItem("&Session");
         session.DropDownItems.Add(new ToolStripMenuItem("Send &message", null, (_, _) => SendInput()) { ShortcutKeyDisplayString = "Ctrl+Enter" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send the waiting message &now", null, (_, _) => SendNow()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.S });
-        session.DropDownItems.Add(new ToolStripMenuItem("&Interrupt Claude (send Escape)", null, (_, _) => Write("\x1b")) { ShortcutKeyDisplayString = "Shift+Esc" });
+        session.DropDownItems.Add(new ToolStripMenuItem("&Interrupt Claude (send Escape)", null, (_, _) => Interrupt()) { ShortcutKeyDisplayString = "Shift+Esc" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&C", null, (_, _) => Write("\x03")) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.C });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&D", null, (_, _) => Write("\x04")));
         session.DropDownItems.Add(new ToolStripMenuItem("Send &Tab", null, (_, _) => Write("\t")));
@@ -588,13 +588,14 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>
-    /// Text that answers the waiting question: one of its keys, or, when the question could not be read, y, n or a
-    /// number.
+    /// Text that answers what Claude waits on: any text on an "Enter text for" row; else one of the question's keys,
+    /// or several when it allows several; or, when the question could not be read, y, n or a number. Never a key of a
+    /// screen.
     /// </summary>
     private bool IsAnswer(string text) =>
         _model.AwaitsText
         || _model.PendingScreen is null
-        && (_model.PendingQuestion is { Options.Count: > 0 } question
+        && (_model.PendingQuestion is { } question
             ? question.Accepts(text)
             : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit));
 
@@ -734,6 +735,13 @@ internal sealed class MainForm : Form
     }
 
     private void Write(string text) => _host?.Write(text);
+
+    /// <summary>Escape to Claude (FR-2.3), and what is still queued to type goes: an answer typed out a key at a time must not land after it.</summary>
+    private void Interrupt()
+    {
+        _writes.Clear();
+        Write("\x1b");
+    }
 
     // ---- model events ----
 
@@ -1848,6 +1856,9 @@ internal sealed class MainForm : Form
         _screenKeyAt = Environment.TickCount64;
         _handledWait = null;
         Write(key);
+        // A key that changes nothing draws no frame: the timer brings the notice back all the same.
+        _attention.Stop();
+        _attention.Start();
     }
 
     /// <summary>An answer through the send queue: each character as a keystroke of its own, then Enter.</summary>
@@ -1858,11 +1869,13 @@ internal sealed class MainForm : Form
             return;
         }
 
-        // One keystroke per character: Claude's answer field takes typed keys, and several characters in one write
-        // are a paste, which it ignores ("12" in a long list, "1,3" for several answers). Then Enter.
-        for (var i = 0; i < key.Length; i++)
+        // One keystroke per character (per rune, so an emoji stays whole): Claude's answer field takes typed keys, and
+        // several characters in one write are a paste, which it ignores ("12" in a long list, "1,3" for several
+        // answers). Then Enter.
+        var keys = key.EnumerateRunes().Select(rune => rune.ToString()).ToList();
+        for (var i = 0; i < keys.Count; i++)
         {
-            _writes.Enqueue((key[i].ToString(), i == key.Length - 1 ? 100 : 60));
+            _writes.Enqueue((keys[i], i == keys.Count - 1 ? 100 : 60));
         }
 
         _writes.Enqueue(("\r", 50));

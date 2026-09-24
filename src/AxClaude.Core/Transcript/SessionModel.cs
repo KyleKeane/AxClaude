@@ -241,7 +241,14 @@ public sealed partial class SessionModel : ILineStore
         var first = _screen.LineAt(row);
         var index = first is null ? -1 : _lines.LastIndexOf(first);
         index = index >= 0 ? index : AnchorIndex();
-        if (index > 0 && _lines[index - 1] is { Kind: LineKind.Question } before && before.Text == text)
+        // Already recorded: the line in front of the first row, past any bookmark dropped between them.
+        var previous = index - 1;
+        while (previous >= 0 && _lines[previous].Kind == LineKind.Bookmark)
+        {
+            previous--;
+        }
+
+        if (previous >= 0 && _lines[previous] is { Kind: LineKind.Question } before && before.Text == text)
         {
             return;
         }

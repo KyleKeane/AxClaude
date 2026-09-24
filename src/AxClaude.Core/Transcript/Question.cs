@@ -15,7 +15,7 @@ public sealed record Question(string Title, IReadOnlyList<string> Text, IReadOnl
 {
     /// <summary>
     /// Several answers may be given at once, their numbers separated by commas ("1,3", typed one keystroke each; the
-    /// same text in one write is a paste, which Claude ignores). The answer notice gives only one.
+    /// same text in one write is a paste, which Claude ignores). The answer notice shows check boxes for them.
     /// </summary>
     public bool AllowsSeveral { get; init; }
 

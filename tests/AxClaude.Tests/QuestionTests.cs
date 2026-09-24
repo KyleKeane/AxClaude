@@ -262,6 +262,15 @@ public class QuestionTests
     }
 
     [Fact]
+    public void A_question_without_text_rows_starts_at_its_top_answer()
+    {
+        string[] rows = ["claude: Pick one.", "1. Red", "2. Green", "Select with numbers [1-2]. Then Enter to submit or Escape to cancel:"];
+        var question = QuestionReader.Read(rows, 3)!;
+        Assert.Equal(1, question.FirstRow);
+        Assert.Empty(question.Text);
+    }
+
+    [Fact]
     public void A_question_is_recorded_in_front_of_its_first_row_once()
     {
         const string Esc = "\x1b";
