@@ -70,6 +70,13 @@ public sealed partial class SessionModel : ILineStore
     public bool TranscriptViewOpen { get; private set; }
 
     public string? Mode { get; private set; }
+
+    /// <summary>
+    /// The background work Claude's mode line counts, "1 shell" or "1 shell, 2 agents"; null when none runs. Kept while
+    /// a screen of Claude's hides the mode line, like <see cref="Mode"/>.
+    /// </summary>
+    public string? Background { get; private set; }
+
     public string? SessionName { get; private set; }
 
     /// <summary>Above this many lines the oldest tenth of the transcript is dropped (FR-3.6).</summary>
@@ -111,8 +118,13 @@ public sealed partial class SessionModel : ILineStore
     {
         _pending.RemoveAll(p => DateTime.UtcNow - p.Created > PendingLifetime);
         PullRowText();
-        _anchor = ApplyChrome(out var spinner, out var mode, out var working);
+        _anchor = ApplyChrome(out var spinner, out var mode, out var background, out var working);
         Spinner = spinner;
+        if (mode is not null)
+        {
+            Background = background;
+        }
+
         Mode = mode ?? Mode;
         Working = working;
         Classify();
@@ -392,6 +404,7 @@ public sealed partial class SessionModel : ILineStore
         PromptPending = false;
         TranscriptViewOpen = false;
         Mode = null;
+        Background = null;
         SessionName = null;
         Changed?.Invoke();
     }
@@ -479,12 +492,13 @@ public sealed partial class SessionModel : ILineStore
     /// mode, spinner and tip rows directly above it. Returns the topmost line of that block, which is where the
     /// next marker is inserted.
     /// </summary>
-    private Line? ApplyChrome(out string? spinner, out string? mode, out bool working)
+    private Line? ApplyChrome(out string? spinner, out string? mode, out string? background, out bool working)
     {
         var cy = _screen.CursorRow;
         Line? anchor = null;
         spinner = null;
         mode = null;
+        background = null;
         working = false;
         var blockOpen = true;
         var inQueued = false;
@@ -556,6 +570,7 @@ public sealed partial class SessionModel : ILineStore
                     if (LineClassifier.ModeText(line.Text) is { } m)
                     {
                         mode = m;
+                        background = LineClassifier.BackgroundText(line.Text);
                         working |= line.Text.Contains("esc to interrupt", StringComparison.Ordinal);
                     }
                 }

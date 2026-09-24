@@ -1,0 +1,19 @@
+# A background Bash task: how the footer shows it, /tasks while it runs, and quitting while it runs.
+quiet 3000 20000
+send Use the Bash tool with run_in_background set to true to run the command: sleep 90. Do not wait for it. Then reply with exactly STARTED.
+sleep 200
+send \r
+wait 90000 \x07
+quiet 3000 20000
+sleep 3000
+send /tasks
+sleep 200
+send \r
+quiet 2500 10000
+send \x1b
+quiet 2000 10000
+send \x03
+quiet 2000 8000
+send \x03
+quiet 3000 10000
+exit 10000

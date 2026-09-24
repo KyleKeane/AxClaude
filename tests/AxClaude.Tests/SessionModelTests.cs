@@ -135,6 +135,39 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void Background_work_is_read_from_the_mode_line_and_kept_while_a_screen_hides_it()
+    {
+        var model = new SessionModel(80, 12);
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Null(model.Background);
+
+        Feed(model, $"{Esc}[?25l{Esc}[2J{Esc}[Hclaude: STARTED\r\nauto mode on  ·  1 shell  ·  ↓ to manage\r\n${Esc}[?25h");
+        Assert.Equal("auto mode on", model.Mode);
+        Assert.Equal("1 shell", model.Background);
+        Assert.DoesNotContain(Visible(model), line => line.Contains("1 shell"));
+
+        // /tasks covers the mode line: the count stays until a mode line says otherwise.
+        Feed(model, $"{Esc}[?25l{Esc}[2J{Esc}[HShell details\r\nStatus: running\r\n← to go back · Esc/Enter/Space to close · x to stop{Esc}[?25h");
+        Assert.Equal("1 shell", model.Background);
+
+        Feed(model, $"{Esc}[?25l{Esc}[2J{Esc}[Hclaude: done\r\nauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.Null(model.Background);
+    }
+
+    [Theory]
+    [InlineData("auto mode on (shift+tab to cycle)", "auto mode on", null)]
+    [InlineData("auto mode on  ·  1 shell  ·  ↓ to manage", "auto mode on", "1 shell")]
+    [InlineData("auto mode on  ·  1 shell  ·  esc to interrupt · ↓ to manage", "auto mode on", "1 shell")]
+    [InlineData("manual mode on  ·  2 shells  ·  1 local agent  ·  ↓ to manage", "manual mode on", "2 shells, 1 local agent")]
+    [InlineData("auto mode on  ·  see the docs", null, null)]
+    public void Mode_lines_with_background_counts(string text, string? mode, string? background)
+    {
+        Assert.Equal(mode, LineClassifier.ModeText(text));
+        Assert.Equal(background, LineClassifier.BackgroundText(text));
+        Assert.Equal(mode is not null, LineClassifier.IsChrome(text));
+    }
+
+    [Fact]
     public void A_prompt_is_pending_only_when_the_cursor_sits_on_it()
     {
         // A tool result quoting a question, with Claude idle at its own prompt: no question.

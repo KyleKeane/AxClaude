@@ -1,0 +1,20 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+you: Use the Bash tool with run_in_background set to true to run the command: sleep 90. Do not wait for it. Then reply with exactly STARTED.
+tool: Bash (sleep 90)
+Running in the background (↓ to manage)
+Allowed by auto mode classifier
+claude: STARTED
+Brewed for 5s · done 12:12 AM · 1 shell still running
+you: /tasks
+Shell details
+Status: running
+Runtime: 7s
+Command: sleep 90
+Output:
+No output available
+← to go back · Esc/Enter/Space to close · x to stop
+Resume this session with:
+claude --resume aa4c268c-c4ce-4eca-b88f-7220c0f9a8b1

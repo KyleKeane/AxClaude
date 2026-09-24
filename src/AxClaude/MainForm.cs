@@ -159,10 +159,11 @@ internal sealed class MainForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (e.CloseReason == CloseReason.UserClosing && !_closeConfirmed && ClaudeBusy)
+        if (e.CloseReason == CloseReason.UserClosing && !_closeConfirmed && (ClaudeBusy || ClaudeBackground is not null))
         {
-            // FR-1.7: closing now would cut Claude off in the middle of a turn. Ask first, inside the window (D23).
-            // A Windows shutdown or Task Manager closes without asking.
+            // FR-1.7: closing now would cut Claude off in the middle of a turn, or stop the work it runs in the
+            // background after the turn. Ask first, inside the window (D23). A Windows shutdown or Task Manager
+            // closes without asking.
             e.Cancel = true;
             ConfirmClose();
             base.OnFormClosing(e);
@@ -184,6 +185,9 @@ internal sealed class MainForm : Form
 
     /// <summary>Claude is in the middle of a turn: working, waiting for an answer, or holding a message sent while it worked.</summary>
     private bool ClaudeBusy => _host is not null && (_model.Working || _model.PromptPending || _model.QueuedMessages > 0);
+
+    /// <summary>The work Claude runs in the background, which outlives the turn ("1 shell"); null when none runs or Claude is stopped.</summary>
+    private string? ClaudeBackground => _host is null ? null : _model.Background;
 
     private const int WM_SYSCOMMAND = 0x0112;
     private const int SC_KEYMENU = 0xF100;
@@ -805,6 +809,11 @@ internal sealed class MainForm : Form
             parts.Add(_model.QueuedMessages == 1 ? "1 message waiting" : $"{_model.QueuedMessages} messages waiting");
         }
 
+        if (ClaudeBackground is { } background)
+        {
+            parts.Add(background + " in the background");
+        }
+
         if (_model.Mode is { } mode)
         {
             parts.Add(mode);
@@ -1274,6 +1283,10 @@ internal sealed class MainForm : Form
         {
             text = "Claude is still working. A new session stops it in the middle of its work.\n" + text;
         }
+        else if (ClaudeBackground is { } background)
+        {
+            text = $"Claude has work running in the background ({background}). A new session stops it.\n" + text;
+        }
 
         ShowNotice(
             "New Claude session",
@@ -1662,20 +1675,38 @@ internal sealed class MainForm : Form
         _overlay.Visible = false;
     }
 
-    /// <summary>FR-1.7: a close while Claude is in the middle of a turn is confirmed first. Enter closes, Escape keeps the window.</summary>
+    /// <summary>
+    /// FR-1.7: a close while Claude is in the middle of a turn, or runs work in the background, is confirmed first.
+    /// Enter closes, Escape keeps the window.
+    /// </summary>
     private void ConfirmClose()
     {
-        var state = _model.PromptPending ? "Claude is waiting for your answer" : "Claude is still working";
-        if (_model.QueuedMessages > 0)
+        var background = ClaudeBackground;
+        string state;
+        if (ClaudeBusy)
         {
-            state += _model.QueuedMessages == 1
-                ? " and a message you sent is still waiting for it"
-                : $" and {_model.QueuedMessages} messages you sent are still waiting for it";
+            state = _model.PromptPending ? "Claude is waiting for your answer" : "Claude is still working";
+            if (_model.QueuedMessages > 0)
+            {
+                state += _model.QueuedMessages == 1
+                    ? " and a message you sent is still waiting for it"
+                    : $" and {_model.QueuedMessages} messages you sent are still waiting for it";
+            }
+
+            if (background is not null)
+            {
+                state += $", and it has work running in the background ({background})";
+            }
+        }
+        else
+        {
+            state = $"Claude has work running in the background ({background})";
         }
 
+        var stops = ClaudeBusy ? "Claude stops in the middle of its work" : "the background work stops";
         var consequence = _updateFolder is null
-            ? "If you close now, Claude stops in the middle of its work."
-            : "If you close now, Claude stops in the middle of its work and the update is installed.";
+            ? $"If you close now, {stops}."
+            : $"If you close now, {stops} and the update is installed.";
         ShowNotice("Close AxClaude?",
             $"{state}. {consequence}\n" +
             "What is done so far is saved. Start AxClaude again to carry on.\n" +

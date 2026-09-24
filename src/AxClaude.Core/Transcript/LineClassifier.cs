@@ -17,8 +17,9 @@ public static partial class LineClassifier
     private static partial Regex BackgroundHintRegex();
 
     // "auto mode on (shift+tab to cycle)", "auto mode on (shift+tab to cycle)  ·  esc to interrupt", "manual mode on"
-    // (the default mode shows no cycle hint), "accept edits on (shift+tab to cycle)".
-    [GeneratedRegex(@"^((?:\w+ mode|accept edits|bypass permissions|dangerously skip permissions) (?:on|off))(?:\s+\(shift\+tab to cycle\))?(?:\s+·\s+esc to interrupt)?$")]
+    // (the default mode shows no cycle hint), "accept edits on (shift+tab to cycle)". While background work runs the
+    // cycle hint gives way to a count and a hint: "auto mode on  ·  1 shell  ·  esc to interrupt · ↓ to manage".
+    [GeneratedRegex(@"^((?:\w+ mode|accept edits|bypass permissions|dangerously skip permissions) (?:on|off))(?:\s+\(shift\+tab to cycle\))?((?:\s+·\s+(?:esc to interrupt|↓ to manage|\d+ [a-z][a-z -]*[a-z]))*)$")]
     private static partial Regex ModeLineRegex();
 
     // Claude Code's own screen reader announcements: a bracketed row under the prompt for a moment, "[accept edits on]".
@@ -96,6 +97,25 @@ public static partial class LineClassifier
     {
         var m = ModeLineRegex().Match(text);
         return m.Success ? m.Groups[1].Value : null;
+    }
+
+    /// <summary>
+    /// The background work a mode line counts ("1 shell", or "1 shell, 2 agents"), or null when it counts none or is
+    /// not a mode line.
+    /// </summary>
+    public static string? BackgroundText(string text)
+    {
+        var m = ModeLineRegex().Match(text);
+        // Runs at every frame end: no allocation unless the line counts something.
+        if (!m.Success || !m.Groups[2].ValueSpan.ContainsAnyInRange('0', '9'))
+        {
+            return null;
+        }
+
+        var counts = m.Groups[2].Value.Split('·', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(part => char.IsAsciiDigit(part[0]))
+            .ToList();
+        return counts.Count > 0 ? string.Join(", ", counts) : null;
     }
 
     /// <summary>A row Claude prints when it waits for an answer: a permission or trust question, a numbered menu, a yes-or-no question (§4.4).</summary>

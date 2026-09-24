@@ -1,0 +1,88 @@
+[?9001h[?1004h[?25l[2J[m[H]0;claude[?25h[Screen Reader Mode: on via flag]
+[?2004h[?2031h[?1004h[>0q[?u[>4m[?2031l[?2004l
+[?2004h[?2031h[?1004h[?25l[2;1H]0;✳ Claude Code[?25hClaude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+auto mode on (shift+tab to cycle)
+effort: medium · /effort
+$[>0q  Use the Bash tool with run_in_background set to true to run the command: sleep 90. Do not wait for it. Then reply with exactly STARTED.]133;A;redraw=0]0;◐ Claude Code[?25l[5;1Hyou: Use the Bash tool with run_in_background set to true to run the command: sleep 90. Do not wait for it. Then reply with exactly STARTED.[K
+Computing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort
+$[?25h]0;◑ Claude Code[?25l[6;1HPolishing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort[K
+$[K[?25h]0;◐ Claude Code]0;◐ Background sleep process[?25l[6;1Htool: Bash (sleep 90)[K
+Waiting…[K
+Polishing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort
+$[?25h]0;◑ Background sleep process[?25l[7;1HRunning…[K
+Polishing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort[K
+$[K[?25h]0;◐ Background sleep process[?25l[7;1HWaiting…[K
+Polishing…[K
+auto mode on  ·  1 shell  ·  esc to interrupt · ↓ to manage[K
+effort: medium · /effort[K
+$[K[?25h[?25l[7;1HRunning in the background (↓ to manage)[K
+Allowed by auto mode classifier[K
+Polishing…[K
+auto mode on  ·  1 shell  ·  esc to interrupt · ↓ to manage[K
+effort: medium · /effort[K
+$[?25h]0;◑ Background sleep process]133;C]133;D]0;✳ Background sleep process[?25l[9;1Hclaude: STARTED[K
+Brewed for 5s · done 12:12 AM · 1 shell still running[K
+auto mode on  ·  1 shell  ·  ↓ to manage[K
+effort: medium · /effort[K
+$[?25h[?25l[12;1H$[K
+[K[12;2H[?25h[?25l[11;1H/tasks                        View and manage everything running in the background[K
+/subtask                      Send a subagent off with your full context; its result comes back here[K
+/claude-api                   Reference for the Claude API / Anthropic SDK — model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration. TRIGGER — read BEFORE opening the target file; don't
+                              skip because it "looks like a one-liner" — whenever: the prompt names Claude/Anthropic in any form (Claude, Anthropic, Fable, Opus, Sonnet, Haiku, `anthropic`, `@anthropic-ai`, `claude-*`, `us.anthropic.*`…
+/docs                         docs (living docs people share, comment on and edit; use only when the user asks for one: names a doc, document, page, memo, spec, PRD, runbook or write-up, asks for somewhere to share or keep editing
+                              something, or says yes to your doc offer; a plan, comparison, summary or notes asked in chat stays in chat (at most a one-line doc offer); a report, status update, recap or "something I can send them" with…
+/morning                      Render the user's morning brief as a styled HTML artifact, or set it up as a recurring weekday task. Use only when the user explicitly asks to run, see, or set up their morning brief, or if they invoke
+                              /morning by name. A question about their day, schedule, or calendar is not by itself a request for the brief; answer it directly instead. (claude.ai sync)
+/pptx                         Use this skill any time a .pptx or .potx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations as PowerPoint (.pptx) files; reading,
+                              parsing, or extracting text from any .pptx or .potx file (even if the extracted content will be used elsewhere, like in an email, summary, or creating a different type of slide deck); editing, modifying, o…
+/code-review                  3 free /ultrareview · Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the
+                              given effort level (low/medium: fewer, high-confidence findings; high→max: broader coverage, may include uncertain findings; ultra: deep multi-agent review in the cloud); with no level given, it reuses the…
+/doctor                       Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH,
+                              unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; …
+/run-skill-generator          Author or improve the run-<unit> skill - a per-project skill that tells agents how to build, launch, and drive this project's app. Use when the user asks to set up the project, get it running, write run
+                              instructions, or verify build/run steps work from a clean environment.
+/docx                         Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx) or Word templates (.dotx). Triggers include: any mention of Microsoft Word Documents, such as 'Word doc',
+                              'word document', '.docx', '.dotx', 'microsoft doc'. Also use when extracting or reorganizing content from .docx or .dotx files, inserting or replacing images in documents, find-and-replace in Word files, w…
+/pdf                          Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating
+                              pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to p…
+/xlsx                         Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .xltx, .csv, or .tsv file (e.g.,
+                              adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigger especially…[36;1H$  /tasks[?25h[?25l[11;1Hyou: /tasks[K
+Shell details[K
+Status: running[K
+Runtime: 7s[K
+Command: sleep 90[K
+Output:[K
+Loading output…[K
+← to go back · Esc/Enter/Space to close · x to stop[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K[18;52H[?25h[?25l[17;1HNo output available[K
+← to go back · Esc/Enter/Space to close · x to stop[K[?25hPress Ctrl-C again to cancel[K← to go back · Esc/Enter/Space to close · x to stop[K[?1006l[?1003l[?1002l[?1000l[>4m[?2031l[?2004l[?1016l
+Resume this session with:
+claude --resume aa4c268c-c4ce-4eca-b88f-7220c0f9a8b1
+]0;]0;◑ Background sleep process]133;A;redraw=0]0;◐ Background sleep process[?9001l[?1004l
