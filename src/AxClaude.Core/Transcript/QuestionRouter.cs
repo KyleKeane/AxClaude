@@ -20,7 +20,8 @@ public sealed record QuestionRoute(QuestionDialog Dialog, SlashCommand? Command,
 /// Decides how a question Claude waits on is presented (SPEC.md D33). The question's shape decides first: a list of
 /// answers goes to the answer notice, anything else to the message field. The slash command sent last refines it:
 /// a command whose screen is more than one list (<see cref="CommandInteraction.Multi"/>,
-/// <see cref="CommandInteraction.Panel"/>) stays in the message field until it has a dialog of its own, and a
+/// <see cref="CommandInteraction.Viewer"/>, <see cref="CommandInteraction.Panel"/>) stays in the message field
+/// until it has a dialog of its own (the screen notice, docs/claude-screens.md), and a
 /// picker brings its extra keys (<c>s</c> in <c>/model</c>).
 /// </summary>
 public static class QuestionRouter
@@ -33,7 +34,7 @@ public static class QuestionRouter
             return new QuestionRoute(QuestionDialog.MessageField, lastCommand, keys);
         }
 
-        if (lastCommand is { Interaction: CommandInteraction.Multi or CommandInteraction.Panel })
+        if (lastCommand is { Interaction: CommandInteraction.Multi or CommandInteraction.Viewer or CommandInteraction.Panel })
         {
             return new QuestionRoute(QuestionDialog.MessageField, lastCommand, keys);
         }

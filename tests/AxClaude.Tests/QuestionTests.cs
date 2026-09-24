@@ -127,6 +127,15 @@ public class QuestionTests
     }
 
     [Fact]
+    public void Every_command_name_and_alias_is_listed_once()
+    {
+        var names = SlashCommands.All.SelectMany(c => c.Aliases.Prepend(c.Name)).ToList();
+        Assert.Equal(names.Count, names.Distinct().Count());
+        Assert.All(names, name => Assert.Matches("^[a-z][a-z-]*$", name));
+        Assert.Equal("config", SlashCommands.Find("/settings")?.Name);
+    }
+
+    [Fact]
     public void A_list_of_answers_goes_to_the_answer_notice_with_the_command_keys()
     {
         var question = QuestionReader.Read(ModelRows, 9)!;
