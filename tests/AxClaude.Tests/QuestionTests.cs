@@ -186,6 +186,34 @@ public class QuestionTests
     }
 
     [Fact]
+    public void Other_asks_for_the_users_own_words()
+    {
+        // The recording answered 4 (Other), then typed t, u, l, i, p one keystroke each; Claude took "tulip".
+        const string name = "other-answer-claude2.1.281-240x50.vt";
+        var bytes = TestHelpers.Fixture(name);
+        var model = new SessionModel(240, 50);
+        var awaited = false;
+        model.Changed += () => awaited |= model.AwaitsText && model.PromptPending && model.PendingQuestion is null;
+        // The "Enter text for" row comes without a frame bracket: the app's quiet rule ends that frame.
+        var previous = 0;
+        foreach (var chunk in File.ReadAllLines(Path.Combine(TestHelpers.FixtureDirectory(), name + ".chunks.txt")).Where(l => l.Length > 0 && char.IsDigit(l[0])).Select(l => l.Split(' ').Select(int.Parse).ToArray()))
+        {
+            if (chunk[2] - previous >= 100)
+            {
+                model.EndFrame();
+            }
+
+            model.Feed(bytes.AsSpan(chunk[0], chunk[1]));
+            previous = chunk[2];
+        }
+
+        model.EndFrame();
+        Assert.True(awaited);
+        Assert.False(model.AwaitsText);
+        Assert.True(LineClassifier.IsTextPrompt("Enter text for option 4 (Other), or Escape for the list:"));
+    }
+
+    [Fact]
     public void A_warning_belongs_to_the_question_it_is_in()
     {
         string[] rows =

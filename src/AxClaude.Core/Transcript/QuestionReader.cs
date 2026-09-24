@@ -31,7 +31,9 @@ public static partial class QuestionReader
     /// </summary>
     public static Question? Read(IReadOnlyList<string> rows, int promptRow)
     {
-        if (promptRow < 0 || promptRow >= rows.Count || !LineClassifier.IsPromptText(rows[promptRow].Trim()))
+        // "Enter text for option 4 (Other)" asks for the user's own words, not for one of the answers still above it.
+        if (promptRow < 0 || promptRow >= rows.Count || !LineClassifier.IsPromptText(rows[promptRow].Trim())
+            || LineClassifier.IsTextPrompt(rows[promptRow].Trim()))
         {
             return null;
         }

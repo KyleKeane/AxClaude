@@ -123,7 +123,11 @@ public static partial class LineClassifier
         text.StartsWith("Permission Required:", StringComparison.Ordinal)
         || text.StartsWith("Enter selection", StringComparison.Ordinal)
         || text.StartsWith("Enter y/n", StringComparison.Ordinal)
-        || text.StartsWith("Select with numbers", StringComparison.Ordinal);
+        || text.StartsWith("Select with numbers", StringComparison.Ordinal)
+        || IsTextPrompt(text);
+
+    /// <summary>The row where Claude waits for the user's own words: "Enter text for option 4 (Other), or Escape for the list:".</summary>
+    public static bool IsTextPrompt(string text) => text.StartsWith("Enter text for", StringComparison.Ordinal);
 
     public static LineKind Classify(string text, bool inPromptBlock)
     {

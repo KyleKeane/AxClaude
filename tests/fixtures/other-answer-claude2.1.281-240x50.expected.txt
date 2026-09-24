@@ -1,0 +1,11 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+you: Please use the AskUserQuestion tool to ask me which flower I enjoy thinking about, with three options: rose, sunflower, lavender. Then reply with my answer in one short sentence.
+●  User answered Claude's questions:
+· Which flower do you enjoy thinking about? → tulip
+claude: You like thinking about tulips.
+Churned for 4s · done 3:00 AM
+Resume this session with:
+claude --resume 3791e203-824e-414b-840a-bd304ce61fcd

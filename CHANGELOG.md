@@ -5,6 +5,7 @@
 - Claude's questions with several parts come one at a time with the right title ("Which colour do you prefer?", not the end of your own message), and the review at the end opens the answer notice too.
 - A question that allows several answers is announced with how to answer it: type the numbers separated by commas, for example 1,3, and press Ctrl+Enter. It does not open the answer notice, which gives one answer.
 - Fixed: answers of more than one character did not reach Claude. Claude takes the answer to a question as typed keys and ignores several characters sent at once, so "12" in a long list and "1,3" for several answers were dropped; every answer now goes one keystroke per character.
+- Fixed: choosing "Other" left you with nowhere to type. Claude then waits for your own words; AxClaude now says "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter.", puts you in the message field, and sends what you type the way Claude takes it.
 - A question that Claude redraws in passing no longer closes its notice or is announced again.
 
 ## 1.4.0 - 2026-09-24

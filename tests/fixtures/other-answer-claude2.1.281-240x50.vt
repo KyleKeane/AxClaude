@@ -1,0 +1,66 @@
+[?9001h[?1004h[?25l[2J[m[H]0;claude[?25h[Screen Reader Mode: on via flag]
+[?2004h[?2031h[?1004h[>0q[?u[>4m[?2031l[?2004l
+[?2004h[?2031h[?1004h[?25l[2;1H]0;✳ Claude Code[?25hClaude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+auto mode on (shift+tab to cycle)
+effort: medium · /effort
+$[>0q  Please use the AskUserQuestion tool to ask me which flower I enjoy thinking about, with three options: rose, sunflower, lavender. Then reply with my answer in one short sentence.]133;A;redraw=0]0;◐ Claude Code[?25l[5;1Hyou: Please use the AskUserQuestion tool to ask me which flower I enjoy thinking about, with three options: rose, sunflower, lavender. Then reply with my answer in one short sentence.[K
+Herding…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort
+$[?25h]0;◐ Favorite flower]0;◑ Favorite flower[?25l[6;1HBurrowing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort[K
+$[K[?25h]0;◐ Favorite flower]0;✳ Favorite flower[?25l[6;1H ☐ Flower[K
+Which flower do you enjoy thinking about?[K
+1. Rose — Classic, fragrant, and romantic.[K
+2. Sunflower — Bright, tall, and sun-following.[K
+3. Lavender — Calming, purple, and aromatic.
+4. Other
+5. Chat about this
+Select with numbers [1-5]. Then Enter to submit or Escape to cancel:[1C[?25h 4Enter text for option 4 (Other), or Escape for the list:[K[1C tulip]0;◐ Favorite flower[?25l[6;1HBurrowing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort[K
+$[K
+[K
+[K
+[K
+[K[9;2H[?25h[?25l[6;1H●  User answered Claude's questions:[K
+· Which flower do you enjoy thinking about? → tulip[K
+Burrowing…[K
+auto mode on (shift+tab to cycle)  ·  esc to interrupt[K
+effort: medium · /effort
+$[?25h]0;◑ Favorite flower]133;C]133;D[?25l[8;1Hclaude: You like thinking about tulips.[K
+Churned for 4s · done 3:00 AM[K
+auto mode on (shift+tab to cycle)[K
+effort: medium · /effort[K
+$]0;✳ Favorite flower[?25h[?25l[10;1H/exit                         Exit the CLI[K
+/context                      Visualize current context usage as a colored grid[K
+/pptx                         Use this skill any time a .pptx or .potx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations as PowerPoint (.pptx) files; reading,        
+                              parsing, or extracting text from any .pptx or .potx file (even if the extracted content will be used elsewhere, like in an email, summary, or creating a different type of slide deck); editing, modifying, o…
+/usage-credits                Configure usage credits or request them from your admin when you hit a limit
+/doctor                       Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH,
+                              unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; …
+/skill-creator                Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill,
+                              benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. (claude.ai sync)
+/pdf                          Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating
+                              pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to p…
+/docs                         docs (living docs people share, comment on and edit; use only when the user asks for one: names a doc, document, page, memo, spec, PRD, runbook or write-up, asks for somewhere to share or keep editing
+                              something, or says yes to your doc offer; a plan, comparison, summary or notes asked in chat stays in chat (at most a one-line doc offer); a report, status update, recap or "something I can send them" with…
+/claude-in-chrome             Automates your Chrome browser to interact with web pages - clicking elements, filling forms, capturing screenshots, reading console logs, and navigating sites. Opens pages in new tabs within your existing
+                              Chrome session. Requires site-level permissions before executing (configured in the extension).
+/docx                         Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx) or Word templates (.dotx). Triggers include: any mention of Microsoft Word Documents, such as 'Word doc',
+                              'word document', '.docx', '.dotx', 'microsoft doc'. Also use when extracting or reorganizing content from .docx or .dotx files, inserting or replacing images in documents, find-and-replace in Word files, w…
+/xlsx                         Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .xltx, .csv, or .tsv file (e.g.,
+                              adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigger especially…
+/verify                       Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing nontrivial
+                              changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change to product source …
+/artifact-capabilities        Runtime capabilities a published Artifact page can be granted — behavior static HTML cannot provide on its own, such as the page reading live or connected data, remembering what people do on it (a poll, a
+                              sign-up sheet, a checklist, a document edited in place — it saves new versions of itself), keeping state shared across viewers, knowing who is viewing, asking Claude a question of its own, storing files pe…
+/memory                       Edit CLAUDE.md files and memory settings
+/passes                       Share a free week of Claude Code with friends and earn usage credits
+$  /exit[?25h]133;A;redraw=0]133;C]133;D[?1006l[?1003l[?1002l[?1000l[>4m[?2031l[?2004l[?1016l
+Resume this session with:
+claude --resume 3791e203-824e-414b-840a-bd304ce61fcd
+]0;[?9001l[?1004l

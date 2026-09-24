@@ -1,0 +1,27 @@
+﻿quiet 3000 20000
+send Please use the AskUserQuestion tool to ask me which flower I enjoy thinking about, with three options: rose, sunflower, lavender. Then reply with my answer in one short sentence.
+sleep 200
+send \r
+wait 90000 \x07
+quiet 3000 20000
+send 4
+sleep 100
+send \r
+quiet 3000 10000
+send t
+sleep 60
+send u
+sleep 60
+send l
+sleep 60
+send i
+sleep 60
+send p
+quiet 2000 8000
+send \r
+wait 60000 \x07
+quiet 4000 30000
+send /exit
+sleep 200
+send \r
+exit 10000

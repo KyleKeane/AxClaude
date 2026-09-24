@@ -589,7 +589,8 @@ internal sealed class MainForm : Form
     /// number.
     /// </summary>
     private bool IsAnswer(string text) =>
-        _model.PendingScreen is null
+        _model.AwaitsText
+        || _model.PendingScreen is null
         && (_model.PendingQuestion is { Options.Count: > 0 } question
             ? question.Accepts(text)
             : text is "y" or "n" or "Y" or "N" || text.All(char.IsAsciiDigit));
@@ -638,8 +639,9 @@ internal sealed class MainForm : Form
         var answer = _model.PromptPending;
         if (answer && IsAnswer(text))
         {
-            // Typed like the answer notice's keys, one keystroke each ("1,3" for several answers).
-            SendAnswer(text);
+            // Typed like the answer notice's keys, one keystroke each ("1,3" for several answers, the words of an
+            // answer of the user's own on one line).
+            SendAnswer(text.Replace('\n', ' '));
             Announce("Answer sent", false);
             return;
         }
@@ -776,7 +778,7 @@ internal sealed class MainForm : Form
             }
 
             // A new question or screen, or the next step of one, waits for the screen to settle like the first.
-            if (!_promptAnnounced || (waiting is not null && waiting != _handledWait && !_attention.Enabled && _shownWait is null))
+            if (!_promptAnnounced || (waiting != _handledWait && !_attention.Enabled && _shownWait is null))
             {
                 _attention.Stop();
                 _attention.Start();
@@ -839,7 +841,15 @@ internal sealed class MainForm : Form
             {
                 _promptAnnounced = true;
                 _handledWait = WaitSignature;
-                Announce(_settings.QuestionNotices && _model.PendingQuestion is { AllowsSeveral: true } several
+                if (_settings.QuestionNotices && _model.AwaitsText && !_noticeOpen)
+                {
+                    // After "Other": the answer is the user's own words, typed in the message field.
+                    _input.Select();
+                }
+
+                Announce(!_settings.QuestionNotices ? "Claude needs your answer"
+                    : _model.AwaitsText ? "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter."
+                    : _model.PendingQuestion is { AllowsSeveral: true } several
                     ? $"Claude asks: {several.Title} Several answers are allowed: type their numbers separated by commas, for example 1,3, and press Ctrl+Enter."
                     : "Claude needs your answer", false);
                 Signal(question: true);
