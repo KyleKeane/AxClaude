@@ -1600,6 +1600,11 @@ internal sealed class MainForm : Form
             question: question);
     }
 
+    /// <summary>
+    /// The notice's text: Claude's own lines between the title and the answers, and where the rest is. The answers
+    /// are only the radio buttons and Claude's key hints stay in the conversation, so no line of the text looks like
+    /// something to choose.
+    /// </summary>
     private static string QuestionText(Question question)
     {
         var text = new StringBuilder();
@@ -1608,29 +1613,7 @@ internal sealed class MainForm : Form
             text.Append(line).Append('\n');
         }
 
-        if (question.Text.Count > 0)
-        {
-            text.Append('\n');
-        }
-
-        foreach (var option in question.Options)
-        {
-            text.Append(option.Key).Append(". ").Append(option.Text).Append(option.Current ? " (current)" : string.Empty).Append('\n');
-        }
-
-        if (question.Hints.Count > 0)
-        {
-            text.Append('\n');
-            foreach (var hint in question.Hints)
-            {
-                text.Append(hint).Append('\n');
-            }
-        }
-
-        var keys = question.Options.Count == 0 ? "the answer keys"
-            : question.Options.All(option => option.Key.All(char.IsAsciiDigit)) ? $"{question.Options[0].Key} to {question.Options[^1].Key}"
-            : string.Join(" or ", question.Options.Select(option => option.Key));
-        text.Append('\n').Append($"Press {keys} to choose, or Tab to the answers and use the arrow keys. Enter answers. Escape cancels the question. Alt+M goes to the message field and leaves the question open.");
+        text.Append("Claude's full question is in the conversation. Alt+M goes to the message field and leaves the question open.");
         return text.ToString();
     }
 

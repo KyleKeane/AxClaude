@@ -249,9 +249,9 @@ internal sealed class OverlayPanel : Panel
     public void Populate(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input, OverlaySession? session = null, Question? question = null)
     {
         _title.Text = title;
-        // An answer notice says whose question it is and how to finish it, read with the title when the focus lands.
-        _text.AccessibleName = question is null ? title : "Claude asks: " + title;
-        _text.AccessibleDescription = question is null ? null : "Choose an answer and press Enter, or press Escape to cancel.";
+        _text.AccessibleName = title;
+        // An answer notice says whose question it is: the focus lands on the answers, read with the group's name.
+        _answerGroup.Text = question is null ? "Answers" : "Claude asks: " + title;
         _body = text;
         _inputSpec = input;
         _sessionSpec = session;
@@ -331,6 +331,13 @@ internal sealed class OverlayPanel : Panel
     /// <summary>Puts the focus where reading starts: in the text field when there is one, otherwise at the top of the text.</summary>
     public void FocusStart()
     {
+        if (_question is not null && _answers.Find(radio => radio.Checked) is { } answer)
+        {
+            // An answer notice starts on the chosen answer, as a dialog does; the text is one Shift+Tab away.
+            answer.Select();
+            return;
+        }
+
         if (_inputSpec is not null)
         {
             _input.Select();
@@ -506,7 +513,11 @@ internal sealed class OverlayPanel : Panel
 
         if (_answers.Count > 0)
         {
-            _answers[selected].Checked = true;
+            var first = _answers[selected];
+            first.Checked = true;
+            // How to finish is read once, with the answer the focus lands on, and not again while arrowing.
+            first.AccessibleDescription = "Choose an answer and press Enter, or press Escape to cancel.";
+            first.Leave += (_, _) => first.AccessibleDescription = null;
         }
 
         LayoutAnswers();
