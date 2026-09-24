@@ -524,7 +524,7 @@ Released 1.0.0 on 2026-09-19 through the release workflow (§9), with the MIT li
 
 1.1.0 (New session, the sounds, the `--continue` default with the replay blocks, the paragraph key, the jump history, the comment marker), 1.2.0 (New session clears the conversation, the three speech modes and the spoken tool calls, the tool tick, the field's page keys, Open current folder) and 1.2.1 (the Ctrl+O guard) followed on the same day. 1.3.0 (2026-09-20): the sounds play through one open wave-out device (D31), the tick option names both ticks, a folder change clears the conversation (FR-8.3), Restart Claude is announced, `run.ps1 -New`, and PtyCapture records through `PtyHost`.
 
-Branch `answer-notice` (2026-09-23 to 24), checked with NVDA by the user: the answer notice through Help → Try the answer notice (the chime, "Claude asks:", the focus on the current answer, answer keys, Enter, Escape, Alt+M), the Force Claude to restart? notice, the Close AxClaude? notice with background work, and the key line at the end of the notices (D23, D33, FR-1.7, FR-1.8). The repaint handling (§4.4 item 20) waits for a long session to show that no old content is read out.
+Branch `answer-notice` (2026-09-23 to 24), checked with NVDA by the user: the answer notice through the trial menu Help → Try the answer notice, since removed (the chime, "Claude asks:", the focus on the current answer, answer keys, Enter, Escape, Alt+M), the Force Claude to restart? notice, the Close AxClaude? notice with background work, and the key line at the end of the notices (D23, D33, FR-1.7, FR-1.8). The repaint handling (§4.4 item 20) waits for a long session to show that no old content is read out.
 
 To do:
 

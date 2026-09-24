@@ -440,14 +440,6 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("Copy diag&nostics", null, (_, _) => CopyDiagnostics()));
         help.DropDownItems.Add(new ToolStripMenuItem("&About", null, (_, _) => ShowAbout()));
-        // TRIAL ONLY (branch answer-notice): the answer notice with recorded questions; nothing is sent to Claude.
-        var trial = new ToolStripMenuItem("&Try the answer notice");
-        foreach (var (name, question) in QuestionSamples.All)
-        {
-            trial.DropDownItems.Add(new ToolStripMenuItem(name, null, (_, _) => ShowQuestion(question, _ => { }, () => { })));
-        }
-
-        help.DropDownItems.Add(trial);
 
         _menu.Items.AddRange([project, session, navigate, options, help]);
         MainMenuStrip = _menu;
