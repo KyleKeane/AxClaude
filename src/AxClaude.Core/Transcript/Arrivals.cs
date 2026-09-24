@@ -42,6 +42,15 @@ public sealed class Arrivals
     private readonly StringBuilder _text = new();
     private int _contentLines;
 
+    /// <summary>
+    /// The texts spoken since the newest output marker. In a long turn Claude can print lines it has already printed
+    /// again, as new rows (the spoken reply was read out a second time at the end of the turn, over "Claude is done"):
+    /// a line whose text was spoken in the same exchange is not spoken again. The next exchange starts empty.
+    /// </summary>
+    private readonly HashSet<string> _spokenInExchange = [];
+
+    private int _exchangeMarker = -1;
+
     /// <summary>The row that names a tool call, <c>tool: Read (a.txt)</c>; the rows of its output are Tool lines too and are never spoken.</summary>
     public static bool IsToolCall(Line line) => line.Kind == LineKind.Tool && line.Text.StartsWith("tool:", StringComparison.Ordinal);
 
@@ -54,6 +63,7 @@ public sealed class Arrivals
         var lastVisible = -1;
         var afterMarker = false;
         var inReply = false;
+        var marker = -1;
         for (var i = 0; i < lines.Count; i++)
         {
             var line = lines[i];
@@ -71,6 +81,7 @@ public sealed class Arrivals
                     _candidates.Clear();
                     afterMarker = true;
                     inReply = false;
+                    marker = line.Id;
                 }
 
                 continue;
@@ -104,6 +115,12 @@ public sealed class Arrivals
             {
                 _candidates.Add(line);
             }
+        }
+
+        if (marker != _exchangeMarker)
+        {
+            _exchangeMarker = marker;
+            _spokenInExchange.Clear();
         }
 
         var newLine = content > _contentLines;
@@ -143,7 +160,11 @@ public sealed class Arrivals
             if (final && (!_spoken.TryGetValue(line.Id, out var spoken) || spoken != line.Text))
             {
                 _spoken[line.Id] = line.Text;
-                Append(line);
+                // A reprint of a line already spoken in this exchange is not spoken again.
+                if (_spokenInExchange.Add(line.Text))
+                {
+                    Append(line);
+                }
             }
         }
 

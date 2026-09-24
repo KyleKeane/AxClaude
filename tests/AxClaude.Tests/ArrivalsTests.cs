@@ -39,6 +39,27 @@ public class ArrivalsTests
     }
 
     [Fact]
+    public void A_reply_claude_prints_again_later_in_the_same_turn_is_not_spoken_again()
+    {
+        var model = new SessionModel(80, 20);
+        var heard = Listen(model, ReplySpeechMode.All);
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        model.Send("check");
+        Feed(model, $"{Esc}[?25l{Esc}[1;1Hyou: check{Esc}[K\r\nclaude: The messages never arrived.{Esc}[K\r\nNothing was interrupted.{Esc}[K\r\ntool: Bash (git status){Esc}[K\r\nauto mode on (shift+tab to cycle)  ·  esc to interrupt{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal(["claude: The messages never arrived. Nothing was interrupted."], heard.Speech);
+
+        // Late in the turn Claude prints the first message again as new rows, then its last message.
+        Feed(model, $"{Esc}[?25l{Esc}[5;1Hclaude: The messages never arrived.{Esc}[K\r\nNothing was interrupted.{Esc}[K\r\nclaude: All done.{Esc}[K\r\nBaked for 9s · done 1:05 AM{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal(["claude: The messages never arrived. Nothing was interrupted.", "claude: All done."], heard.Speech);
+
+        // The next exchange starts afresh: the same words in a new reply are spoken.
+        model.Send("again");
+        Feed(model, $"{Esc}[?25l{Esc}[10;1Hyou: again{Esc}[K\r\nclaude: All done.{Esc}[K\r\nBaked for 1s · done 1:06 AM{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        Assert.Equal("claude: All done.", heard.Speech[^1]);
+        Assert.Equal(3, heard.Speech.Count);
+    }
+
+    [Fact]
     public void The_tick_marks_every_frame_that_adds_a_line_from_claude_whatever_the_speech_mode()
     {
         var model = new SessionModel(80, 10);
