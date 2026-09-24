@@ -408,8 +408,8 @@ internal sealed class MainForm : Form
         options.DropDownItems.Add(new ToolStripMenuItem("&Open settings file", null, (_, _) => OpenSettingsFile()));
 
         var help = new ToolStripMenuItem("&Help");
-        help.DropDownItems.Add(new ToolStripMenuItem("&Keyboard shortcuts", null, (_, _) => ShowText("Keyboard shortcuts", HelpText.Shortcuts)) { ShortcutKeys = Keys.F1 });
-        help.DropDownItems.Add(new ToolStripMenuItem("&User guide", null, (_, _) => ShowText("User guide", HelpText.UserGuide())));
+        help.DropDownItems.Add(new ToolStripMenuItem("&Keyboard shortcuts", null, (_, _) => ShowNotice(Notice.Plain("Keyboard shortcuts", HelpText.Shortcuts))) { ShortcutKeys = Keys.F1 });
+        help.DropDownItems.Add(new ToolStripMenuItem("&User guide", null, (_, _) => ShowNotice(Notice.Plain("User guide", HelpText.UserGuide()))));
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("Claude Code &documentation (web)", null, (_, _) => OpenUrl("https://code.claude.com/docs/en/overview")));
         help.DropDownItems.Add(new ToolStripMenuItem("Claude Code slash &commands (web)", null, (_, _) => OpenUrl("https://code.claude.com/docs/en/commands")));
@@ -870,7 +870,7 @@ internal sealed class MainForm : Form
     /// <summary>Ctrl+F: the Find notice (FR-3.7). Find next closes it and searches from the caret; an empty field keeps it open.</summary>
     private void FindDialog()
     {
-        ShowNotice("Find", string.Empty,
+        ShowNotice(new Notice("Find", string.Empty,
         [
             new OverlayChoice("Find &next", () =>
             {
@@ -878,8 +878,10 @@ internal sealed class MainForm : Form
                 _transcript.Find(_findText, backward: false);
             }, IsDefault: true),
             new OverlayChoice("Cancel", IsCancel: true),
-        ],
-        new OverlayInput("&Find:", "Text to find", _findText, "Type the text to find"));
+        ])
+        {
+            Input = new OverlayInput("&Find:", "Text to find", _findText, "Type the text to find"),
+        });
     }
 
     private void FindNext(bool backward)
@@ -1278,7 +1280,7 @@ internal sealed class MainForm : Form
         var current = ClaudeArgs;
         var selected = Array.FindIndex(SessionPresets, preset => preset.Arguments.SequenceEqual(current, StringComparer.Ordinal));
         var custom = selected < 0 ? ClaudeLauncher.JoinArguments(current) : string.Empty;
-        var text = "Choose how Claude starts, then press Enter: the current session stops and a new one starts in the folder. Escape keeps the current session.";
+        var text = "Choose how Claude starts. Starting stops the current session and starts a new one in the folder.";
         if (ClaudeBusy)
         {
             text = "Claude is still working. A new session stops it in the middle of its work.\n" + text;
@@ -1288,14 +1290,14 @@ internal sealed class MainForm : Form
             text = $"Claude has work running in the background ({background}). A new session stops it.\n" + text;
         }
 
-        ShowNotice(
-            "New Claude session",
-            text,
-            [
-                new OverlayChoice("&Start session", StartNewSession, IsDefault: true),
-                new OverlayChoice("Cancel", IsCancel: true),
-            ],
-            session: new OverlaySession(_folder, ChooseSessionFolder, SessionPresets, selected < 0 ? SessionPresets.Length : selected, custom));
+        ShowNotice(new Notice("New Claude session", text,
+        [
+            new OverlayChoice("&Start session", StartNewSession, IsDefault: true),
+            new OverlayChoice("Cancel", IsCancel: true),
+        ])
+        {
+            Session = new OverlaySession(_folder, ChooseSessionFolder, SessionPresets, selected < 0 ? SessionPresets.Length : selected, custom),
+        });
     }
 
     private void ChooseSessionFolder()
@@ -1350,13 +1352,12 @@ internal sealed class MainForm : Form
             state += $"Claude has work running in the background ({background}). ";
         }
 
-        ShowNotice("Force Claude to restart?",
-            state + "Restarting immediately quits Claude Code and terminates any processes it runs in the background, then starts it again in the same folder with the same options. The conversation stays in the window.\n" +
-            "Enter restarts. Escape keeps Claude running.",
+        ShowNotice(new Notice("Force Claude to restart?",
+            state + "Restarting immediately quits Claude Code and terminates any processes it runs in the background, then starts it again in the same folder with the same options. The conversation stays in the window.",
         [
             new OverlayChoice("&Restart now", ForceRestart, IsDefault: true),
             new OverlayChoice("&Keep Claude running", IsCancel: true),
-        ]);
+        ]));
     }
 
     private void ForceRestart()
@@ -1563,21 +1564,28 @@ internal sealed class MainForm : Form
         Log.Error(message);
         _model.AddSystemLine(message);
         UpdateStatus();
-        ShowText("Error", message);
+        ShowNotice(Notice.Plain("Error", message) with { Unprompted = true });
     }
 
     /// <summary>The crash handler's report (FR-13.4), shown inside the window like every other notice.</summary>
-    public void ShowError(string title, string message) => ShowText(title, message);
+    public void ShowError(string title, string message) => ShowNotice(Notice.Plain(title, message) with { Unprompted = true });
 
     // ---- notices: the app's own dialogs, drawn inside the window (D23) ----
 
     /// <summary>
-    /// Shows a notice in place of the conversation and the message field. The focus moves into the notice (the
-    /// field, or the top of the text), the menu and the window's shortcuts are blocked, and Enter and Escape go to
-    /// the default and cancel buttons. A notice shown while another is open replaces it.
+    /// The one place a notice is shown (D23); callers pass only its content. It adds what every notice shares: the key
+    /// line made from the buttons at the end of the text, the notice chime and the hold of a notice the user did not
+    /// open, the focus in the notice (the field, the chosen answer, or the top of the text), the blocked menu and
+    /// window shortcuts, and Enter and Escape on the default and cancel buttons. A notice shown while another is
+    /// open replaces it.
     /// </summary>
-    private void ShowNotice(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input = null, OverlaySession? session = null, Question? question = null)
+    private void ShowNotice(Notice notice)
     {
+        if (notice.Unprompted && _settings.SoundOnBell)
+        {
+            Sounds.Notice();
+        }
+
         if (!_noticeOpen)
         {
             _focusBeforeNotice = ReferenceEquals(ActiveControl, _transcript) ? _transcript : _input;
@@ -1586,7 +1594,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = true;
-        _overlay.Populate(title, text, choices, input, session, question);
+        _overlay.Populate(notice with { Text = WithKeyLine(notice.Text, notice.Choices) });
         _overlay.Visible = true;
         _overlay.BringToFront();
         AcceptButton = _overlay.DefaultButton;
@@ -1598,22 +1606,29 @@ internal sealed class MainForm : Form
         PerformLayout();
     }
 
-    /// <summary>A read-only text with a Close button: help texts, About and errors.</summary>
-    private void ShowText(string title, string text) => ShowNotice(title, text, [OverlayChoice.Close]);
+    /// <summary>
+    /// The last line of every notice with text, made from its buttons so that no notice words it differently:
+    /// "Enter: Close anyway. Escape: Keep working." or "Enter or Escape: Close." for a single button.
+    /// </summary>
+    private static string WithKeyLine(string text, IReadOnlyList<OverlayChoice> choices)
+    {
+        var enter = choices.FirstOrDefault(choice => choice.IsDefault);
+        var escape = choices.FirstOrDefault(choice => choice.IsCancel);
+        // The button's text without its mnemonic marker or a trailing ellipsis.
+        static string Label(OverlayChoice choice) => choice.Text.Replace("&", string.Empty).TrimEnd('.');
+        var keys = enter is not null && ReferenceEquals(enter, escape) ? $"Enter or Escape: {Label(enter)}."
+            : string.Join(" ", new[] { enter is null ? null : $"Enter: {Label(enter)}.", escape is null ? null : $"Escape: {Label(escape)}." }.OfType<string>());
+        return text.Length == 0 || keys.Length == 0 ? text : text.TrimEnd('\n') + "\n" + keys;
+    }
 
     /// <summary>
-    /// The answer notice: Claude's question with its title, its text, the answers and Claude's key hints in the
-    /// text, and the answers again as radio buttons. An answer key or the arrow keys choose, Enter answers, Escape
-    /// cancels the question, and Alt+M leaves the question open and goes to the message field.
+    /// The answer notice: Claude's question with its title and text, and the answers as radio buttons. An answer key
+    /// or the arrow keys choose, Enter answers, Escape cancels the question, and Alt+M leaves the question open and
+    /// goes to the message field. Claude's questions are not opened by the user: the notice chimes and holds.
     /// </summary>
     private void ShowQuestion(Question question, Action<QuestionOption> answer, Action cancel)
     {
-        if (_settings.SoundOnBell)
-        {
-            Sounds.Notice();
-        }
-
-        ShowNotice(
+        ShowNotice(new Notice(
             question.Title,
             QuestionText(question),
             [
@@ -1637,8 +1652,11 @@ internal sealed class MainForm : Form
                     cancel();
                     Announce("Question cancelled", false);
                 }, IsCancel: true),
-            ],
-            question: question);
+            ])
+        {
+            Question = question,
+            Unprompted = true,
+        });
     }
 
     /// <summary>
@@ -1735,10 +1753,9 @@ internal sealed class MainForm : Form
         var consequence = _updateFolder is null
             ? $"If you close now, {stops}."
             : $"If you close now, {stops} and the update is installed.";
-        ShowNotice("Close AxClaude?",
+        ShowNotice(new Notice("Close AxClaude?",
             $"{state}. {consequence}\n" +
-            "What is done so far is saved. Start AxClaude again to carry on.\n" +
-            "Enter closes anyway. Escape keeps AxClaude open.",
+            "What is done so far is saved. Start AxClaude again to carry on.",
         [
             new OverlayChoice("&Close anyway", () =>
             {
@@ -1746,7 +1763,7 @@ internal sealed class MainForm : Form
                 Close();
             }, IsDefault: true),
             new OverlayChoice("&Keep working", CancelUpdate, IsCancel: true),
-        ]);
+        ]));
     }
 
     /// <summary>
@@ -1798,7 +1815,7 @@ internal sealed class MainForm : Form
                 if (manual || !_noticeOpen)
                 {
                     // At startup the notice opens by itself: Enter updates, Escape keeps this version (FR-1.10).
-                    ShowUpdateNotice(release);
+                    ShowUpdateNotice(release, unprompted: !manual);
                 }
                 else
                 {
@@ -1815,10 +1832,10 @@ internal sealed class MainForm : Form
 
             if (manual)
             {
-                ShowText("Check for updates",
+                ShowNotice(Notice.Plain("Check for updates",
                     $"You have the newest version, AxClaude {Program.Version}.\n" +
                     (release is null ? "No release is published yet.\n" : string.Empty) +
-                    $"Releases: {UpdateCheck.ReleasesPage}");
+                    $"Releases: {UpdateCheck.ReleasesPage}"));
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException)
@@ -1827,12 +1844,12 @@ internal sealed class MainForm : Form
             SetLatest("unknown, GitHub could not be reached");
             if (manual && !IsDisposed)
             {
-                ShowNotice("Check for updates",
+                ShowNotice(new Notice("Check for updates",
                     $"GitHub could not be reached: {ex.Message}\nThe releases page: {UpdateCheck.ReleasesPage}",
                 [
                     new OverlayChoice("&Open releases page", () => OpenUrl(UpdateCheck.ReleasesPage), StaysOpen: true),
                     OverlayChoice.Close,
-                ]);
+                ]));
             }
         }
         finally
@@ -1866,13 +1883,13 @@ internal sealed class MainForm : Form
     }
 
     private void ShowAbout() =>
-        ShowText("About AxClaude",
+        ShowNotice(Notice.Plain("About AxClaude",
             $"AxClaude {Program.Version}\nA screen reader friendly window for Claude Code.\nMade by Dr. Kyle Keane, www.kylekeane.com. Free under the MIT licence.\n\n" +
             $"Latest release on GitHub: {_latestState}\nClaude Code documentation: https://code.claude.com/docs\nSettings: {AppSettings.DefaultPath}\nLog: {Log.FilePath}\n\n" +
-            HelpText.Disclaimer);
+            HelpText.Disclaimer));
 
-    /// <summary>The release notes with Update now, Open release page and Later (FR-1.10).</summary>
-    private void ShowUpdateNotice(ReleaseInfo release)
+    /// <summary>The release notes with Update now, Open release page and Later (FR-1.10); <paramref name="unprompted"/> when the check at startup found it.</summary>
+    private void ShowUpdateNotice(ReleaseInfo release, bool unprompted = false)
     {
         var version = release.Version.ToString(3);
         var size = release.ZipSize > 0 ? $" The download is {release.ZipSize / (1024.0 * 1024.0):0} MB." : string.Empty;
@@ -1882,12 +1899,15 @@ internal sealed class MainForm : Form
             "Update now downloads the new version, closes AxClaude, installs it and starts it again on the same folder. " +
             $"The conversation is picked up again if one is open.{size}\n" +
             "Later keeps this version; the Help menu offers the update again.";
-        ShowNotice($"Update to AxClaude {version}", text,
+        ShowNotice(new Notice($"Update to AxClaude {version}", text,
         [
             new OverlayChoice("&Update now", () => InstallUpdate(release), IsDefault: true),
             new OverlayChoice("&Open release page", () => OpenUrl(release.PageUrl), StaysOpen: true),
             new OverlayChoice("&Later", IsCancel: true),
-        ]);
+        ])
+        {
+            Unprompted = unprompted,
+        });
     }
 
     /// <summary>
@@ -1927,12 +1947,12 @@ internal sealed class MainForm : Form
             if (!IsDisposed)
             {
                 _model.AddSystemLine($"The download of AxClaude {version} failed: {ex.Message}");
-                ShowNotice($"Update to AxClaude {version}",
+                ShowNotice(new Notice($"Update to AxClaude {version}",
                     $"The download failed: {ex.Message}\nYou can download the zip from the release page and run install.ps1 yourself.",
                 [
                     new OverlayChoice("&Open release page", () => OpenUrl(release.PageUrl), StaysOpen: true),
                     OverlayChoice.Close,
-                ]);
+                ]));
             }
         }
         finally
@@ -1960,7 +1980,7 @@ internal sealed class MainForm : Form
     /// <summary>FR-1.9: where the app looked, the install command with a button that copies it, the install page, and Locate claude.exe.</summary>
     private void ShowClaudeNotFound(IReadOnlyList<string> candidates)
     {
-        ShowNotice("Claude Code was not found", HelpText.ClaudeNotFound(candidates),
+        ShowNotice(new Notice("Claude Code was not found", HelpText.ClaudeNotFound(candidates),
         [
             new OverlayChoice("Copy install &command", () =>
             {
@@ -1972,7 +1992,10 @@ internal sealed class MainForm : Form
             new OverlayChoice("&Open install instructions", () => OpenUrl(ClaudeLauncher.InstallUrl), StaysOpen: true),
             new OverlayChoice("&Locate claude.exe...", LocateClaude, StaysOpen: true),
             OverlayChoice.Close,
-        ]);
+        ])
+        {
+            Unprompted = true,
+        });
     }
 
     /// <summary>The standard file picker; a choice closes the notice, is saved as claudePath and started at once. Cancel keeps the notice.</summary>

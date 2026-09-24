@@ -27,9 +27,35 @@ internal sealed record OverlayPreset(string Text, IReadOnlyList<string> Argument
 internal sealed record OverlaySession(string? Folder, Action ChooseFolder, IReadOnlyList<OverlayPreset> Presets, int Selected, string CustomArguments);
 
 /// <summary>
+/// What a notice says and offers, and nothing about how it is shown (D23): the title, the text, the buttons, at most
+/// one of the text field, the New session controls and a question's answers, and whether the user opened it. Every
+/// notice goes through <c>MainForm.ShowNotice</c>, which adds what all notices share: the key line made from the
+/// buttons, the chime and the hold of a notice the user did not open, the focus, and the blocked window.
+/// </summary>
+internal sealed record Notice(string Title, string Text, IReadOnlyList<OverlayChoice> Choices)
+{
+    public OverlayInput? Input { get; init; }
+
+    public OverlaySession? Session { get; init; }
+
+    public Question? Question { get; init; }
+
+    /// <summary>
+    /// Opened by something other than the user's own command: one of Claude's questions, an update offer or an
+    /// error at startup. It plays the notice chime and ignores the answering keys for a moment, since the user may be
+    /// typing elsewhere when it appears.
+    /// </summary>
+    public bool Unprompted { get; init; }
+
+    /// <summary>A read-only text with a Close button: help texts, About and errors.</summary>
+    public static Notice Plain(string title, string text) => new(title, text, [OverlayChoice.Close]);
+}
+
+/// <summary>
 /// The window's own dialogs, drawn inside the window (D23). A notice, a question or a help text takes the place of the
 /// conversation and the message field until it is answered, so there is never a second window to lose. The panel
-/// holds a title, a read-only text, an optional text field, the optional New session controls and a row of buttons.
+/// holds a title, a read-only text, an optional text field, the optional New session controls or a question's
+/// answers, and a row of buttons; it shows a <see cref="Notice"/>, which says what, and the window decides the rest.
 /// The window hides the controls underneath, blocks its own shortcuts and the menu, and routes Enter and Escape to
 /// the default and cancel buttons through its AcceptButton and CancelButton; Tab moves between the text, the field
 /// or the session controls or the answers, and the buttons.
@@ -40,10 +66,10 @@ internal sealed class OverlayPanel : Panel
     private const string ChooseFolderFirst = "Choose a folder first";
 
     /// <summary>
-    /// How long an answer notice ignores the keys that answer (Enter, Space, the answer keys) after it opens: it can
-    /// open while the user is typing a message, and the next keys were meant for the message field.
+    /// How long a notice the user did not open ignores the keys that answer (Enter, Space, a question's answer keys):
+    /// it can open while the user is typing a message, and the next keys were meant for the message field.
     /// </summary>
-    private const int AnswerHoldMs = 1000;
+    private const int HoldMs = 1000;
 
     /// <summary>Two digits typed within this time make one number (answer 12 of a longer list).</summary>
     private const int NumberJoinMs = 1000;
@@ -69,7 +95,7 @@ internal sealed class OverlayPanel : Panel
     private OverlayInput? _inputSpec;
     private OverlaySession? _sessionSpec;
     private Question? _question;
-    private long _questionShown;
+    private long _holdUntil;
     private string _typedNumber = string.Empty;
     private long _typedAt;
     private string? _sessionFolder;
@@ -245,9 +271,16 @@ internal sealed class OverlayPanel : Panel
         }
     }
 
-    /// <summary>Fills the panel with a notice. The text box carries the title as its accessible name, so a screen reader hears the title and then the first line when the focus lands on it.</summary>
-    public void Populate(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input, OverlaySession? session = null, Question? question = null)
+    /// <summary>
+    /// Fills the panel with a notice, whose text the window has completed with the key line. The text box carries the
+    /// title as its accessible name, so a screen reader hears the title and then the first line when the focus lands
+    /// on it. A notice the user did not open holds its answering keys for a moment.
+    /// </summary>
+    public void Populate(Notice notice)
     {
+        var (title, text, choices) = (notice.Title, notice.Text, notice.Choices);
+        var (input, session, question) = (notice.Input, notice.Session, notice.Question);
+        _holdUntil = notice.Unprompted ? Environment.TickCount64 + HoldMs : 0;
         _title.Text = title;
         _text.AccessibleName = title;
         // An answer notice says whose question it is: the focus lands on the answers, read with the group's name.
@@ -259,7 +292,6 @@ internal sealed class OverlayPanel : Panel
         _answerRow.Visible = question is not null;
         if (question is not null)
         {
-            _questionShown = Environment.TickCount64;
             _typedNumber = string.Empty;
             FillAnswers(question);
         }
@@ -372,18 +404,15 @@ internal sealed class OverlayPanel : Panel
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        if (_question is not null)
+        // Keys typed for the message field just before a notice the user did not open must not answer it.
+        if (Environment.TickCount64 < _holdUntil && (keyData is Keys.Enter or Keys.Space || (_question is not null && AnswerKey(keyData) is not null)))
         {
-            // Keys typed for the message field just before the notice opened must not answer the question.
-            if (Environment.TickCount64 - _questionShown < AnswerHoldMs && (keyData is Keys.Enter or Keys.Space || AnswerKey(keyData) is not null))
-            {
-                return true;
-            }
+            return true;
+        }
 
-            if (AnswerKey(keyData) is { } key && ChooseAnswer(key))
-            {
-                return true;
-            }
+        if (_question is not null && AnswerKey(keyData) is { } key && ChooseAnswer(key))
+        {
+            return true;
         }
 
         return base.ProcessCmdKey(ref msg, keyData);
