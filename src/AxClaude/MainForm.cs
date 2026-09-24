@@ -428,10 +428,7 @@ internal sealed class MainForm : Form
         var trial = new ToolStripMenuItem("&Try the answer notice");
         foreach (var (name, question) in QuestionSamples.All)
         {
-            trial.DropDownItems.Add(new ToolStripMenuItem(name, null, (_, _) => ShowQuestion(
-                question,
-                option => Announce($"Trial: this would send {option.Key} and Enter to Claude", false),
-                () => Announce("Trial: this would send Escape to Claude", false))));
+            trial.DropDownItems.Add(new ToolStripMenuItem(name, null, (_, _) => ShowQuestion(question, _ => { }, () => { })));
         }
 
         help.DropDownItems.Add(trial);
@@ -1570,6 +1567,11 @@ internal sealed class MainForm : Form
     /// </summary>
     private void ShowQuestion(Question question, Action<QuestionOption> answer, Action cancel)
     {
+        if (_settings.SoundOnBell)
+        {
+            Sounds.Notice();
+        }
+
         ShowNotice(
             question.Title,
             QuestionText(question),
@@ -1579,10 +1581,21 @@ internal sealed class MainForm : Form
                     if (_overlay.SelectedAnswer is { } option)
                     {
                         answer(option);
+                        // The answer's name without Claude's explanation after the dash.
+                        var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
+                        Announce($"Answer sent: {option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}", false);
                     }
                 }, IsDefault: true),
-                new OverlayChoice("Answer in the &message field", () => _input.Select()),
-                new OverlayChoice("Cancel &question", cancel, IsCancel: true),
+                new OverlayChoice("Answer in the &message field", () =>
+                {
+                    _input.Select();
+                    Announce("The question is still open", false);
+                }),
+                new OverlayChoice("Cancel &question", () =>
+                {
+                    cancel();
+                    Announce("Question cancelled", false);
+                }, IsCancel: true),
             ],
             question: question);
     }

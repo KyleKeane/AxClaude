@@ -43,12 +43,14 @@ internal static class Sounds
 
     // C6 alone, a high ping: Claude is ready. A4 alone, low: the message went out. C5, E5, G5 up to a long note:
     // Claude starts replying. The same notes down, G5, E5, C5: the turn is done. Two E5s: Claude needs an answer.
+    // A quick C6-E6 trill: the answer notice opened in place of the conversation.
     private static readonly Sound ReadyChime = new(WaveTone.Notes(0.35, (1046.5, 120)));
     private static readonly Sound SentChime = new(WaveTone.Notes(0.35, (440, 80)));
     private static readonly Sound RespondingChime = new(WaveTone.Notes(0.35, (523.25, 90), (659.25, 90), (783.99, 220)));
     private static readonly Sound DoneChime = new(WaveTone.Notes(0.35, (783.99, 90), (659.25, 90), (523.25, 220)));
     private static readonly Sound QuestionChime = new(WaveTone.Notes(0.35, (659.25, 70), (0, 40), (659.25, 110)));
-    private static readonly Sound[] All = [LineTick, ToolTick, ReadyChime, SentChime, RespondingChime, DoneChime, QuestionChime];
+    private static readonly Sound NoticeChime = new(WaveTone.Notes(0.35, (1046.5, 45), (1318.5, 45), (1046.5, 45), (1318.5, 110)));
+    private static readonly Sound[] All = [LineTick, ToolTick, ReadyChime, SentChime, RespondingChime, DoneChime, QuestionChime, NoticeChime];
 
     private static nint _device;
     private static bool _failed;
@@ -73,6 +75,9 @@ internal static class Sounds
 
     /// <summary>Two equal notes: Claude needs an answer.</summary>
     public static void Question() => Play(QuestionChime, replace: true);
+
+    /// <summary>A quick high trill: the answer notice opened and waits for an answer.</summary>
+    public static void Notice() => Play(NoticeChime, replace: true);
 
     /// <summary>Queues the sound; with <paramref name="replace"/> it first stops and drops whatever is queued, otherwise it is skipped while it is queued itself.</summary>
     private static void Play(Sound sound, bool replace)

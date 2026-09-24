@@ -249,7 +249,9 @@ internal sealed class OverlayPanel : Panel
     public void Populate(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input, OverlaySession? session = null, Question? question = null)
     {
         _title.Text = title;
-        _text.AccessibleName = title;
+        // An answer notice says whose question it is and how to finish it, read with the title when the focus lands.
+        _text.AccessibleName = question is null ? title : "Claude asks: " + title;
+        _text.AccessibleDescription = question is null ? null : "Choose an answer and press Enter, or press Escape to cancel.";
         _body = text;
         _inputSpec = input;
         _sessionSpec = session;
