@@ -50,7 +50,7 @@ public sealed class Line
     public bool JoinedToPrevious { get; internal set; }
 
     public bool Committed { get; internal set; }
-    public bool Hidden => ChromeHidden || EchoHidden || ReplayHidden;
+    public bool Hidden => ChromeHidden || EchoHidden || ReplayHidden || RepaintHidden;
     /// <summary>A line the app inserted (a marker, a printed message line or blank line, a system line, a bookmark): never classified by text, never hidden.</summary>
     public bool IsMarker => Kind is LineKind.InputMarker or LineKind.OutputMarker or LineKind.System or LineKind.UserMessage or LineKind.Bookmark;
 
@@ -60,6 +60,13 @@ public sealed class Line
     internal bool EchoHandled { get; set; }
     /// <summary>Printed while a restart replayed a conversation the window already shows (FR-4.8).</summary>
     internal bool ReplayHidden { get; set; }
+
+    /// <summary>
+    /// Printed while Claude repainted the whole conversation from the top of the screen: a copy of what the window
+    /// already shows, often worded differently. Shown once a later frame writes something else on its row.
+    /// </summary>
+    internal bool RepaintHidden { get; set; }
+
     internal Vt.Row? Row { get; set; }
 
     public override string ToString() => $"{Id}: [{Kind}] {Text}";

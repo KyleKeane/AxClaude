@@ -453,13 +453,36 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void A_repaint_from_the_top_keeps_the_conversation_and_hides_the_copies()
+    {
+        // Seen in a long session (2026-09-24): with no clear, Claude went to the top left corner and printed the whole
+        // conversation again, reworded in places, as a burst of frames that scrolled the screen.
+        var model = new SessionModel(80, 6);
+        Feed(model, $"{Esc}[?25lclaude: first answer{Esc}[K\r\nclaude: second answer{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        model.EndFrame();
+        Assert.Equal(["claude: first answer", "claude: second answer"], Visible(model));
+
+        Feed(model, $"{Esc}[?25l{Esc}[?25l{Esc}[Hclaude: an old answer, reworded{Esc}[K\r\ntool: Update (a.cs){Esc}[K\r\nclaude: first answer, reworded{Esc}[K\r\nclaude: second answer, reworded{Esc}[K\r\nRead 1 file{Esc}[K\r\nclaude: more old text{Esc}[K{Esc}[?25h");
+        Feed(model, $"{Esc}[?25l\r\nclaude: still more old text{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        model.EndFrame();
+        Assert.Equal(["claude: first answer", "claude: second answer"], Visible(model));
+
+        // After the burst, a frame writes something new on the rows of the live block: it shows, once.
+        Feed(model, $"{Esc}[?25l{Esc}[5;1Hclaude: a new answer{Esc}[K\r\nauto mode on (shift+tab to cycle){Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        model.EndFrame();
+        Assert.Equal(["claude: first answer", "claude: second answer", "claude: a new answer"], Visible(model));
+    }
+
+    [Fact]
     public void Rewriting_a_row_updates_the_same_line()
     {
+        // On the second row: Claude's frames never rewrite the top row over conversation (that is a repaint).
         var model = new SessionModel(80, 10);
-        Feed(model, $"hello{Esc}[?25h");
-        var line = Assert.Single(model.Lines);
-        Feed(model, $"{Esc}[1;1Hworld{Esc}[K{Esc}[?25h");
-        Assert.Same(line, Assert.Single(model.Lines));
+        Feed(model, $"top\r\nhello{Esc}[?25h");
+        var line = model.Lines[1];
+        Feed(model, $"{Esc}[2;1Hworld{Esc}[K{Esc}[?25h");
+        Assert.Equal(2, model.Lines.Count);
+        Assert.Same(line, model.Lines[1]);
         Assert.Equal("world", line.Text);
     }
 

@@ -96,6 +96,15 @@ public sealed class Screen : IVtSink
     public event Action? Bell;
     public event Action<string>? TitleChanged;
 
+    /// <summary>
+    /// The cursor was put in the top left corner (<c>ESC[H</c>). With the screen not cleared since the last frame and
+    /// conversation on it, this is Claude repainting everything from the top (SessionModel).
+    /// </summary>
+    public event Action? Homed;
+
+    /// <summary>The whole screen was erased (<c>ESC[2J</c>, <c>ESC[3J</c>) since the last frame ended.</summary>
+    public bool ClearedSinceFrameEnd { get; private set; }
+
     internal Row RowAt(int row) => _rows[row];
 
     public Line? LineAt(int row) => _rows[row].Line;
@@ -231,6 +240,7 @@ public sealed class Screen : IVtSink
             if (parameters[0] == '?' && final == 'h' && values.Contains(25))
             {
                 FrameEnd?.Invoke();
+                ClearedSinceFrameEnd = false;
             }
 
             return;
@@ -266,6 +276,11 @@ public sealed class Screen : IVtSink
             case 'H':
             case 'f':
                 MoveCursor(P(1, 1) - 1, P(0, 1) - 1);
+                if (_cx == 0 && _cy == 0)
+                {
+                    Homed?.Invoke();
+                }
+
                 break;
             case 'd':
                 MoveCursor(_cx, P(0, 1) - 1);
@@ -439,7 +454,29 @@ public sealed class Screen : IVtSink
                     row.Clear(0, Columns);
                 }
 
+                ClearedSinceFrameEnd = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Lets go of every row's line, as if the rows had scrolled away: the lines stay in the transcript with the text
+    /// they had at the last frame end, not what was written on their rows since, and what is printed on the rows
+    /// next gets lines of its own.
+    /// </summary>
+    public void DetachRows()
+    {
+        foreach (var row in _rows)
+        {
+            if (row.Line is not { } line)
+            {
+                continue;
+            }
+
+            row.Dirty = false;
+            _store.Commit(line);
+            line.Row = null;
+            row.Line = null;
         }
     }
 

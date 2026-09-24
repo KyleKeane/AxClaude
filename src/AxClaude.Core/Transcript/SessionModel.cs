@@ -30,6 +30,13 @@ public sealed partial class SessionModel : ILineStore
     private Screen _screen = null!;
     private VtParser _parser = null!;
     private Line? _anchor;
+
+    /// <summary>
+    /// Claude is repainting the conversation from the top of the screen (<see cref="OnHomed"/>): the lines it prints
+    /// are copies and stay hidden. The repaint is one burst of many frames, so it ends when the output goes quiet
+    /// (<see cref="EndFrame"/>), not with the frame that started it.
+    /// </summary>
+    private bool _repainting;
     private Line? _responseStartedFor;
     private int _nextId;
     private int _bookmarkCount;
@@ -113,8 +120,18 @@ public sealed partial class SessionModel : ILineStore
         _parser.Feed(_chars.AsSpan(0, count));
     }
 
-    /// <summary>Recomputes chrome, classification, echo handling and status from the current screen.</summary>
+    /// <summary>
+    /// The output went quiet (the app calls this after 100 ms without output, and at exit): the frame work of
+    /// <see cref="CompleteFrame"/>, and the end of a repaint, which arrives as one burst of frames.
+    /// </summary>
     public void EndFrame()
+    {
+        CompleteFrame();
+        _repainting = false;
+    }
+
+    /// <summary>Recomputes chrome, classification, echo handling and status from the current screen.</summary>
+    private void CompleteFrame()
     {
         _pending.RemoveAll(p => DateTime.UtcNow - p.Created > PendingLifetime);
         PullRowText();
@@ -415,7 +432,7 @@ public sealed partial class SessionModel : ILineStore
 
     public Line CreateLine(Line? before)
     {
-        var line = new Line(_nextId++, LineKind.Plain, string.Empty) { ReplayHidden = HideReplay };
+        var line = new Line(_nextId++, LineKind.Plain, string.Empty) { ReplayHidden = HideReplay, RepaintHidden = _repainting };
         var index = before is null ? -1 : _lines.LastIndexOf(before);
         if (index < 0)
         {
@@ -457,12 +474,34 @@ public sealed partial class SessionModel : ILineStore
     private void NewScreen()
     {
         _screen = new Screen(Columns, Rows, this);
-        _screen.FrameEnd += EndFrame;
+        _screen.FrameEnd += CompleteFrame;
+        _screen.Homed += OnHomed;
+        _repainting = false;
         _screen.Bell += () => Bell?.Invoke();
         _screen.TitleChanged += OnTitle;
         _parser = new VtParser(_screen);
         _decoder.Reset();
         _anchor = null;
+    }
+
+    /// <summary>
+    /// The cursor went to the top left corner with the screen not cleared since the last frame and a visible line on
+    /// the top row. Frames start at the first row of Claude's live block, below the conversation on screen, and
+    /// Claude clears the screen before it starts afresh; so this is Claude repainting everything from the top. In a
+    /// long session it printed the whole conversation again that way, as a burst of frames, reworded in places, and
+    /// it was read out a second time. The lines on screen are let go with the text they had at the last frame end,
+    /// and what the repaint prints gets lines of its own, hidden as copies until a later frame writes something else
+    /// on their rows.
+    /// </summary>
+    private void OnHomed()
+    {
+        if (_repainting || _screen.ClearedSinceFrameEnd || _screen.LineAt(0) is not { Hidden: false, Text.Length: > 0 })
+        {
+            return;
+        }
+
+        _screen.DetachRows();
+        _repainting = true;
     }
 
     private void PullRowText()
@@ -482,6 +521,7 @@ public sealed partial class SessionModel : ILineStore
                     line.EchoHidden = false;
                     line.EchoHandled = false;
                     line.ReplayHidden &= HideReplay;
+                    line.RepaintHidden &= _repainting;
                 }
             }
         }
