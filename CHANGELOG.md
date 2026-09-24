@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 - 2026-09-24
+
+- Claude's questions open an answer notice: the workspace trust question, the lists of commands such as `/model`, `/effort`, `/theme` and `/resume`, and Claude's own multiple-choice questions. A quick high trill, "Claude asks:" with the title, and the focus on the current answer; the arrow keys or the answer's number choose, Enter answers, Escape cancels. Alt+M, "Answer in the message field", leaves the question open for an answer you type. The next question of the same screen opens its own notice, and a notice whose question went away closes. Claude's full question stays in the conversation.
+- Screens that wait for a key, such as `/status`, `/usage`, `/help`, `/tasks` and `/goal`, open a screen notice with the screen's text (for `/status` and `/help` it never reached the conversation) and a button for every key the screen offers. They also count as waiting for your answer now.
+- While Claude waits for an answer, Ctrl+Enter sends only an answer. A message you typed stays in the field and AxClaude says so; Ctrl+Enter again sends it anyway. A message typed into the trust question used to be lost.
+- Every notice ends with a line naming its keys ("Enter: Close anyway. Escape: Keep working."), and a notice you did not open yourself (Claude's questions, errors, Claude Code not found, the update offer) plays the notice trill and ignores Enter for a moment, so keys meant for the message field do not answer it.
+- Work Claude runs in the background, such as a command started with `run_in_background`, is shown in the status bar ("1 shell in the background"), and closing AxClaude or starting a new session asks first while it runs.
+- Restart Claude is now "Force Claude to restart" (Ctrl+Shift+R) and asks first while Claude runs, since it quits Claude Code at once and ends anything it runs in the background.
+- Fixed: old content was read out again, and copies of earlier turns appeared in the conversation, when Claude repainted the whole conversation from the top of the screen in a long session. The repaint is now recognised and its copies are hidden; a reply line is also never spoken twice within one reply.
+- Fixed: Claude's mode line with background work ("auto mode on · 1 shell · ↓ to manage") appeared in the conversation.
+- `docs/claude-screens.md` lists every slash command with what its screen shows and the notice it gets.
+
 ## 1.3.0 - 2026-09-20
 
 - Change folder and Recent folders clear the conversation before Claude starts in the new folder, as New session does: the window holds only the "Project folder changed" line and what Claude prints there, with that folder's earlier exchanges under their "from previous session" headings when it has any. Restart Claude keeps the conversation.
