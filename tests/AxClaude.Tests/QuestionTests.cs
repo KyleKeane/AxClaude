@@ -109,10 +109,9 @@ public class QuestionTests
         Assert.Equal("Effort", QuestionReader.Read(apart, 6)!.Title);
     }
 
-    [Fact]
-    public void The_model_picker_recording_gives_a_pending_question_for_the_answer_notice()
+    /// <summary>Replays a recording with the app's quiet rule and returns the model and every distinct question it reported waiting.</summary>
+    private static (SessionModel Model, List<Question> Seen) QuestionsIn(string name)
     {
-        const string name = "model-picker-claude2.1.281-240x50.vt";
         var bytes = TestHelpers.Fixture(name);
         var chunks = File.ReadAllLines(Path.Combine(TestHelpers.FixtureDirectory(), name + ".chunks.txt"))
             .Where(l => l.Length > 0 && char.IsDigit(l[0]))
@@ -138,6 +137,31 @@ public class QuestionTests
             model.Feed(bytes.AsSpan(chunk[0], chunk[1]));
             previous = chunk[2];
         }
+
+        model.EndFrame();
+        return (model, seen);
+    }
+
+    [Fact]
+    public void A_tool_permission_prompt_gives_a_question_for_the_answer_notice()
+    {
+        var (model, seen) = QuestionsIn("permission-prompt-claude2.1.281-240x50.vt");
+        var question = Assert.Single(seen);
+        Assert.Equal("Permission Required: Create file", question.Title);
+        Assert.Equal("Do you want to create permission-test.txt?", question.Text[^1]);
+        Assert.Equal(["1", "2", "3"], question.Options.Select(o => o.Key));
+        Assert.Equal("No", question.Options[2].Text);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question, null).Dialog);
+
+        // Escape declined; the question is gone.
+        Assert.False(model.PromptPending);
+        Assert.Null(model.PendingQuestion);
+    }
+
+    [Fact]
+    public void The_model_picker_recording_gives_a_pending_question_for_the_answer_notice()
+    {
+        var (model, seen) = QuestionsIn("model-picker-claude2.1.281-240x50.vt");
 
         // One question while the picker was open, read the same way however often it was redrawn.
         var question = Assert.Single(seen);

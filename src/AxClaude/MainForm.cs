@@ -100,6 +100,7 @@ internal sealed class MainForm : Form
             MaxLines = settings.MaxTranscriptLines,
             JoinWrappedLines = settings.JoinWrappedLines,
             TimeStamps = settings.MarkerTimeStamps,
+            DetectScreens = settings.QuestionNotices,
         };
         _model.Changed += OnModelChanged;
         _model.ResponseStarted += () =>
@@ -412,6 +413,12 @@ internal sealed class MainForm : Form
             _model.TimeStamps = v;
         }));
         options.DropDownItems.Add(Toggle("Check for &updates when AxClaude starts", _settings.CheckForUpdates, v => _settings.CheckForUpdates = v));
+        // D33: off, what Claude waits on is only announced, as before 1.4.0: no notices, no guard, no waiting screens.
+        options.DropDownItems.Add(Toggle("Answer Claude's &questions in a notice", _settings.QuestionNotices, v =>
+        {
+            _settings.QuestionNotices = v;
+            _model.DetectScreens = v;
+        }));
         options.DropDownItems.Add(new ToolStripSeparator());
         options.DropDownItems.Add(new ToolStripMenuItem("&Font...", null, (_, _) => ChooseFont()));
         options.DropDownItems.Add(new ToolStripMenuItem("&Larger text", null, (_, _) => ChangeTextSize(1)) { ShortcutKeyDisplayString = "Ctrl+Plus" });
@@ -609,7 +616,7 @@ internal sealed class MainForm : Form
         }
 
         var text = _input.Text.Replace("\r\n", "\n").Trim();
-        if (text.Length > 0 && _model.PromptPending && !IsAnswer(text) && text != _keptMessage)
+        if (_settings.QuestionNotices && text.Length > 0 && _model.PromptPending && !IsAnswer(text) && text != _keptMessage)
         {
             // D33: text sent into a question is lost (Claude answers "Please answer y or n." and drops it) or taken
             // as a key of the screen. It stays in the field; the same text sent again goes anyway (a typed answer).
@@ -797,7 +804,7 @@ internal sealed class MainForm : Form
         {
             // A list of answers opens the answer notice and a screen waiting on its hint row the screen notice, each
             // with its own chime (D33); anything else is announced.
-            if (_model.PendingQuestion is { } question && question.Signature != _handledWait && !_noticeOpen
+            if (_settings.QuestionNotices && _model.PendingQuestion is { } question && question.Signature != _handledWait && !_noticeOpen
                 && QuestionRouter.Route(question, _lastCommand).Dialog == QuestionDialog.AnswerNotice)
             {
                 _promptAnnounced = true;
@@ -805,7 +812,7 @@ internal sealed class MainForm : Form
                 ShowClaudeQuestion(question);
                 Signal(question: true, chime: false);
             }
-            else if (_model.PendingScreen is { } screen && screen.Signature != _handledWait && !_noticeOpen)
+            else if (_settings.QuestionNotices && _model.PendingScreen is { } screen && screen.Signature != _handledWait && !_noticeOpen)
             {
                 _promptAnnounced = true;
                 _handledWait = screen.Signature;

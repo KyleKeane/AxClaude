@@ -67,6 +67,9 @@ public sealed partial class SessionModel : ILineStore
     /// </summary>
     public ClaudeScreen? PendingScreen { get; private set; }
 
+    /// <summary>Look for screens that wait on a hint row (<see cref="PendingScreen"/>); off with the Answer Claude's questions in a notice option.</summary>
+    public bool DetectScreens { get; set; } = true;
+
     /// <summary>A spinner row or an "esc to interrupt" hint was on screen at the end of the last frame.</summary>
     public bool Working { get; private set; }
 
@@ -160,7 +163,7 @@ public sealed partial class SessionModel : ILineStore
         PromptPending = CursorWaitsForAnswer();
         PendingQuestion = PromptPending ? ReadPendingQuestion() : null;
         // A screen of Claude's that waits on its hint row waits for the user just as a question does (D33).
-        PendingScreen = PromptPending ? null : ReadPendingScreen();
+        PendingScreen = PromptPending || !DetectScreens ? null : ReadPendingScreen();
         PromptPending |= PendingScreen is not null;
         CheckResponseStarted();
         Trim();

@@ -34,7 +34,7 @@ The first time Claude Code sees a folder it asks whether you trust it. Questions
 
 Screens that Claude shows until you press a key, such as `/status`, `/tasks` and `/help`, come up as a **screen notice**: the screen's text, and a button for every key the screen offers, for example "View" (Enter), "Close" (Escape) or "Select (Down)". A button sends its key to Claude; if the screen is still open afterwards, the notice comes back with what it shows now.
 
-While Claude waits for an answer, Ctrl+Enter only sends an answer. A message you typed stays in the field, and AxClaude says so; press Ctrl+Enter again to send it all the same. Anything else Claude asks is announced with "Claude needs your answer".
+While Claude waits for an answer, Ctrl+Enter only sends an answer. A message you typed stays in the field, and AxClaude says so; press Ctrl+Enter again to send it all the same. Anything else Claude asks is announced with "Claude needs your answer". Options, "Answer Claude's questions in a notice", turns the notices and this protection off: questions are then only announced, and you answer them in the message field.
 
 ## The window
 

@@ -75,6 +75,12 @@ public sealed class AppSettings
     /// <summary>Ask GitHub once at startup whether a newer release exists (FR-1.10).</summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>
+    /// Recognise what Claude waits on and open the answer notice or the screen notice for it, and keep messages out
+    /// of a waiting question (D33, FR-2.10). Off: questions are only announced, as before 1.4.0.
+    /// </summary>
+    public bool QuestionNotices { get; set; } = true;
+
     public int MaxTranscriptLines { get; set; } = 20000;
     public WindowPlacement? Window { get; set; }
 

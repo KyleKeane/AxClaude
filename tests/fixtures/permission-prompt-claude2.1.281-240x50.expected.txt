@@ -1,0 +1,11 @@
+[Screen Reader Mode: on via flag]
+Claude Code v2.1.281
+Opus 5.5 (1M context) · Claude Max
+C:\Temp\axclaude-fixture
+you: Create a file named permission-test.txt containing the word hello. Use the Write tool.
+tool error: Write (permission-test.txt)
+User rejected write to  permission-test.txt
+ 1 hello
+Churned for 3s · done 2:02 AM
+Resume this session with:
+claude --resume 6f777514-c21b-42e6-bad6-eef60c8aaea0

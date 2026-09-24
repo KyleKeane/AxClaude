@@ -1,0 +1,14 @@
+# A tool permission prompt in the default permission mode: Claude asks before creating a file; Escape declines.
+quiet 3000 20000
+send Create a file named permission-test.txt containing the word hello. Use the Write tool.
+sleep 200
+send \r
+wait 60000 \x07
+quiet 3000 20000
+sleep 1000
+send \x1b
+quiet 4000 30000
+send /exit
+sleep 200
+send \r
+exit 15000
