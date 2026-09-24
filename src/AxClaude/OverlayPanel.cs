@@ -1,4 +1,5 @@
 using System.Windows.Forms.Automation;
+using AxClaude.Core.Transcript;
 
 namespace AxClaude;
 
@@ -31,12 +32,21 @@ internal sealed record OverlaySession(string? Folder, Action ChooseFolder, IRead
 /// holds a title, a read-only text, an optional text field, the optional New session controls and a row of buttons.
 /// The window hides the controls underneath, blocks its own shortcuts and the menu, and routes Enter and Escape to
 /// the default and cancel buttons through its AcceptButton and CancelButton; Tab moves between the text, the field
-/// or the session controls, and the buttons.
+/// or the session controls or the answers, and the buttons.
 /// </summary>
 internal sealed class OverlayPanel : Panel
 {
     private const string NoFolder = "(none chosen yet)";
     private const string ChooseFolderFirst = "Choose a folder first";
+
+    /// <summary>
+    /// How long an answer notice ignores the keys that answer (Enter, Space, the answer keys) after it opens: it can
+    /// open while the user is typing a message, and the next keys were meant for the message field.
+    /// </summary>
+    private const int AnswerHoldMs = 1000;
+
+    /// <summary>Two digits typed within this time make one number (answer 12 of a longer list).</summary>
+    private const int NumberJoinMs = 1000;
 
     private readonly Label _title = new();
     private readonly TextBox _text = new();
@@ -51,9 +61,17 @@ internal sealed class OverlayPanel : Panel
     private readonly Label _customLabel = new();
     private readonly TextBox _custom = new();
     private readonly List<RadioButton> _presets = [];
+    private readonly Panel _answerRow = new();
+    private readonly GroupBox _answerGroup = new();
+    private readonly FlowLayoutPanel _answerList = new();
+    private readonly List<RadioButton> _answers = [];
     private readonly FlowLayoutPanel _buttons = new();
     private OverlayInput? _inputSpec;
     private OverlaySession? _sessionSpec;
+    private Question? _question;
+    private long _questionShown;
+    private string _typedNumber = string.Empty;
+    private long _typedAt;
     private string? _sessionFolder;
     private string _body = string.Empty;
 
@@ -145,6 +163,25 @@ internal sealed class OverlayPanel : Panel
         _customRow.Controls.Add(_custom);
         _session.Controls.AddRange([_chooseFolder, _presetGroup, _customRow]);
 
+        // The answers of a question, as radio buttons in a named group under the text: the arrow keys move between
+        // them, Tab lands on the chosen one, and the answer keys choose one from anywhere in the notice.
+        _answerRow.Dock = DockStyle.Bottom;
+        _answerRow.AutoScroll = true;
+        _answerRow.Visible = false;
+        _answerRow.TabIndex = 3;
+        _answerRow.Padding = new Padding(0, 6, 0, 0);
+        _answerRow.SizeChanged += (_, _) => LayoutAnswers();
+        _answerGroup.Text = "Answers";
+        _answerGroup.Location = new Point(0, 6);
+        _answerList.FlowDirection = FlowDirection.TopDown;
+        _answerList.WrapContents = false;
+        _answerList.AutoSize = true;
+        _answerList.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _answerList.Location = new Point(8, 20);
+        _answerList.Padding = new Padding(0, 0, 8, 4);
+        _answerGroup.Controls.Add(_answerList);
+        _answerRow.Controls.Add(_answerGroup);
+
         _buttons.Dock = DockStyle.Bottom;
         _buttons.FlowDirection = FlowDirection.LeftToRight;
         _buttons.WrapContents = true;
@@ -155,8 +192,9 @@ internal sealed class OverlayPanel : Panel
 
         // Docked controls are laid out from the last in the collection to the first: the buttons take the bottom,
         // the title the top, the field the strip under the title, then the text takes what is left, or, in a New
-        // session notice, a strip of a few lines with the session controls filling the rest under it.
-        Controls.AddRange([_session, _text, _inputRow, _title, _buttons]);
+        // session notice, a strip of a few lines with the session controls filling the rest under it. The answers of
+        // a question sit over the buttons.
+        Controls.AddRange([_session, _text, _answerRow, _inputRow, _title, _buttons]);
     }
 
     /// <summary>A button was pressed. The window closes the notice (unless the choice stays open) and runs its action.</summary>
@@ -187,6 +225,16 @@ internal sealed class OverlayPanel : Panel
     /// <summary>The text of the Custom field in the New session notice.</summary>
     public string CustomArguments => _custom.Text;
 
+    /// <summary>The answer chosen in an answer notice; null when the notice shows no question.</summary>
+    public QuestionOption? SelectedAnswer
+    {
+        get
+        {
+            var index = _answers.FindIndex(radio => radio.Checked);
+            return _question is { } question && index >= 0 && index < question.Options.Count ? question.Options[index] : null;
+        }
+    }
+
     /// <summary>The font of the text, kept in step with the conversation's by the window.</summary>
     public void SetTextFont(Font font)
     {
@@ -198,13 +246,22 @@ internal sealed class OverlayPanel : Panel
     }
 
     /// <summary>Fills the panel with a notice. The text box carries the title as its accessible name, so a screen reader hears the title and then the first line when the focus lands on it.</summary>
-    public void Populate(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input, OverlaySession? session = null)
+    public void Populate(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input, OverlaySession? session = null, Question? question = null)
     {
         _title.Text = title;
         _text.AccessibleName = title;
         _body = text;
         _inputSpec = input;
         _sessionSpec = session;
+        _question = question;
+        _answerRow.Visible = question is not null;
+        if (question is not null)
+        {
+            _questionShown = Environment.TickCount64;
+            _typedNumber = string.Empty;
+            FillAnswers(question);
+        }
+
         _session.Visible = session is not null;
         if (session is not null)
         {
@@ -293,6 +350,182 @@ internal sealed class OverlayPanel : Panel
 
         var processing = interrupt ? AutomationNotificationProcessing.MostRecent : AutomationNotificationProcessing.All;
         return source.AccessibilityObject.RaiseAutomationNotification(AutomationNotificationKind.ActionCompleted, processing, text);
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        if (_question is not null)
+        {
+            LayoutAnswers();
+        }
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (_question is not null)
+        {
+            // Keys typed for the message field just before the notice opened must not answer the question.
+            if (Environment.TickCount64 - _questionShown < AnswerHoldMs && (keyData is Keys.Enter or Keys.Space || AnswerKey(keyData) is not null))
+            {
+                return true;
+            }
+
+            if (AnswerKey(keyData) is { } key && ChooseAnswer(key))
+            {
+                return true;
+            }
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    protected override bool ProcessDialogChar(char charCode)
+    {
+        // Without Alt, a letter on a radio button would press the button with that mnemonic: in an answer notice
+        // only Alt and a letter press a button, and a plain letter that is not an answer key does nothing.
+        if (_question is not null && (ModifierKeys & Keys.Alt) == 0)
+        {
+            return true;
+        }
+
+        return base.ProcessDialogChar(charCode);
+    }
+
+    /// <summary>The answer key a key press stands for: a digit, or a letter without Ctrl or Alt (y and n).</summary>
+    private static string? AnswerKey(Keys keyData)
+    {
+        var code = keyData & Keys.KeyCode;
+        if ((keyData & (Keys.Control | Keys.Alt | Keys.Shift)) != 0)
+        {
+            return null;
+        }
+
+        return code switch
+        {
+            >= Keys.D0 and <= Keys.D9 => ((char)('0' + (code - Keys.D0))).ToString(),
+            >= Keys.NumPad0 and <= Keys.NumPad9 => ((char)('0' + (code - Keys.NumPad0))).ToString(),
+            >= Keys.A and <= Keys.Z => ((char)('a' + (code - Keys.A))).ToString(),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Chooses the answer with this key and moves the focus to it, so the screen reader reads it. A digit typed
+    /// right after another makes a two-digit number when the question has that many answers. False when no
+    /// answer has the key.
+    /// </summary>
+    private bool ChooseAnswer(string key)
+    {
+        if (_question is not { } question)
+        {
+            return false;
+        }
+
+        var now = Environment.TickCount64;
+        var digit = char.IsAsciiDigit(key[0]);
+        var joined = digit && _typedNumber.Length > 0 && now - _typedAt < NumberJoinMs ? _typedNumber + key : null;
+        _typedAt = now;
+        QuestionOption? option;
+        if (joined is not null && question.OptionFor(joined) is { } both)
+        {
+            option = both;
+            _typedNumber = joined;
+        }
+        else
+        {
+            option = question.OptionFor(key);
+            _typedNumber = digit ? key : string.Empty;
+        }
+
+        if (option is null)
+        {
+            return false;
+        }
+
+        var radio = _answers[IndexOf(question, option)];
+        radio.Checked = true;
+        if (radio.Focused)
+        {
+            // No focus change, so nothing would be read: say the answer.
+            Announce(radio.Text, true);
+        }
+        else
+        {
+            radio.Select();
+        }
+
+        return true;
+    }
+
+    private static int IndexOf(Question question, QuestionOption option)
+    {
+        for (var i = 0; i < question.Options.Count; i++)
+        {
+            if (ReferenceEquals(question.Options[i], option))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void FillAnswers(Question question)
+    {
+        foreach (var old in _answers)
+        {
+            _answerList.Controls.Remove(old);
+            old.Dispose();
+        }
+
+        _answers.Clear();
+        var selected = 0;
+        for (var i = 0; i < question.Options.Count; i++)
+        {
+            var option = question.Options[i];
+            var radio = new RadioButton
+            {
+                Text = $"{option.Key}. {option.Text}" + (option.Current ? " (current)" : string.Empty),
+                AutoSize = true,
+                Margin = new Padding(0, 2, 0, 2),
+                TabIndex = i,
+                UseMnemonic = false,
+                UseVisualStyleBackColor = true,
+            };
+            if (option.Current)
+            {
+                selected = i;
+            }
+
+            _answers.Add(radio);
+            _answerList.Controls.Add(radio);
+        }
+
+        if (_answers.Count > 0)
+        {
+            _answers[selected].Checked = true;
+        }
+
+        LayoutAnswers();
+    }
+
+    private void LayoutAnswers()
+    {
+        var width = Math.Max(200, _answerRow.ClientSize.Width - 24);
+        foreach (var radio in _answers)
+        {
+            radio.MaximumSize = new Size(width, 0);
+        }
+
+        _answerGroup.Width = width + 16;
+        _answerGroup.Height = _answerList.PreferredSize.Height + 26;
+        // A long list scrolls rather than squeezing out the text above it.
+        var height = Math.Min(_answerGroup.Bottom + 2, Math.Max(80, ClientSize.Height / 2));
+        if (_answerRow.Height != height)
+        {
+            _answerRow.Height = height;
+        }
     }
 
     private void Choose(OverlayChoice choice)

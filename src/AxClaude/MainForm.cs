@@ -424,6 +424,17 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("Copy diag&nostics", null, (_, _) => CopyDiagnostics()));
         help.DropDownItems.Add(new ToolStripMenuItem("&About", null, (_, _) => ShowAbout()));
+        // TRIAL ONLY (branch answer-notice): the answer notice with recorded questions; nothing is sent to Claude.
+        var trial = new ToolStripMenuItem("&Try the answer notice");
+        foreach (var (name, question) in QuestionSamples.All)
+        {
+            trial.DropDownItems.Add(new ToolStripMenuItem(name, null, (_, _) => ShowQuestion(
+                question,
+                option => Announce($"Trial: this would send {option.Key} and Enter to Claude", false),
+                () => Announce("Trial: this would send Escape to Claude", false))));
+        }
+
+        help.DropDownItems.Add(trial);
 
         _menu.Items.AddRange([project, session, navigate, options, help]);
         MainMenuStrip = _menu;
@@ -1527,7 +1538,7 @@ internal sealed class MainForm : Form
     /// field, or the top of the text), the menu and the window's shortcuts are blocked, and Enter and Escape go to
     /// the default and cancel buttons. A notice shown while another is open replaces it.
     /// </summary>
-    private void ShowNotice(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input = null, OverlaySession? session = null)
+    private void ShowNotice(string title, string text, IReadOnlyList<OverlayChoice> choices, OverlayInput? input = null, OverlaySession? session = null, Question? question = null)
     {
         if (!_noticeOpen)
         {
@@ -1537,7 +1548,7 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = true;
-        _overlay.Populate(title, text, choices, input, session);
+        _overlay.Populate(title, text, choices, input, session, question);
         _overlay.Visible = true;
         _overlay.BringToFront();
         AcceptButton = _overlay.DefaultButton;
@@ -1551,6 +1562,64 @@ internal sealed class MainForm : Form
 
     /// <summary>A read-only text with a Close button: help texts, About and errors.</summary>
     private void ShowText(string title, string text) => ShowNotice(title, text, [OverlayChoice.Close]);
+
+    /// <summary>
+    /// The answer notice: Claude's question with its title, its text, the answers and Claude's key hints in the
+    /// text, and the answers again as radio buttons. An answer key or the arrow keys choose, Enter answers, Escape
+    /// cancels the question, and Alt+M leaves the question open and goes to the message field.
+    /// </summary>
+    private void ShowQuestion(Question question, Action<QuestionOption> answer, Action cancel)
+    {
+        ShowNotice(
+            question.Title,
+            QuestionText(question),
+            [
+                new OverlayChoice("&Answer", () =>
+                {
+                    if (_overlay.SelectedAnswer is { } option)
+                    {
+                        answer(option);
+                    }
+                }, IsDefault: true),
+                new OverlayChoice("Answer in the &message field", () => _input.Select()),
+                new OverlayChoice("Cancel &question", cancel, IsCancel: true),
+            ],
+            question: question);
+    }
+
+    private static string QuestionText(Question question)
+    {
+        var text = new StringBuilder();
+        foreach (var line in question.Text)
+        {
+            text.Append(line).Append('\n');
+        }
+
+        if (question.Text.Count > 0)
+        {
+            text.Append('\n');
+        }
+
+        foreach (var option in question.Options)
+        {
+            text.Append(option.Key).Append(". ").Append(option.Text).Append(option.Current ? " (current)" : string.Empty).Append('\n');
+        }
+
+        if (question.Hints.Count > 0)
+        {
+            text.Append('\n');
+            foreach (var hint in question.Hints)
+            {
+                text.Append(hint).Append('\n');
+            }
+        }
+
+        var keys = question.Options.Count == 0 ? "the answer keys"
+            : question.Options.All(option => option.Key.All(char.IsAsciiDigit)) ? $"{question.Options[0].Key} to {question.Options[^1].Key}"
+            : string.Join(" or ", question.Options.Select(option => option.Key));
+        text.Append('\n').Append($"Press {keys} to choose, or Tab to the answers and use the arrow keys. Enter answers. Escape cancels the question. Alt+M goes to the message field and leaves the question open.");
+        return text.ToString();
+    }
 
     private void OnNoticeChoice(OverlayChoice choice)
     {
