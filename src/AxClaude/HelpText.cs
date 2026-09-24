@@ -25,7 +25,7 @@ internal static class HelpText
           Ctrl+S: save the conversation as a text file
           Ctrl+W: open the current folder in File Explorer
           Ctrl+N: new Claude session: choose the folder and how Claude starts (continue, resume, plan mode, custom arguments)
-          Ctrl+Shift+R: force Claude to restart in the same folder with the same arguments
+          Ctrl+Shift+R: force Claude to restart in the same folder with the same arguments, after a confirmation
           Ctrl+O: switched off, a reminder says why (Claude's detailed view redraws the conversation in screen reader mode)
           Ctrl+Shift+C: send Ctrl+C to Claude
           Ctrl+Shift+M: next permission mode

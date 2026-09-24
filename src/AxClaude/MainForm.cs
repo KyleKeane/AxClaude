@@ -1330,8 +1330,36 @@ internal sealed class MainForm : Form
     /// <summary>The arguments Claude gets after --ax-screen-reader: the chosen ones, or the default (FR-9.1).</summary>
     private IReadOnlyList<string> ClaudeArgs => _claudeArgs ?? (_nothingToContinue ? [] : ["--continue"]);
 
-    /// <summary>Project → Force Claude to restart (Ctrl+Shift+R, FR-1.8): the same folder and arguments; the conversation stays.</summary>
+    /// <summary>
+    /// Project → Force Claude to restart (Ctrl+Shift+R, FR-1.8): the same folder and arguments; the conversation
+    /// stays. A running Claude is stopped only after the Force Claude to restart? notice; a stopped one starts at once.
+    /// </summary>
     private void RestartClaude()
+    {
+        if (_host is null)
+        {
+            ForceRestart();
+            return;
+        }
+
+        var state = !ClaudeBusy ? string.Empty
+            : _model.PromptPending ? "Claude is waiting for your answer. "
+            : "Claude is still working. ";
+        if (ClaudeBackground is { } background)
+        {
+            state += $"Claude has work running in the background ({background}). ";
+        }
+
+        ShowNotice("Force Claude to restart?",
+            state + "Restarting immediately quits Claude Code and terminates any processes it runs in the background, then starts it again in the same folder with the same options. The conversation stays in the window.\n" +
+            "Enter restarts. Escape keeps Claude running.",
+        [
+            new OverlayChoice("&Restart now", ForceRestart, IsDefault: true),
+            new OverlayChoice("&Keep Claude running", IsCancel: true),
+        ]);
+    }
+
+    private void ForceRestart()
     {
         Announce("Restarting Claude", false);
         Relaunch("Restarting Claude");

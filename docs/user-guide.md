@@ -118,7 +118,7 @@ The Help menu always shows the version you have ("Installed: AxClaude 1.0.0"), t
 
 - "Claude Code was not found": install it with the command in the notice, then press Ctrl+Shift+R. If it is installed somewhere unusual, use "Locate claude.exe" instead: Claude starts at once and the place is remembered.
 - An error from AxClaude is a notice inside the window and a "System:" line in the conversation. Escape closes the notice.
-- Claude stopped, or the conversation looks wrong: Ctrl+Shift+R restarts Claude in the same folder. Starting AxClaude again brings the conversation back. While Claude is stopped, Ctrl+Enter sends nothing and keeps your text.
+- Claude stopped, or the conversation looks wrong: Ctrl+Shift+R restarts Claude in the same folder. While Claude is running it asks first, because a restart quits Claude Code at once and ends anything it runs in the background: Enter restarts, Escape keeps Claude running. Starting AxClaude again brings the conversation back. While Claude is stopped, Ctrl+Enter sends nothing and keeps your text.
 - For a bug report: Help, Copy diagnostics puts the version, the paths and the last log lines on the clipboard. Options, "Record raw stream for a bug report" records everything Claude Code prints. The log is in `%LOCALAPPDATA%\AxClaude\logs`.
 - An update did not start AxClaude again: `%LOCALAPPDATA%\AxClaude\logs\update.log` says what the installer did. Start AxClaude from the Start menu; if it is still the old version, download the zip from the release page and run `install.ps1` yourself.
 

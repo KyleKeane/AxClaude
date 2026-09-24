@@ -79,7 +79,8 @@ Each step says what to do and what NVDA must say or do. A step fails if NVDA say
 ## 8. Lifecycle
 
 1. Type `/exit`, Ctrl+Enter: "Claude stopped"; the status says "stopped"; the message field still works. Type a word, Ctrl+Enter: "Claude is not running. Press Ctrl+Shift+R to start it again" and the word is still in the field.
-2. Ctrl+Shift+R restarts Claude; "Claude is ready" again.
+2. Ctrl+Shift+R restarts the stopped Claude at once, without a notice; "Claude is ready" again.
+2a. With Claude running, Ctrl+Shift+R: the "Force Claude to restart?" notice, whose text ends "Enter restarts. Escape keeps Claude running." Escape: the focus is back where it was and Claude still runs. Ctrl+Shift+R, Enter: "Restarting Claude", then "Claude is ready". With a background command running (ask Claude to run `sleep 120` in the background), the notice starts "Claude has work running in the background (1 shell)."
 3. Alt+F4 while the status says "ready": the app closes within two seconds; Task Manager shows no `claude.exe`.
 4. Start the app, ask Claude to run `sleep 20` with the Bash tool, and press Alt+F4 while the status says "working". The window stays. NVDA reads "Close AxClaude? read only edit multi line" and the first line "Claude is still working. If you close now, Claude stops in the middle of its work." Down Arrow: the line about carrying on, then "Enter closes anyway. Escape keeps AxClaude open." Tab: "Close anyway button", Tab: "Keep working button". Escape: the notice goes, the focus is back in the message field, NVDA+End still says "working". Send a second message, then Alt+F4 again: the first line now ends "and a message you sent is still waiting for it". Enter: the app closes within two seconds and no `claude.exe` is left. Start it again: the conversation is back.
 5. Start the app from a shortcut with no folder argument: it opens the last folder without asking, at the same window size.
