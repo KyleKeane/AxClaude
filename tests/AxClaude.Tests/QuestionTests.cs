@@ -86,6 +86,30 @@ public class QuestionTests
     }
 
     [Fact]
+    public void A_blank_row_inside_a_question_keeps_its_title()
+    {
+        string[] rows =
+        [
+            "you: /resume",
+            "Resume session",
+            "⌕ Search…",
+            "example-project",
+            "",
+            "1. Reading notes.txt — 5 days ago · HEAD · 223.4KB",
+            "2. Session naming — 5 days ago · HEAD · 221.6KB",
+            "Select with numbers [1-2]. Then Enter to submit or Escape to cancel:",
+            "Ctrl+A to show all projects · Ctrl+B to only show current branch · Type to search · Esc to cancel",
+        ];
+        var question = QuestionReader.Read(rows, 7)!;
+        Assert.Equal("Resume session", question.Title);
+        Assert.Equal(["⌕ Search…", "example-project"], question.Text);
+        Assert.Equal(2, question.Options.Count);
+
+        string[] apart = ["claude: an earlier reply", "", "", "Effort", "1. low", "2. high", "Select with numbers [1-2]. Then Enter to submit or Escape to cancel:"];
+        Assert.Equal("Effort", QuestionReader.Read(apart, 6)!.Title);
+    }
+
+    [Fact]
     public void Only_a_prompt_row_holds_a_question()
     {
         Assert.Null(QuestionReader.Read(ModelRows, 8));

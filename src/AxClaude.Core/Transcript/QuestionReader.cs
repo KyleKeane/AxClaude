@@ -6,8 +6,8 @@ namespace AxClaude.Core.Transcript;
 /// Reads the question Claude waits on from the screen rows around its cursor. Screen reader mode draws every question
 /// the same way (SPEC.md D33): a title row, text rows, the answers (<c>1. …</c>, or <c>y. …</c> and <c>n. …</c>,
 /// with <c>(selected)</c> before the current one), the row the cursor sits on (<c>Enter y/n:</c>,
-/// <c>Select with numbers [1-5]. …</c>), and key hints under it. The block ends upwards at a blank row, a labelled
-/// row (<c>you:</c>, <c>claude:</c>, <c>tool:</c> …) or a chrome row.
+/// <c>Select with numbers [1-5]. …</c>), and key hints under it. The block ends upwards at two blank rows, a
+/// labelled row (<c>you:</c>, <c>claude:</c>, <c>tool:</c> …) or a chrome row.
 /// </summary>
 public static partial class QuestionReader
 {
@@ -57,15 +57,29 @@ public static partial class QuestionReader
 
         options.Reverse();
 
+        // A single blank row can sit inside a question (/resume has one between its search row and the answers);
+        // two in a row end it, as do the rows that came before it.
         var text = new List<string>();
+        var blanks = 0;
         for (; row >= 0 && promptRow - row <= MaxRows; row--)
         {
             var line = rows[row].Trim();
-            if (line.Length == 0 || EndsBlock(line))
+            if (line.Length == 0)
+            {
+                if (++blanks == 2)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (EndsBlock(line))
             {
                 break;
             }
 
+            blanks = 0;
             text.Add(line);
         }
 
