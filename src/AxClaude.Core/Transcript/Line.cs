@@ -22,6 +22,12 @@ public enum LineKind
 
     /// <summary>A bookmark the reader dropped in front of a line with m: <c>Bookmark 3</c>, found again with k (FR-3.9).</summary>
     Bookmark,
+
+    /// <summary>
+    /// The app's record of a question or screen Claude waited on, <c>Question: Select model</c>, in front of its first row
+    /// and found again with q (D33). Claude redraws an answered question as a one-line result, so this is what stays.
+    /// </summary>
+    Question,
 }
 
 /// <summary>
@@ -52,7 +58,7 @@ public sealed class Line
     public bool Committed { get; internal set; }
     public bool Hidden => ChromeHidden || EchoHidden || ReplayHidden || RepaintHidden;
     /// <summary>A line the app inserted (a marker, a printed message line or blank line, a system line, a bookmark): never classified by text, never hidden.</summary>
-    public bool IsMarker => Kind is LineKind.InputMarker or LineKind.OutputMarker or LineKind.System or LineKind.UserMessage or LineKind.Bookmark;
+    public bool IsMarker => Kind is LineKind.InputMarker or LineKind.OutputMarker or LineKind.System or LineKind.UserMessage or LineKind.Bookmark or LineKind.Question;
 
     internal bool ChromeHidden { get; set; }
     internal string? StickyChromeText { get; set; }

@@ -40,6 +40,8 @@ internal sealed class TranscriptView : TextBox
         new(Keys.E, "error", l => l.Kind is LineKind.Error or LineKind.Warning or LineKind.ToolError),
         new(Keys.D, "turn summary", l => l.Kind == LineKind.TurnSummary),
         new(Keys.S, "system line", l => l.Kind == LineKind.System),
+        // The app's record of each question Claude asked (D33): Claude redraws an answered question as its result.
+        new(Keys.Q, "question", l => l.Kind == LineKind.Question),
         BookmarkKey,
         new(Keys.D1, "heading level 1", l => l.HeadingLevel == 1),
         new(Keys.D2, "heading level 2", l => l.HeadingLevel == 2),

@@ -74,6 +74,7 @@ public static partial class QuestionReader
         // two in a row end it, as do the rows that came before it.
         var text = new List<string>();
         var blanks = 0;
+        var first = promptRow;
         for (; row >= 0 && promptRow - row <= MaxRows; row--)
         {
             var line = rows[row].Trim();
@@ -87,6 +88,12 @@ public static partial class QuestionReader
                 continue;
             }
 
+            // A tip Claude puts inside a permission question ("Tip: auto mode handles these prompts for you") is skipped.
+            if (line.StartsWith("Tip: ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             if (EndsBlock(line))
             {
                 break;
@@ -94,9 +101,11 @@ public static partial class QuestionReader
 
             blanks = 0;
             text.Add(line);
-            if (CheckBoxRegex().IsMatch(rows[row]))
+            first = row;
+            if (CheckBoxRegex().IsMatch(rows[row]) || line.StartsWith("Permission Required:", StringComparison.Ordinal))
             {
-                // A question's own header (" ☐ Colour") is its first row: what is above it is the message before.
+                // A question's own header (" ☐ Colour", "Permission Required: Bash command") is its first row: what
+                // is above it is the tool call or the message before, or a row left over from it ("/plan to preview").
                 break;
             }
         }
@@ -114,7 +123,7 @@ public static partial class QuestionReader
         title = CheckBoxRegex().Replace(title, string.Empty).TrimEnd(':', ' ');
         // "Select with numbers [1-4] (comma- or space-separated for several)": more than one answer may be given.
         var several = rows[promptRow].Contains("for several", StringComparison.Ordinal);
-        return new Question(title, text, options, hints) { AllowsSeveral = several };
+        return new Question(title, text, options, hints) { AllowsSeveral = several, FirstRow = first };
     }
 
     /// <summary>

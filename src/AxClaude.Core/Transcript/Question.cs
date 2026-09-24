@@ -18,6 +18,9 @@ public sealed record Question(string Title, IReadOnlyList<string> Text, IReadOnl
     /// same text in one write is a paste, which Claude ignores). The answer notice gives only one.
     /// </summary>
     public bool AllowsSeveral { get; init; }
+
+    /// <summary>The screen row the question starts on (its title), where the app marks it in the conversation.</summary>
+    public int FirstRow { get; init; }
     /// <summary>What tells one question from the next: the title and the answers. The same question redrawn keeps it.</summary>
     public string Signature => Title + "\n" + string.Join("\n", Options.Select(option => option.Key + ". " + option.Text));
 

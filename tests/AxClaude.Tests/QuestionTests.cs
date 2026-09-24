@@ -214,6 +214,73 @@ public class QuestionTests
     }
 
     [Fact]
+    public void A_permission_question_starts_at_its_permission_row()
+    {
+        // Claude Code 2.1.281, --permission-mode default: the tip inside it is skipped, the tool rows above it are not
+        // part of it.
+        string[] bash =
+        [
+            "tool: Bash (echo hello-permission > perm-probe.txt)",
+            "Waiting…",
+            "Permission Required: Bash command",
+            "Tip: auto mode handles these prompts for you — choose \"switch to auto mode\" below",
+            "echo hello-permission > perm-probe.txt",
+            "Write hello-permission to a probe file",
+            "Do you want to proceed?",
+            "1. Yes",
+            "2. Yes, and always allow access to C:\\Temp\\example from this project",
+            "3. Yes, and switch to auto mode — · auto mode handles these prompts for you",
+            "4. No",
+            "Select with numbers [1-4]. Then Enter to submit or Escape to cancel:",
+            "Esc to cancel · Tab to amend",
+        ];
+        var question = QuestionReader.Read(bash, 11)!;
+        Assert.Equal("Permission Required: Bash command", question.Title);
+        Assert.Equal(["echo hello-permission > perm-probe.txt", "Write hello-permission to a probe file", "Do you want to proceed?"], question.Text);
+        Assert.Equal(2, question.FirstRow);
+
+        // Plan approval (--permission-mode plan): a row left over from the tool call above it is not the title, and the
+        // numbered steps of the plan are text, not answers.
+        string[] plan =
+        [
+            "tool: Updated plan",
+            "/plan to preview",
+            "Permission Required: Ready to code?",
+            "Here is Claude's plan:",
+            "Steps",
+            "1. Use the Write tool to create plan-test.txt with the content hi.",
+            "Claude has written up a plan and is ready to execute. Would you like to proceed?",
+            "1. Yes, and use auto mode",
+            "2. Yes, manually approve edits",
+            "3. No, keep planning — shift+tab to approve with this feedback",
+            "Select with numbers [1-3]. Then Enter to submit or Escape to cancel:",
+        ];
+        var approval = QuestionReader.Read(plan, 10)!;
+        Assert.Equal("Permission Required: Ready to code?", approval.Title);
+        Assert.Equal(3, approval.Options.Count);
+        Assert.Contains("1. Use the Write tool to create plan-test.txt with the content hi.", approval.Text);
+    }
+
+    [Fact]
+    public void A_question_is_recorded_in_front_of_its_first_row_once()
+    {
+        const string Esc = "\x1b";
+        var model = new SessionModel(80, 12);
+        TestHelpers.Feed(model, $"{Esc}[?25lyou: pick one{Esc}[K\r\n ☐ Colour{Esc}[K\r\nWhich colour?{Esc}[K\r\n1. Red{Esc}[K\r\n2. Green{Esc}[K\r\nSelect with numbers [1-2]. Then Enter to submit or Escape to cancel:{Esc}[K{Esc}[?25h");
+        Assert.NotNull(model.PendingQuestion);
+        model.MarkQuestion();
+        model.MarkQuestion();
+        var visible = TestHelpers.Visible(model);
+        Assert.Single(visible, t => t == "Question: Colour");
+        Assert.Equal(visible.IndexOf("Question: Colour") + 1, visible.IndexOf(" ☐ Colour"));
+
+        // Claude redraws the answered question as its result: the record stays in front of it.
+        TestHelpers.Feed(model, $"{Esc}[?25l{Esc}[2;1H●  User answered Claude's questions:{Esc}[K\r\n· Which colour? → Green{Esc}[K\r\n{Esc}[K\r\n{Esc}[K\r\n{Esc}[K\r\n${Esc}[K{Esc}[?25h");
+        visible = TestHelpers.Visible(model);
+        Assert.Equal(visible.IndexOf("Question: Colour") + 1, visible.IndexOf("●  User answered Claude's questions:"));
+    }
+
+    [Fact]
     public void A_warning_belongs_to_the_question_it_is_in()
     {
         string[] rows =

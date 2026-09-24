@@ -842,6 +842,7 @@ internal sealed class MainForm : Form
             {
                 _promptAnnounced = true;
                 _handledWait = question.Signature;
+                _model.MarkQuestion();
                 ShowClaudeQuestion(question);
                 Signal(question: true, chime: false);
             }
@@ -849,6 +850,7 @@ internal sealed class MainForm : Form
             {
                 _promptAnnounced = true;
                 _handledWait = screen.Signature;
+                _model.MarkQuestion();
                 ShowClaudeScreen(screen);
                 Signal(question: true, chime: false);
             }
@@ -856,6 +858,8 @@ internal sealed class MainForm : Form
             {
                 _promptAnnounced = true;
                 _handledWait = WaitSignature;
+                // Recorded for q (nothing for the text row after Other, which belongs to the question before).
+                _model.MarkQuestion();
                 if (_settings.QuestionNotices && _model.AwaitsText && !_noticeOpen)
                 {
                     // After "Other": the answer is the user's own words, typed in the message field.

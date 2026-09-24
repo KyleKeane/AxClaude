@@ -223,6 +223,34 @@ public sealed partial class SessionModel : ILineStore
     }
 
     /// <summary>
+    /// Records the question or screen Claude waits on (D33): the line <c>Question: title</c> in front of its first row,
+    /// found again with q. Claude redraws an answered question as a one-line result, so the record is what stays. The
+    /// same question shown again (the next key of a screen) is not recorded twice.
+    /// </summary>
+    public void MarkQuestion()
+    {
+        var (title, row) = PendingQuestion is { } question ? (question.Title, question.FirstRow)
+            : PendingScreen is { } screen ? (screen.Title, screen.FirstRow)
+            : (null, -1);
+        if (title is null)
+        {
+            return;
+        }
+
+        var text = "Question: " + title;
+        var first = _screen.LineAt(row);
+        var index = first is null ? -1 : _lines.LastIndexOf(first);
+        index = index >= 0 ? index : AnchorIndex();
+        if (index > 0 && _lines[index - 1] is { Kind: LineKind.Question } before && before.Text == text)
+        {
+            return;
+        }
+
+        _lines.Insert(index, new Line(_nextId++, LineKind.Question, text));
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// The m key (FR-3.9): drops a bookmark in front of <paramref name="line"/>, or takes it away again when the line
     /// has one, or is one. A bookmark is an app line, <c>Bookmark 3</c>, so it is read in place, found with k and
     /// saved with the conversation. It goes in front of the first row of the line as the reader sees it: a

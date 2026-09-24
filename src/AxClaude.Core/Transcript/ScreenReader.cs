@@ -12,6 +12,9 @@ public sealed record ScreenKey(string Send, string Name, string Action);
 /// </summary>
 public sealed record ClaudeScreen(string Title, IReadOnlyList<string> Lines, IReadOnlyList<ScreenKey> Keys)
 {
+    /// <summary>The screen row the screen starts on (its title or tab row), where the app marks it in the conversation.</summary>
+    public int FirstRow { get; init; }
+
     /// <summary>
     /// What tells one screen from the next: the title and the keys. The lines are left out, since some screens change
     /// by themselves (a task's running time counts up every second); after a key of the user's the same screen is
@@ -50,8 +53,8 @@ public static partial class ScreenReader
         var cursorText = rows[cursorRow].Trim();
         if (Keys(cursorText) is { } keys)
         {
-            var lines = LinesAbove(rows, cursorRow);
-            return lines.Count == 0 ? null : new ClaudeScreen(lines[0], lines.Skip(1).ToList(), keys);
+            var (lines, first) = LinesAbove(rows, cursorRow);
+            return lines.Count == 0 ? null : new ClaudeScreen(lines[0], lines.Skip(1).ToList(), keys) { FirstRow = first };
         }
 
         if (TabRowRegex().IsMatch(cursorText))
@@ -62,7 +65,7 @@ public static partial class ScreenReader
                 var text = rows[r].Trim();
                 if (Keys(text) is { } tabKeys)
                 {
-                    return new ClaudeScreen("Tabs: " + string.Join(", ", Tabs(cursorText)), lines, tabKeys);
+                    return new ClaudeScreen("Tabs: " + string.Join(", ", Tabs(cursorText)), lines, tabKeys) { FirstRow = cursorRow };
                 }
 
                 if (text.Length > 0)
@@ -97,10 +100,11 @@ public static partial class ScreenReader
         return keys.Any(key => key.Send == "\x1b") ? keys : null;
     }
 
-    private static List<string> LinesAbove(IReadOnlyList<string> rows, int hintRow)
+    private static (List<string> Lines, int First) LinesAbove(IReadOnlyList<string> rows, int hintRow)
     {
         var lines = new List<string>();
         var blanks = 0;
+        var first = hintRow;
         for (var r = hintRow - 1; r >= 0 && hintRow - r <= MaxRows; r--)
         {
             var text = rows[r].Trim();
@@ -122,10 +126,11 @@ public static partial class ScreenReader
 
             blanks = 0;
             lines.Add(text);
+            first = r;
         }
 
         lines.Reverse();
-        return lines;
+        return (lines, first);
     }
 
     private static IEnumerable<string> Tabs(string row) =>
