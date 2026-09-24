@@ -94,7 +94,7 @@ Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversat
 
 ## Menus
 
-- **Project**: Open current folder (Ctrl+W), which names the folder and opens it in File Explorer, Change folder, New session (Ctrl+N), Recent folders, Restart Claude (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
+- **Project**: Open current folder (Ctrl+W), which names the folder and opens it in File Explorer, Change folder, New session (Ctrl+N), Recent folders, Force Claude to restart (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
 - **Session**: Send message (Ctrl+Enter), Send the waiting message now (Ctrl+Shift+S), and the keys sent to Claude: Interrupt Claude (Shift+Escape), Send Ctrl+C (Ctrl+Shift+C), Send Ctrl+D, Send Tab, Send Shift+Tab (Ctrl+Shift+M), Send Up, Send Down.
 - **Navigate**: Go to message field (Ctrl+1), Go to conversation (Ctrl+2), Latest response (Ctrl+Shift+O), Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
 - **Options**: Announce when Claude is done, the chimes, the tick for each new line and tool call, the taskbar flash, Speak replies as they arrive, Speak each tool call, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.

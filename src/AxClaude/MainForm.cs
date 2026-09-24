@@ -339,7 +339,7 @@ internal sealed class MainForm : Form
         _recentFoldersItem.DropDownOpening += (_, _) => FillRecentFolders();
         _recentFoldersItem.DropDownItems.Add(new ToolStripMenuItem("(none)") { Enabled = false });
         project.DropDownItems.Add(_recentFoldersItem);
-        project.DropDownItems.Add(new ToolStripMenuItem("&Restart Claude", null, (_, _) => RestartClaude()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.R });
+        project.DropDownItems.Add(new ToolStripMenuItem("&Force Claude to restart", null, (_, _) => RestartClaude()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.R });
         project.DropDownItems.Add(new ToolStripSeparator());
         project.DropDownItems.Add(new ToolStripMenuItem("&Save conversation as...", null, (_, _) => SaveConversation()) { ShortcutKeyDisplayString = "Ctrl+S" });
         project.DropDownItems.Add(new ToolStripSeparator());
@@ -1330,7 +1330,7 @@ internal sealed class MainForm : Form
     /// <summary>The arguments Claude gets after --ax-screen-reader: the chosen ones, or the default (FR-9.1).</summary>
     private IReadOnlyList<string> ClaudeArgs => _claudeArgs ?? (_nothingToContinue ? [] : ["--continue"]);
 
-    /// <summary>Project → Restart Claude (Ctrl+Shift+R, FR-1.8): the same folder and arguments; the conversation stays.</summary>
+    /// <summary>Project → Force Claude to restart (Ctrl+Shift+R, FR-1.8): the same folder and arguments; the conversation stays.</summary>
     private void RestartClaude()
     {
         Announce("Restarting Claude", false);
