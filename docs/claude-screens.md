@@ -31,6 +31,17 @@ The app does not need to know the command to choose the dialog: the shape of Cla
 - `/mcp`: "Manage MCP servers", one answer per server with its state. An answer leads to that server's screen (not recorded).
 - `/hooks`: "Hooks", 33 hook events. An answer leads to that event's hooks (not recorded). Two-digit answers need the notice's two-digit typing.
 
+## Answer notice: questions from Claude's tools
+
+Recorded with Claude Code 2.1.281 (2026-09-24); every answer is typed one keystroke per character, then Enter.
+
+- Workspace trust at startup: "Permission Required: Accessing workspace", y or n.
+- A tool's permission question (`--permission-mode default`): "Permission Required: Create file" or "Bash command", the command or file and a preview, "Do you want to proceed?", then Yes, Yes and always allow / switch mode, and No as the last answer. A `Tip:` row inside it is skipped. "Tab to amend" draws nothing in screen reader mode and is not offered. No returns to the prompt with "What should Claude do instead?".
+- Plan approval (`--permission-mode plan`): "Permission Required: Ready to code?", Claude's plan as text, then Yes with auto mode, Yes with manual approval, and "No, keep planning", which asks for feedback on an "Enter text for option 3" row: the message field, announced.
+- Claude's own question (AskUserQuestion): a header row (" ☐ Colour"), the question, the answers, then Other and "Chat about this". Other asks for your words on an "Enter text for option 4 (Other)" row: the notice's "Your own answer" field fills it. "Chat about this" ends the question like Escape.
+- Several questions in one call: a tab row ("←   ☐ Colour   ☐ Fruit   ✔ Submit   →") above each, one notice per question, then "Review your answers" with y or n.
+- Several answers allowed ("comma- or space-separated for several"): the notice has check boxes; the ticked keys go joined with commas.
+
 ## Screen notice: screens to read
 
 - `/status`, `/usage`, `/cost`: one tabbed screen, tabs Settings, Status, Config, Usage, Stats; `/cost` and `/usage` open on Usage. Cursor on the tab row; `Esc to cancel` at the bottom; the Usage tab also takes `d` (day) and `w` (week).

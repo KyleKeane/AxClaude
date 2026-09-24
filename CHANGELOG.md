@@ -1,11 +1,13 @@
 # Changelog
 
-## 1.4.1 - 2026-09-24
+## 1.5.0 - 2026-09-24
 
-- Claude's questions with several parts come one at a time with the right title ("Which colour do you prefer?", not the end of your own message), and the review at the end opens the answer notice too.
-- A question that allows several answers is announced with how to answer it: type the numbers separated by commas, for example 1,3, and press Ctrl+Enter. It does not open the answer notice, which gives one answer.
-- Fixed: answers of more than one character did not reach Claude. Claude takes the answer to a question as typed keys and ignores several characters sent at once, so "12" in a long list and "1,3" for several answers were dropped; every answer now goes one keystroke per character.
-- Fixed: choosing "Other" left you with nowhere to type. Claude then waits for your own words; AxClaude now says "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter.", puts you in the message field, and sends what you type the way Claude takes it.
+- A question that offers "Other" has a field "Your own answer" in its notice (Alt+Y): type your answer there and press Enter, and AxClaude sends it when Claude asks for it. If Claude asks for your own words some other way (Other chosen from the list, or "No, keep planning" when you turn down a plan), AxClaude puts you in the message field and says so.
+- A question that allows several answers opens the notice with check boxes: Space or an answer's number ticks it, and Enter sends all the ticked answers.
+- `q` and Shift+Q in the conversation go to the next and previous question Claude asked. AxClaude writes a line `Question: …` in front of each question and screen, which stays when Claude replaces the question with your answer.
+- Claude's questions with several parts come one at a time with the right title, and the review at the end opens the answer notice too. Permission questions (a Bash command, a file, plan approval) are titled by their "Permission Required:" line.
+- Fixed: answers of more than one character did not reach Claude. Claude takes an answer as typed keys and ignores several characters sent at once, so "12" in a long list, "1,3" for several answers and your own words were dropped; every answer now goes one keystroke per character.
+- Fixed: choosing "Other" left you with nowhere to type.
 - A question that Claude redraws in passing no longer closes its notice or is announced again.
 
 ## 1.4.0 - 2026-09-24
