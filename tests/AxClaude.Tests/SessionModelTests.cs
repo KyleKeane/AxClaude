@@ -33,6 +33,21 @@ public class SessionModelTests
     }
 
     [Fact]
+    public void The_mode_line_and_spinner_stay_hidden_when_the_cursor_sits_on_the_mode_line()
+    {
+        // A full screen: Claude parks the cursor on the mode line in the bottom row while it works (recorded
+        // 2026-09-25; the spinner and the mode line were spoken with the reply).
+        var model = new SessionModel(80, 4);
+        Feed(model, $"{Esc}[?25lauto mode on (shift+tab to cycle)\r\n${Esc}[?25h");
+        Assert.True(model.Send("hi"));
+        Feed(model, $"{Esc}[?25l{Esc}[1;1Hyou: hi{Esc}[K\r\nclaude: hello{Esc}[K\r\nPuzzling…{Esc}[K\r\nauto mode on (shift+tab to cycle)  ·  esc to interrupt{Esc}[K{Esc}[?25h");
+        Assert.DoesNotContain(Visible(model), text => text.Contains("mode on") || text.Contains("Puzzling"));
+        Assert.Contains("claude: hello", Visible(model));
+        Assert.True(model.Working);
+        Assert.Equal("Puzzling…", model.Spinner);
+    }
+
+    [Fact]
     public void Replayed_exchanges_get_marked_blocks_and_the_numbering_continues_after_them()
     {
         var model = new SessionModel(80, 12);

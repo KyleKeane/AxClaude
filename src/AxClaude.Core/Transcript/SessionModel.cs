@@ -631,7 +631,10 @@ public sealed partial class SessionModel : ILineStore
                 // Claude parks the cursor on an announcement row ("[accept edits on]") for a moment, under the prompt.
                 underAnnouncement = LineClassifier.AnnouncementText(line.Text) is not null;
                 transcriptView = LineClassifier.IsTranscriptViewRow(line.Text);
-                chrome = LineClassifier.IsPromptRow(line.Text) || underAnnouncement || transcriptView;
+                // On a full screen Claude can leave the cursor on the mode line at the bottom row while it works, with
+                // the spinner above it: those are chrome as they are above the cursor, or they were spoken as the reply.
+                chrome = LineClassifier.IsPromptRow(line.Text) || underAnnouncement || transcriptView
+                    || LineClassifier.ModeText(line.Text) is not null;
             }
             else if (inQueued)
             {
