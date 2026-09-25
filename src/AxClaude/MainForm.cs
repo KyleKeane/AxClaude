@@ -1810,9 +1810,9 @@ internal sealed class MainForm : Form
     /// puts the control there, given whether it takes the focus and whether it holds its answering keys for a moment
     /// (when the user did not cause it, since they may be typing). Such a control also plays the notice chime. With
     /// Interrupt speech for Claude's questions (the default) it takes the focus wherever it was, and the question
-    /// with the answer the focus is on is spoken as an interrupting notification after the focus moved: it cuts off
-    /// what NVDA was reading, a reply included, and is heard last whichever NVDA takes first (an interrupting
-    /// notification raised before the focus cut off the question instead). Without the option, the focus moves only
+    /// with the answer the focus is on is spoken as an interrupting notification 300 ms after the focus moved: it cuts off
+    /// what NVDA was reading, a reply included, and comes last (raised before the focus, or at once after it, it was
+    /// cut off). Without the option, the focus moves only
     /// from the bottom of the window, and from the conversation the question is said after what NVDA is reading.
     /// </summary>
     private void ShowInArea(string signature, string name, bool unprompted, Action<bool, bool> show)
@@ -1830,7 +1830,15 @@ internal sealed class MainForm : Form
         _shownWait = signature;
         if (interrupt)
         {
-            Announce($"{name}. {_area.CurrentItem}".TrimEnd(' ', '.'), true);
+            // After NVDA has taken the focus change, so that the question comes last: raised at once, it was cut off.
+            var question = $"{name}. {_area.CurrentItem}".TrimEnd(' ', '.');
+            Later(300, () =>
+            {
+                if (_shownWait == signature)
+                {
+                    Announce(question, true);
+                }
+            });
         }
         else if (!focus && unprompted)
         {
