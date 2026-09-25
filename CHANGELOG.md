@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 - 2026-09-25
 
 - A question whose answers are too long for one line now lists every answer. Claude wraps a long answer onto the next line, and AxClaude used to stop reading answers there, so the first answers were missing from the list and read as part of the question.
 - Claude's "Review your answers" no longer needs a y: AxClaude submits it for you after your last answer, unless a question was left without an answer. Options, "Review answers before they go to Claude", brings the review back.
