@@ -1727,13 +1727,8 @@ internal sealed class MainForm : Form
         _overlay.BringToFront();
         AcceptButton = _overlay.DefaultButton;
         CancelButton = _overlay.CancelButton;
-        if (notice.Unprompted || notice.Question is not null)
-        {
-            // A question, or a notice that opens by itself, cuts off whatever is being read (a reply spoken as it
-            // arrives, a line of the conversation): an interrupting notification first, then the focus reads it.
-            _overlay.Announce(notice.Question is not null ? "Claude asks" : "Notice", true);
-        }
-
+        // The focus change cuts off what NVDA was reading. No interrupting notification of its own: NVDA took it after
+        // the focus and cut off the question instead (1.5.1).
         _overlay.FocusStart();
         _transcript.Visible = false;
         _input.Visible = false;
