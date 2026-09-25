@@ -64,6 +64,13 @@ internal static class HelpText
           Shift with the arrow keys, or Ctrl+A: select text. Ctrl+C: copy the selection. New output waits while text is selected
           Escape: clear the selection, or go to the message field
 
+        When Claude asks something
+          A list of the answers takes the message field's place; the question is read each time you arrive there
+          Ctrl+Tab or F6: between the conversation and the answers
+          Up, Down, or an answer's number: choose. Space: tick, when several answers are allowed
+          Enter: answer. Escape: cancel the question, or go back a step
+          The message field comes back when Claude has your answer
+
         Notices
           AxClaude's questions, errors and help texts appear inside the window, in place of the conversation.
           Tab moves between the text, a field and the buttons. Enter chooses the main button. Escape closes the notice.

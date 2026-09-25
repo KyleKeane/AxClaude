@@ -1,5 +1,4 @@
 using System.Windows.Forms.Automation;
-using AxClaude.Core.Transcript;
 
 namespace AxClaude;
 
@@ -11,7 +10,7 @@ internal sealed record OverlayChoice(string Text, Action? Action = null, bool Is
 }
 
 /// <summary>
-/// A text field on a notice (Find, the own answer of an answer notice): its label, its accessible name, the initial
+/// A text field on a notice (Find): its label, its accessible name, the initial
 /// text, and, when <paramref name="Required"/>, what to say when the default button is pressed while the field is
 /// empty (the notice then stays open).
 /// </summary>
@@ -29,9 +28,9 @@ internal sealed record OverlaySession(string? Folder, Action ChooseFolder, IRead
 
 /// <summary>
 /// What a notice says and offers, and nothing about how it is shown (D23): the title, the text, the buttons, at most
-/// one of the text field, the New session controls and a question's answers, and whether the user opened it. Every
-/// notice goes through <c>MainForm.ShowNotice</c>, which adds what all notices share: the key line made from the
-/// buttons, the chime and the hold of a notice the user did not open, the focus, and the blocked window.
+/// one of the text field and the New session controls, and whether the user opened it. Every notice goes through
+/// <c>MainForm.ShowNotice</c>, which adds what all notices share: the key line made from the buttons, the chime and
+/// the hold of a notice the user did not open, the focus, and the blocked window.
 /// </summary>
 internal sealed record Notice(string Title, string Text, IReadOnlyList<OverlayChoice> Choices)
 {
@@ -39,15 +38,9 @@ internal sealed record Notice(string Title, string Text, IReadOnlyList<OverlayCh
 
     public OverlaySession? Session { get; init; }
 
-    public Question? Question { get; init; }
-
-    /// <summary>The key of the answer the focus starts on in place of the current one: the setting just changed in /config.</summary>
-    public string? StartAnswer { get; init; }
-
     /// <summary>
-    /// Opened by something other than the user's own command: one of Claude's questions, an update offer or an
-    /// error at startup. It plays the notice chime and ignores the answering keys for a moment, since the user may be
-    /// typing elsewhere when it appears.
+    /// Opened by something other than the user's own command: an update offer or an error at startup. It plays the
+    /// notice chime and ignores the answering keys for a moment, since the user may be typing elsewhere when it appears.
     /// </summary>
     public bool Unprompted { get; init; }
 
@@ -56,13 +49,13 @@ internal sealed record Notice(string Title, string Text, IReadOnlyList<OverlayCh
 }
 
 /// <summary>
-/// The window's own dialogs, drawn inside the window (D23). A notice, a question or a help text takes the place of the
-/// conversation and the message field until it is answered, so there is never a second window to lose. The panel
-/// holds a title, a read-only text, an optional text field, the optional New session controls or a question's
-/// answers, and a row of buttons; it shows a <see cref="Notice"/>, which says what, and the window decides the rest.
-/// The window hides the controls underneath, blocks its own shortcuts and the menu, and routes Enter and Escape to
-/// the default and cancel buttons through its AcceptButton and CancelButton; Tab moves between the text, the field
-/// or the session controls or the answers, and the buttons.
+/// The window's own dialogs, drawn inside the window (D23). A notice or a help text takes the place of the
+/// conversation and the bottom of the window until it is answered, so there is never a second window to lose. (What
+/// Claude waits on goes to the control area instead, D33.) The panel holds a title, a read-only text, an optional
+/// text field or the optional New session controls, and a row of buttons; it shows a <see cref="Notice"/>, which says
+/// what, and the window decides the rest. The window hides the controls underneath, blocks its own shortcuts and the
+/// menu, and routes Enter and Escape to the default and cancel buttons through its AcceptButton and CancelButton; Tab
+/// moves between the text, the field or the session controls, and the buttons.
 /// </summary>
 internal sealed class OverlayPanel : Panel
 {
@@ -70,13 +63,10 @@ internal sealed class OverlayPanel : Panel
     private const string ChooseFolderFirst = "Choose a folder first";
 
     /// <summary>
-    /// How long a notice the user did not open ignores the keys that answer (Enter, Space, a question's answer keys):
-    /// it can open while the user is typing a message, and the next keys were meant for the message field.
+    /// How long a notice the user did not open ignores the keys that answer (Enter, Space): it can open while the user
+    /// is typing a message, and the next keys were meant for the message field.
     /// </summary>
     private const int HoldMs = 1000;
-
-    /// <summary>Two digits typed within this time make one number (answer 12 of a longer list).</summary>
-    private const int NumberJoinMs = 1000;
 
     private readonly Label _title = new();
     private readonly TextBox _text = new();
@@ -91,18 +81,10 @@ internal sealed class OverlayPanel : Panel
     private readonly Label _customLabel = new();
     private readonly TextBox _custom = new();
     private readonly List<RadioButton> _presets = [];
-    private readonly Panel _answerRow = new();
-    private readonly GroupBox _answerGroup = new();
-    private readonly FlowLayoutPanel _answerList = new();
-    // Radio buttons for one answer, check boxes when the question takes several.
-    private readonly List<ButtonBase> _answers = [];
     private readonly FlowLayoutPanel _buttons = new();
     private OverlayInput? _inputSpec;
     private OverlaySession? _sessionSpec;
-    private Question? _question;
     private long _holdUntil;
-    private string _typedNumber = string.Empty;
-    private long _typedAt;
     private string? _sessionFolder;
     private string _body = string.Empty;
 
@@ -193,25 +175,6 @@ internal sealed class OverlayPanel : Panel
         _customRow.Controls.Add(_custom);
         _session.Controls.AddRange([_chooseFolder, _presetGroup, _customRow]);
 
-        // The answers of a question, as radio buttons in a named group under the text: the arrow keys move between
-        // them, Tab lands on the chosen one, and the answer keys choose one from anywhere in the notice.
-        _answerRow.Dock = DockStyle.Bottom;
-        _answerRow.AutoScroll = true;
-        _answerRow.Visible = false;
-        _answerRow.TabIndex = 3;
-        _answerRow.Padding = new Padding(0, 6, 0, 0);
-        _answerRow.SizeChanged += (_, _) => LayoutAnswers();
-        _answerGroup.Text = "Answers";
-        _answerGroup.Location = new Point(0, 6);
-        _answerList.FlowDirection = FlowDirection.TopDown;
-        _answerList.WrapContents = false;
-        _answerList.AutoSize = true;
-        _answerList.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        _answerList.Location = new Point(8, 20);
-        _answerList.Padding = new Padding(0, 0, 8, 4);
-        _answerGroup.Controls.Add(_answerList);
-        _answerRow.Controls.Add(_answerGroup);
-
         _buttons.Dock = DockStyle.Bottom;
         _buttons.FlowDirection = FlowDirection.LeftToRight;
         _buttons.WrapContents = true;
@@ -222,9 +185,8 @@ internal sealed class OverlayPanel : Panel
 
         // Docked controls are laid out from the last in the collection to the first: the buttons take the bottom,
         // the title the top, the field the strip under the title, then the text takes what is left, or, in a New
-        // session notice, a strip of a few lines with the session controls filling the rest under it. The answers of
-        // a question sit over the buttons.
-        Controls.AddRange([_session, _text, _answerRow, _inputRow, _title, _buttons]);
+        // session notice, a strip of a few lines with the session controls filling the rest under it.
+        Controls.AddRange([_session, _text, _inputRow, _title, _buttons]);
     }
 
     /// <summary>A button was pressed. The window closes the notice (unless the choice stays open) and runs its action.</summary>
@@ -255,12 +217,6 @@ internal sealed class OverlayPanel : Panel
     /// <summary>The text of the Custom field in the New session notice.</summary>
     public string CustomArguments => _custom.Text;
 
-    /// <summary>The answers chosen in an answer notice, one or, for a question that takes several, any number; empty when it shows no question.</summary>
-    public IReadOnlyList<QuestionOption> SelectedAnswers =>
-        _question is { } question ? question.Options.Where((_, i) => i < _answers.Count && IsChecked(_answers[i])).ToList() : [];
-
-    private static bool IsChecked(ButtonBase answer) => answer is RadioButton radio ? radio.Checked : ((CheckBox)answer).Checked;
-
     /// <summary>The font of the text, kept in step with the conversation's by the window.</summary>
     public void SetTextFont(Font font)
     {
@@ -269,8 +225,6 @@ internal sealed class OverlayPanel : Panel
         {
             _text.Height = TextStripHeight();
         }
-
-        FitQuestionText();
     }
 
     /// <summary>
@@ -281,23 +235,13 @@ internal sealed class OverlayPanel : Panel
     public void Populate(Notice notice)
     {
         var (title, text, choices) = (notice.Title, notice.Text, notice.Choices);
-        var (input, session, question) = (notice.Input, notice.Session, notice.Question);
+        var (input, session) = (notice.Input, notice.Session);
         _holdUntil = notice.Unprompted ? Environment.TickCount64 + HoldMs : 0;
         _title.Text = title;
         _text.AccessibleName = title;
-        // An answer notice says whose question it is: the focus lands on the answers, read with the group's name.
-        _answerGroup.Text = question is null ? "Answers" : "Claude asks: " + title;
         _body = text;
         _inputSpec = input;
         _sessionSpec = session;
-        _question = question;
-        _answerRow.Visible = question is not null;
-        if (question is not null)
-        {
-            _typedNumber = string.Empty;
-            FillAnswers(question, notice.StartAnswer, question.Text.Count > 0 ? $"{title}. {question.Text[0]}" : title + ".");
-        }
-
         _session.Visible = session is not null;
         if (session is not null)
         {
@@ -305,24 +249,13 @@ internal sealed class OverlayPanel : Panel
             _text.Height = TextStripHeight();
             FillSession(session);
         }
-        else if (question is not null)
-        {
-            // The answers sit right under the question: the text takes the height of its lines, the answers the rest.
-            _text.Dock = DockStyle.Top;
-            _answerRow.Dock = DockStyle.Fill;
-            _answerRow.BringToFront();
-        }
         else
         {
             _text.Dock = DockStyle.Fill;
         }
 
         SetText();
-        FitQuestionText();
         _inputRow.Visible = input is not null;
-        // Find's field sits under the title; an answer notice's own-answer field under the answers, before the buttons.
-        _inputRow.Dock = question is null ? DockStyle.Top : DockStyle.Bottom;
-        _inputRow.TabIndex = question is null ? 1 : 4;
         if (input is not null)
         {
             _inputLabel.Text = input.Label;
@@ -381,13 +314,6 @@ internal sealed class OverlayPanel : Panel
     /// <summary>Puts the focus where reading starts: in the text field when there is one, otherwise at the top of the text.</summary>
     public void FocusStart()
     {
-        if (_question is not null && _answers.Count > 0)
-        {
-            // An answer notice starts on the chosen answer (or the first), as a dialog does; the text is one Shift+Tab away.
-            (_answers.Find(IsChecked) ?? _answers[0]).Select();
-            return;
-        }
-
         if (_inputSpec is not null)
         {
             _input.Select();
@@ -411,217 +337,15 @@ internal sealed class OverlayPanel : Panel
         return source.AccessibilityObject.RaiseAutomationNotification(AutomationNotificationKind.ActionCompleted, processing, text);
     }
 
-    protected override void OnSizeChanged(EventArgs e)
-    {
-        base.OnSizeChanged(e);
-        if (_question is not null)
-        {
-            FitQuestionText();
-            LayoutAnswers();
-        }
-    }
-
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         // Keys typed for the message field just before a notice the user did not open must not answer it.
-        if (Environment.TickCount64 < _holdUntil && (keyData is Keys.Enter or Keys.Space || (_question is not null && AnswerKey(keyData) is not null)))
-        {
-            return true;
-        }
-
-        // In the own-answer field every key is text.
-        if (_question is not null && !_input.Focused && AnswerKey(keyData) is { } key && ChooseAnswer(key))
+        if (Environment.TickCount64 < _holdUntil && keyData is Keys.Enter or Keys.Space)
         {
             return true;
         }
 
         return base.ProcessCmdKey(ref msg, keyData);
-    }
-
-    protected override bool ProcessDialogChar(char charCode)
-    {
-        // Without Alt, a letter on a radio button would press the button with that mnemonic: in an answer notice
-        // only Alt and a letter press a button, and a plain letter that is not an answer key does nothing.
-        if (_question is not null && (ModifierKeys & Keys.Alt) == 0)
-        {
-            return true;
-        }
-
-        return base.ProcessDialogChar(charCode);
-    }
-
-    /// <summary>The answer key a key press stands for: a digit, or a letter without Ctrl or Alt (y and n).</summary>
-    private static string? AnswerKey(Keys keyData)
-    {
-        var code = keyData & Keys.KeyCode;
-        if ((keyData & (Keys.Control | Keys.Alt | Keys.Shift)) != 0)
-        {
-            return null;
-        }
-
-        return code switch
-        {
-            >= Keys.D0 and <= Keys.D9 => ((char)('0' + (code - Keys.D0))).ToString(),
-            >= Keys.NumPad0 and <= Keys.NumPad9 => ((char)('0' + (code - Keys.NumPad0))).ToString(),
-            >= Keys.A and <= Keys.Z => ((char)('a' + (code - Keys.A))).ToString(),
-            _ => null,
-        };
-    }
-
-    /// <summary>
-    /// Chooses the answer with this key (ticks or unticks it, when the question takes several) and moves the focus to
-    /// it, so the screen reader reads it. A digit typed right after another makes a two-digit number when the
-    /// question has that many answers. False when no answer has the key.
-    /// </summary>
-    private bool ChooseAnswer(string key)
-    {
-        if (_question is not { } question)
-        {
-            return false;
-        }
-
-        var now = Environment.TickCount64;
-        var digit = char.IsAsciiDigit(key[0]);
-        // Two digits make one number for radio buttons only: a check box ticked by the first digit would stay ticked.
-        var joined = digit && !question.AllowsSeveral && _typedNumber.Length > 0 && now - _typedAt < NumberJoinMs ? _typedNumber + key : null;
-        _typedAt = now;
-        QuestionOption? option;
-        if (joined is not null && question.OptionFor(joined) is { } both)
-        {
-            option = both;
-            _typedNumber = joined;
-        }
-        else
-        {
-            option = question.OptionFor(key);
-            _typedNumber = digit ? key : string.Empty;
-        }
-
-        if (option is null)
-        {
-            return false;
-        }
-
-        var answer = _answers[IndexOf(question, option)];
-        if (answer is CheckBox box)
-        {
-            box.Checked = !box.Checked;
-        }
-        else
-        {
-            ((RadioButton)answer).Checked = true;
-        }
-
-        if (answer.Focused)
-        {
-            // No focus change, so nothing would be read: say the answer.
-            Announce(answer is CheckBox ticked ? $"{ticked.Text} {(ticked.Checked ? "checked" : "not checked")}" : answer.Text, true);
-        }
-        else
-        {
-            answer.Select();
-        }
-
-        return true;
-    }
-
-    private static int IndexOf(Question question, QuestionOption option)
-    {
-        for (var i = 0; i < question.Options.Count; i++)
-        {
-            if (ReferenceEquals(question.Options[i], option))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// The radio buttons or check boxes of a question. <paramref name="asked"/> is what the answer the focus starts on
-    /// says first: the notice's title and the question's first line.
-    /// </summary>
-    private void FillAnswers(Question question, string? startKey, string asked)
-    {
-        foreach (var old in _answers)
-        {
-            _answerList.Controls.Remove(old);
-            old.Dispose();
-        }
-
-        _answers.Clear();
-        var selected = 0;
-        for (var i = 0; i < question.Options.Count; i++)
-        {
-            var option = question.Options[i];
-            // Several answers: a check box each, ticked where Claude marks the answer (selected); one answer: radio
-            // buttons with the current one chosen.
-            ButtonBase answer = question.AllowsSeveral ? new CheckBox { Checked = option.Current } : new RadioButton();
-            answer.Text = $"{option.Key}. {option.Text}" + (option.Current && !question.AllowsSeveral ? " (current)" : string.Empty);
-            answer.AutoSize = true;
-            answer.Margin = new Padding(0, 2, 0, 2);
-            answer.TabIndex = i;
-            answer.UseMnemonic = false;
-            answer.UseVisualStyleBackColor = true;
-            if (startKey is null ? option.Current : option.Key == startKey)
-            {
-                selected = i;
-            }
-
-            _answers.Add(answer);
-            _answerList.Controls.Add(answer);
-        }
-
-        if (_answers.Count > 0)
-        {
-            // The answer FocusStart lands on: the chosen radio button, or the first ticked check box, else the first.
-            var first = question.AllowsSeveral ? _answers.Find(IsChecked) ?? _answers[0] : _answers[selected];
-            if (first is RadioButton radio)
-            {
-                radio.Checked = true;
-            }
-
-            // The question, before the answer, and how to finish, after it, are read once with the answer the focus
-            // lands on, and not again while arrowing: the question is heard as the notice opens.
-            first.AccessibleName = $"{asked} {first.Text}";
-            first.AccessibleDescription = question.AllowsSeveral
-                ? "Tick answers with Space or their numbers, then press Enter, or press Escape to cancel."
-                : "Choose an answer and press Enter, or press Escape to cancel.";
-            first.Leave += (_, _) => (first.AccessibleName, first.AccessibleDescription) = (null, null);
-        }
-
-        LayoutAnswers();
-    }
-
-    private void LayoutAnswers()
-    {
-        var width = Math.Max(200, _answerRow.ClientSize.Width - 24);
-        foreach (var radio in _answers)
-        {
-            radio.MaximumSize = new Size(width, 0);
-        }
-
-        _answerGroup.Width = width + 16;
-        // The row fills the space under the question and scrolls a long list.
-        _answerGroup.Height = _answerList.PreferredSize.Height + 26;
-    }
-
-    /// <summary>An answer notice's text as tall as its lines, up to half the panel, so the answers follow it at once.</summary>
-    private void FitQuestionText()
-    {
-        if (_question is null || _sessionSpec is not null)
-        {
-            return;
-        }
-
-        var width = Math.Max(100, ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 8);
-        var lines = TextRenderer.MeasureText(_text.Text, _text.Font, new Size(width, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
-        var height = Math.Min(lines.Height + 10, Math.Max(TextStripHeight(), ClientSize.Height / 2));
-        if (_text.Height != height)
-        {
-            _text.Height = height;
-        }
     }
 
     private void Choose(OverlayChoice choice)
@@ -631,14 +355,6 @@ internal sealed class OverlayPanel : Panel
             // Nothing to act on yet (Find with an empty field): say so and stay.
             Announce(spec.EmptyMessage, true);
             _input.Select();
-            return;
-        }
-
-        if (choice.IsDefault && _question is not null && _input.Text.Trim().Length == 0 && SelectedAnswers.Count == 0)
-        {
-            // A question that takes several answers, with none ticked and no own answer.
-            Announce("Tick at least one answer with Space or its number.", true);
-            _answers.FirstOrDefault()?.Select();
             return;
         }
 

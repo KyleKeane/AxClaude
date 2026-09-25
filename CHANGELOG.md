@@ -2,17 +2,15 @@
 
 ## 1.5.1 - 2026-09-25
 
+- Claude's questions and screens now take the place of the message field instead of covering the window. The conversation stays in view with the whole question in it. The answers are a list named with the question, which NVDA reads each time you arrive; Ctrl+Tab or F6 moves between the conversation and the answers. Enter answers, Escape cancels, Space ticks when several answers are allowed. If you are reading the conversation when a question comes, you stay there: the trill plays and AxClaude says "Claude asks" with the question. The message field comes back, with what you had typed, when Claude has your answer. Nothing can be sent into a question by mistake, since the field is not there.
 - Enter sends the message, and Shift+Enter starts a new line (Ctrl+Enter sent before). The same in New session's Custom arguments.
-- Installing and updating remove the previous AxClaude completely first, also one installed with the earlier `install.ps1`, and then install fresh. The installer says what it found. Your settings stay.
-- Removing the old installation waits a few seconds if Windows still holds the program file after AxClaude closes.
-- `/config` opens "Claude's settings": every setting with its value. Choose one and press Enter to change it. A true or false setting asks True or False; any other setting opens Claude's list of its values. The list comes back with the focus on the setting you changed. Escape saves and closes.
-- A question that follows your answer (the next step of a list) opens without the chime.
-- Replies are not read out while one of Claude's questions is open, so nothing is read over the question; they stay in the conversation.
-- When Claude asks several questions at once, each notice says where you are ("Question 1 of 2: …"), and after your answer AxClaude says the next question or the review is coming. After Other it says your own answer is next.
-- The answer notice reads Claude's question as it opens, before the first answer. On screen the answers now follow the question directly; a long question or a long list scrolls.
-- Choosing "Other" (or any answer that asks for your own words) opens a second notice: the question again, what you chose, and a field. Enter sends your words, Escape goes back to the list. This replaces the "Your own answer" field under the answers.
-- `/mobile` opens the screen notice with all its lines.
+- When Claude asks several questions at once, each says where you are ("Question 1 of 2: …"), and after your answer AxClaude says what comes next: the next question, the review, or your own answer after Other. A question that follows your answer comes without the trill.
+- Choosing "Other" (or any answer that asks for your own words) puts a field in the list's place, named with the question and what you chose. Enter sends your words, Escape goes back to the list. This replaces the "Your own answer" field under the answers.
+- /config lists Claude's settings with their values. Enter on one changes it: a true or false setting asks True or False first, any other setting opens Claude's list of its values. The list comes back on the setting you changed. Escape saves and closes.
+- /mobile is read with all its lines.
 - A background agent counts as background work: closing AxClaude and New session warn about it, and the status says so.
+- Installing and updating remove the previous AxClaude completely first, also one installed with the earlier install.ps1, and then install fresh. The installer says what it found. Your settings stay.
+- Removing the old installation waits a few seconds if Windows still holds the program file after AxClaude closes.
 
 ## 1.5.0 - 2026-09-24
 

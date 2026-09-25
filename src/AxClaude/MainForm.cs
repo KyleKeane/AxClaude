@@ -21,6 +21,7 @@ internal sealed class MainForm : Form
     private readonly SessionModel _model;
     private readonly TranscriptView _transcript = new();
     private readonly TextBox _input = new();
+    private readonly ControlArea _area = new();
     private readonly OverlayPanel _overlay = new();
     private readonly MenuStrip _menu = new();
     private readonly StatusStrip _status = new();
@@ -55,22 +56,22 @@ internal sealed class MainForm : Form
     private bool _bellPending;
     private bool _promptAnnounced;
 
-    /// <summary>The signature of the question or screen the open notice shows (D33); null while none of Claude's is shown.</summary>
+    /// <summary>The signature of the question or screen the control area shows (D33); null while the message field is in its place.</summary>
     private string? _shownWait;
 
-    /// <summary>The signature of the question or screen that got its notice, was answered, or was left to the message field: it does not open again while Claude waits on it.</summary>
+    /// <summary>The signature of the question or screen that was shown in the control area or announced: it is not shown again while Claude waits on it.</summary>
     private string? _handledWait;
 
-    /// <summary>When a key was last sent from a screen notice: the screen that follows is the user's doing and opens without the chime.</summary>
+    /// <summary>When a key was last sent from a screen of Claude's: the screen that follows is the user's doing and comes without the chime.</summary>
     private long _screenKeyAt;
 
     /// <summary>When an answer was last sent: the question that follows is the user's doing and opens without the chime.</summary>
     private long _answerAt;
 
-    /// <summary>The /config setting last chosen, where the settings notice puts the focus when Claude's list comes back.</summary>
+    /// <summary>The /config setting last chosen, where the list of settings starts when Claude's list comes back.</summary>
     private string? _settingKey;
 
-    /// <summary>The question the answer notice showed last, which a follow-up for the user's own words repeats.</summary>
+    /// <summary>The question the control area showed last, which a follow-up for the user's own words repeats.</summary>
     private Question? _askedQuestion;
 
     /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
@@ -285,7 +286,7 @@ internal sealed class MainForm : Form
             case Keys.F6:
                 if (_transcript.Focused)
                 {
-                    _input.Focus();
+                    BottomControl.Focus();
                 }
                 else
                 {
@@ -294,7 +295,7 @@ internal sealed class MainForm : Form
 
                 return true;
             case Keys.Control | Keys.D1:
-                GoTo(_input);
+                GoTo(BottomControl);
                 return true;
             case Keys.Control | Keys.D2:
                 GoTo(_transcript);
@@ -328,8 +329,9 @@ internal sealed class MainForm : Form
                 // The interrupt key (FR-2.3). Ctrl+Escape opens the Start menu and never reaches the app.
                 Interrupt();
                 return true;
-            case Keys.Shift | Keys.Tab when _input.Focused:
-                // What a Claude Code user expects Shift+Tab to do: cycle the permission mode.
+            case Keys.Shift | Keys.Tab when BottomControl.Focused:
+                // What a Claude Code user expects Shift+Tab to do: cycle the permission mode. The same in the control
+                // area, so the key never changes its meaning at the bottom of the window.
                 Write("\x1b[Z");
                 return true;
             case Keys.Control | Keys.Oemplus:
@@ -379,7 +381,7 @@ internal sealed class MainForm : Form
         session.DropDownItems.Add(new ToolStripMenuItem("Send Do&wn", null, (_, _) => Write("\x1b[B")) { ShortcutKeyDisplayString = "Ctrl+Down in the message field" });
 
         var navigate = new ToolStripMenuItem("&Navigate");
-        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &message field", null, (_, _) => GoTo(_input)) { ShortcutKeyDisplayString = "Ctrl+1" });
+        navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &message field", null, (_, _) => GoTo(BottomControl)) { ShortcutKeyDisplayString = "Ctrl+1" });
         navigate.DropDownItems.Add(new ToolStripMenuItem("Go to &conversation", null, (_, _) => GoTo(_transcript)) { ShortcutKeyDisplayString = "Ctrl+2" });
         navigate.DropDownItems.Add(new ToolStripMenuItem("&Latest response", null, (_, _) => _transcript.JumpToLatestResponse()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.O });
         navigate.DropDownItems.Add(new ToolStripSeparator());
@@ -419,11 +421,15 @@ internal sealed class MainForm : Form
             _model.TimeStamps = v;
         }));
         options.DropDownItems.Add(Toggle("Check for &updates when AxClaude starts", _settings.CheckForUpdates, v => _settings.CheckForUpdates = v));
-        // D33: off, what Claude waits on is only announced, as before 1.4.0: no notices, no guard, no waiting screens.
-        options.DropDownItems.Add(Toggle("Answer Claude's &questions in a notice", _settings.QuestionNotices, v =>
+        // D33: off, what Claude waits on is only announced, as before 1.4.0: no control area, no guard, no waiting screens.
+        options.DropDownItems.Add(Toggle("Answer Claude's &questions from a list", _settings.QuestionNotices, v =>
         {
             _settings.QuestionNotices = v;
             _model.DetectScreens = v;
+            if (!v)
+            {
+                CloseArea();
+            }
         }));
         options.DropDownItems.Add(new ToolStripSeparator());
         options.DropDownItems.Add(new ToolStripMenuItem("&Font...", null, (_, _) => ChooseFont()));
@@ -483,7 +489,7 @@ internal sealed class MainForm : Form
 
         _transcript.Dock = DockStyle.Fill;
         _transcript.TabIndex = 1;
-        _transcript.EscapePressed += () => _input.Focus();
+        _transcript.EscapePressed += () => BottomControl.Focus();
         _transcript.LineChosen += QuoteLineInMessage;
         _transcript.BookmarkToggled += ToggleBookmark;
         _overlay.Chosen += OnNoticeChoice;
@@ -492,6 +498,10 @@ internal sealed class MainForm : Form
         Controls.Add(_overlay);
         Controls.Add(_transcript);
         Controls.Add(_input);
+        // What Claude waits on takes the message field's place (D33), one control at a time.
+        _area.TabIndex = 0;
+        Controls.Add(_area);
+        SizeChanged += (_, _) => _area.FitHeight();
         Controls.Add(_status);
         Controls.Add(_menu);
         _transcript.BringToFront();
@@ -592,7 +602,7 @@ internal sealed class MainForm : Form
         _input.Text = existing.Length == 0 ? quote : existing + "\r\n\r\n" + quote;
         _input.Select(_input.TextLength, 0);
         Announce($"Line {number} copied to the message", true);
-        GoTo(_input);
+        GoTo(BottomControl);
     }
 
     /// <summary>
@@ -651,7 +661,7 @@ internal sealed class MainForm : Form
         var answer = _model.PromptPending;
         if (answer && IsAnswer(text))
         {
-            // Typed like the answer notice's keys, one keystroke each ("1,3" for several answers, the words of an
+            // Typed like the control area's answers, one keystroke each ("1,3" for several answers, the words of an
             // answer of the user's own on one line).
             SendAnswer(text.Replace('\n', ' '));
             Announce("Answer sent", false);
@@ -775,16 +785,16 @@ internal sealed class MainForm : Form
             }
         }
 
-        // Replies are not read over a question or screen of Claude's; they stay in the conversation.
-        if (arrival.Speech is { } speech && _shownWait is null)
+        if (arrival.Speech is { } speech)
         {
             Announce(speech, false);
         }
 
         // What Claude waits on is acted on once the screen has settled for the attention timer (AnnounceAttention):
-        // opening a notice, and closing one whose question went away, since Claude redraws a question in passing.
+        // showing it in the control area, and putting the message field back when it went away, since Claude redraws
+        // a question in passing.
         var waiting = WaitSignature;
-        if (_shownWait is { } shown && _noticeOpen && waiting != shown && !_attention.Enabled)
+        if (_shownWait is { } shown && waiting != shown && !_attention.Enabled)
         {
             _attention.Start();
         }
@@ -827,74 +837,106 @@ internal sealed class MainForm : Form
 
     private void AnnounceAttention()
     {
-        // The notice of a question or screen that went away or changed closes (D33): Claude moved on without it. When
-        // something else waits now, its own notice follows below; when nothing does, that is said.
-        if (_shownWait is { } shown && _noticeOpen && WaitSignature != shown)
+        var waiting = WaitSignature;
+        if (_model.PromptPending && _settings.QuestionNotices && waiting != _handledWait && ShowWaiting())
         {
-            DismissNotice();
-            if (WaitSignature is null)
-            {
-                Announce("The question closed", false);
-            }
+            // In the control area, which replaced what it showed before (the next question of a set) in place.
         }
-
-        if (_model.PromptPending)
+        else if (_model.PromptPending)
         {
-            // A list of answers opens the answer notice and a screen waiting on its hint row the screen notice, each
-            // with its own chime (D33); anything else is announced.
-            if (_settings.QuestionNotices && _model.PendingQuestion is { } question && question.Signature != _handledWait && !_noticeOpen
-                && QuestionRouter.Route(question, _lastCommand).Dialog == QuestionDialog.AnswerNotice)
+            // Claude moved on from what the control area shows to something it cannot show (D33).
+            if (_shownWait is { } shown && waiting != shown)
             {
-                _promptAnnounced = true;
-                _handledWait = question.Signature;
-                _model.MarkQuestion();
-                ShowClaudeQuestion(question);
-                Signal(question: true, chime: false);
-            }
-            else if (_settings.QuestionNotices && _model.PendingScreen is { } screen && screen.Signature != _handledWait && !_noticeOpen)
-            {
-                _promptAnnounced = true;
-                _handledWait = screen.Signature;
-                _model.MarkQuestion();
-                ShowClaudeScreen(screen);
-                Signal(question: true, chime: false);
-            }
-            else if (!_promptAnnounced || WaitSignature != _handledWait)
-            {
-                _promptAnnounced = true;
-                _handledWait = WaitSignature;
-                // Recorded for q (nothing for the text row after Other, which belongs to the question before).
-                _model.MarkQuestion();
-                if (_settings.QuestionNotices && _model.TextPrompt is { } prompt && !_noticeOpen)
-                {
-                    // After "Other": the question's follow-up, a notice with a field for the user's own words.
-                    ShowOwnAnswer(prompt);
-                    Signal(question: true, chime: false);
-                }
-                else
-                {
-                    Announce("Claude needs your answer", false);
-                    Signal(question: true);
-                }
-            }
-        }
-        else if (_bellPending)
-        {
-            if (_settings.AnnounceBell)
-            {
-                Announce("Claude is done", false);
+                CloseArea();
             }
 
-            Signal(question: false);
+            if (!_promptAnnounced || waiting != _handledWait)
+            {
+                _promptAnnounced = true;
+                _handledWait = waiting;
+                // Recorded for q.
+                _model.MarkQuestion();
+                Announce("Claude needs your answer", false);
+                Signal(question: true);
+            }
+        }
+        else
+        {
+            // Nothing waits any more: the message field comes back. Said only when Claude closed it by itself, not
+            // right after the user's answer or key.
+            if (_area.Current is not null)
+            {
+                var byUser = Environment.TickCount64 - Math.Max(_answerAt, _screenKeyAt) < 3000;
+                CloseArea();
+                if (!byUser)
+                {
+                    Announce("The question closed", false);
+                }
+            }
+
+            if (_bellPending)
+            {
+                if (_settings.AnnounceBell)
+                {
+                    Announce("Claude is done", false);
+                }
+
+                Signal(question: false);
+            }
         }
 
         _bellPending = false;
     }
 
     /// <summary>
+    /// Shows what Claude waits on in the control area (D33): a list of answers unless the slash command sent last
+    /// leaves its lists to the message field, a screen waiting on its hint row, or the row for the user's own words
+    /// after Other. False when it is none of these.
+    /// </summary>
+    private bool ShowWaiting()
+    {
+        if (_model.PendingQuestion is { } question)
+        {
+            if (QuestionRouter.Route(question, _lastCommand).Dialog != QuestionDialog.AnswerNotice)
+            {
+                return false;
+            }
+
+            Mark(question.Signature);
+            ShowClaudeQuestion(question);
+        }
+        else if (_model.PendingScreen is { } screen)
+        {
+            Mark(screen.Signature);
+            ShowClaudeScreen(screen);
+        }
+        else if (_model.TextPrompt is { } prompt)
+        {
+            Mark(prompt);
+            ShowOwnAnswer(prompt);
+        }
+        else
+        {
+            return false;
+        }
+
+        // The taskbar flash; the area plays its own chime.
+        Signal(question: true, chime: false);
+        return true;
+
+        void Mark(string signature)
+        {
+            _promptAnnounced = true;
+            _handledWait = signature;
+            // Recorded for q (nothing for the text row after Other, which belongs to the question before).
+            _model.MarkQuestion();
+        }
+    }
+
+    /// <summary>
     /// The chime (two equal notes for a question, three falling notes when Claude is done, FR-7.3) and the taskbar
     /// flash that go with an attention announcement; without <paramref name="chime"/> only the flash (the answer
-    /// notice plays its own chime).
+    /// control area plays its own chime).
     /// </summary>
     private void Signal(bool question, bool chime = true)
     {
@@ -1098,6 +1140,9 @@ internal sealed class MainForm : Form
         _input.Font = font;
         _overlay.SetTextFont(font);
         _input.Height = TextRenderer.MeasureText("Wg", font).Height * 3 + 8;
+        _area.Font = font;
+        _area.MinimumHeight = _input.Height;
+        _area.FitHeight();
     }
 
     private void ChangeTextSize(int delta)
@@ -1658,6 +1703,8 @@ internal sealed class MainForm : Form
         _writes.Clear();
         _writing = false;
         host?.Dispose();
+        // Nothing waits on an answer any more: the message field comes back.
+        CloseArea();
         UpdateStatus();
     }
 
@@ -1717,23 +1764,22 @@ internal sealed class MainForm : Form
 
         if (!_noticeOpen)
         {
-            _focusBeforeNotice = ReferenceEquals(ActiveControl, _transcript) ? _transcript : _input;
+            // The conversation, or else the bottom of the window (null: whichever control is there when the notice closes).
+            _focusBeforeNotice = _transcript.Focused ? _transcript : null;
             // A reader keeps their line while the notice hides the conversation (FR-3.3).
-            _transcript.KeepCaret = ReferenceEquals(_focusBeforeNotice, _transcript);
+            _transcript.KeepCaret = _focusBeforeNotice is not null;
         }
 
         _noticeOpen = true;
-        _shownWait = null;
         _overlay.Populate(notice with { Text = WithKeyLine(notice.Text, notice.Choices) });
         _overlay.Visible = true;
         _overlay.BringToFront();
         AcceptButton = _overlay.DefaultButton;
         CancelButton = _overlay.CancelButton;
-        // The focus change cuts off what NVDA was reading. No interrupting notification of its own: NVDA took it after
-        // the focus and cut off the question instead (1.5.1).
         _overlay.FocusStart();
         _transcript.Visible = false;
         _input.Visible = false;
+        _area.Visible = false;
         _menu.Enabled = false;
         PerformLayout();
     }
@@ -1753,12 +1799,91 @@ internal sealed class MainForm : Form
         return text.Length == 0 || keys.Length == 0 ? text : text.TrimEnd('\n') + "\n" + keys;
     }
 
+    // ---- the control area: what Claude waits on, in the message field's place (D33) ----
+
+    /// <summary>The control at the bottom of the window: the message field, or the control area's list or field in its place.</summary>
+    private Control BottomControl => _area.Current ?? _input;
+
     /// <summary>
-    /// The answer notice (D33): Claude's question with its title and text, and the answers as radio buttons, or check
-    /// boxes when it takes several. An answer key or the arrow keys choose, Enter answers, Escape cancels the
-    /// question, and Alt+M leaves it open and goes to the message field, where it does not open again while Claude
-    /// waits on it. Other, like any answer, is sent as its key; Claude then asks for the words, and
-    /// <see cref="ShowOwnAnswer"/> follows. Claude's questions are not opened by the user: the notice chimes and holds.
+    /// Shows what Claude waits on in the control area, in place of the message field (D33). <paramref name="show"/>
+    /// puts the control there, given whether it takes the focus (it does when the focus was at the bottom of the
+    /// window) and whether it holds its answering keys for a moment (when the user did not cause it, since they may be
+    /// typing). Such a control also plays the notice chime; when the focus is in the conversation, it stays there and
+    /// the question is said after whatever NVDA is reading.
+    /// </summary>
+    private void ShowInArea(string signature, string name, bool unprompted, Action<bool, bool> show)
+    {
+        var focus = !_noticeOpen && (_input.ContainsFocus || _area.ContainsFocus);
+        if (unprompted && _settings.SoundOnBell)
+        {
+            Sounds.Notice();
+        }
+
+        show(focus, unprompted);
+        _input.Visible = false;
+        _area.Visible = !_noticeOpen;
+        _shownWait = signature;
+        if (!focus && unprompted)
+        {
+            Announce($"Claude asks: {name}. Ctrl+Tab to answer", false);
+        }
+    }
+
+    /// <summary>The message field comes back in the control area's place, with the focus when the area had it.</summary>
+    private void CloseArea()
+    {
+        if (_area.Current is null)
+        {
+            return;
+        }
+
+        var focus = _area.ContainsFocus;
+        _input.Visible = !_noticeOpen;
+        if (focus)
+        {
+            _input.Focus();
+        }
+
+        _area.Clear();
+        _shownWait = null;
+    }
+
+    /// <summary>
+    /// A question as a list: its answers as items ("2. Green"), the current one marked and the start, or check boxes
+    /// when it takes several, ticked where Claude marks them. Enter hands <paramref name="choose"/> the chosen
+    /// answer, or the ticked ones; <paramref name="startKey"/> starts on another answer (the setting just changed).
+    /// </summary>
+    private void ShowQuestionList(string signature, string name, Question question, string? startKey, bool unprompted,
+        Action<IReadOnlyList<QuestionOption>> choose, Action escape)
+    {
+        var options = question.Options;
+        var several = question.AllowsSeveral;
+        var items = options.Select(option => $"{option.Key}. {option.Text}" + (option.Current && !several ? " (current)" : string.Empty)).ToList();
+        var start = Math.Max(0, options.ToList().FindIndex(option => startKey is null ? option.Current : option.Key == startKey));
+        IReadOnlyList<int>? ticked = several ? Enumerable.Range(0, options.Count).Where(i => options[i].Current).ToList() : null;
+        ShowInArea(signature, name, unprompted, (focus, hold) => _area.ShowList(name, items, start, ticked, focus, hold, (focused, ticks) =>
+        {
+            if (several && ticks.Count == 0)
+            {
+                Announce("Tick at least one answer with Space, then press Enter.", true);
+                return;
+            }
+
+            choose(several ? ticks.Select(i => options[i]).ToList() : [options[focused]]);
+        }, escape));
+    }
+
+    /// <summary>What the list of a question is called, read each time the focus comes to it: the title (with its place among several) and the question's first line.</summary>
+    private static string QuestionName(Question question)
+    {
+        var title = question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title;
+        return question.Text.Count > 0 ? $"{title}. {question.Text[0]}" : title;
+    }
+
+    /// <summary>
+    /// One of Claude's questions (D33): the answers as a list in the control area. Enter answers, Escape cancels the
+    /// question. Other, like any answer, is sent as its key; Claude then asks for the words, and
+    /// <see cref="ShowOwnAnswer"/> follows.
     /// </summary>
     private void ShowClaudeQuestion(Question question)
     {
@@ -1769,122 +1894,61 @@ internal sealed class MainForm : Form
         }
 
         _askedQuestion = question;
-        ShowNotice(new Notice(
-            // Several questions in one call say where the user is in them.
-            question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title,
-            QuestionText(question),
-            [
-                new OverlayChoice("&Answer", AnswerQuestion, IsDefault: true),
-                new OverlayChoice("Answer in the &message field", () =>
-                {
-                    _input.Select();
-                    Announce("The question is still open", false);
-                }),
-                new OverlayChoice("Cancel &question", () =>
-                {
-                    // What Claude shows next (the settings, after a list of a setting's values) is the user's doing.
-                    _answerAt = Environment.TickCount64;
-                    Write("\x1b");
-                    Announce("Question cancelled", false);
-                }, IsCancel: true),
-            ])
+        ShowQuestionList(question.Signature, QuestionName(question), question, null, Environment.TickCount64 - _answerAt > 3000, AnswerQuestion, () =>
         {
-            Question = question,
-            // The next step of a list the user just answered comes without the chime.
-            Unprompted = Environment.TickCount64 - _answerAt > 3000,
+            SendEscape();
+            Announce("Question cancelled", false);
         });
-        _shownWait = question.Signature;
     }
 
     /// <summary>
-    /// /config's list of settings (docs/claude-screens.md), read off Claude's screen each time it shows: a radio button
-    /// per setting with its value. A true-or-false setting asks for its value in a notice of its own
-    /// (<see cref="ShowSwitch"/>), since Claude flips it when its number is sent; any other setting sends its number
-    /// and Claude's list of its values opens as an answer notice. Either way the list comes back with the focus on the
-    /// setting just chosen. Escape saves and closes.
+    /// /config's list of settings (docs/claude-screens.md), read off Claude's screen each time it shows. Enter on a
+    /// true-or-false setting asks for its value (<see cref="ShowSwitch"/>), since Claude flips it when its number is
+    /// sent; on any other setting it sends the number and Claude's list of its values follows. Either way the list comes
+    /// back on the setting just chosen. Escape saves and closes.
     /// </summary>
-    private void ShowSettings(Question settings, bool back = false)
-    {
-        ShowNotice(new Notice(
-            "Claude's settings",
-            "Choose a setting and press Enter to change it. A true or false setting asks for its value; any other setting opens Claude's list of its values.",
-            [
-                new OverlayChoice("&Change", () =>
-                {
-                    if (_overlay.SelectedAnswers.FirstOrDefault() is not { } setting)
-                    {
-                        return;
-                    }
-
-                    _settingKey = setting.Key;
-                    if (setting.Switch is { } on)
-                    {
-                        ShowSwitch(settings, setting, on);
-                    }
-                    else
-                    {
-                        DismissNotice(() => SendAnswer(setting.Key));
-                    }
-                }, IsDefault: true, StaysOpen: true),
-                new OverlayChoice("Answer in the &message field", () =>
-                {
-                    _input.Select();
-                    Announce("The settings are still open", false);
-                }),
-                new OverlayChoice("&Save and close", () =>
-                {
-                    _settingKey = null;
-                    Write("\x1b");
-                    Announce("Settings saved", false);
-                }, IsCancel: true),
-            ])
+    private void ShowSettings(Question settings, bool back = false) =>
+        ShowQuestionList(settings.Signature, "Claude's settings", settings, _settingKey, !back && Environment.TickCount64 - _answerAt > 3000, chosen =>
         {
-            Question = settings,
-            StartAnswer = _settingKey,
-            Unprompted = !back && Environment.TickCount64 - _answerAt > 3000,
+            var setting = chosen[0];
+            _settingKey = setting.Key;
+            if (setting.Switch is { } on)
+            {
+                ShowSwitch(settings, setting, on);
+            }
+            else
+            {
+                SendAnswer(setting.Key);
+            }
+        }, () =>
+        {
+            _settingKey = null;
+            SendEscape();
+            Announce("Settings saved", false);
         });
-        _shownWait = settings.Signature;
-    }
 
-    /// <summary>A true-or-false setting of /config: True and False, the current one chosen. Only a change sends the setting's number.</summary>
+    /// <summary>A true-or-false setting of /config: True and False, the current one first in focus. Only a change sends the setting's number.</summary>
     private void ShowSwitch(Question settings, QuestionOption setting, bool on)
     {
         var name = setting.Setting?.Name ?? setting.Text;
         var values = new Question(name, [], [new QuestionOption("1", "True", on), new QuestionOption("2", "False", !on)], []);
-        ShowNotice(new Notice(
-            name,
-            $"{name} is {(on ? "true" : "false")} now. Choose its value and press Enter.",
-            [
-                new OverlayChoice("&Set", () =>
-                {
-                    if (_overlay.SelectedAnswers.FirstOrDefault()?.Key == (on ? "1" : "2"))
-                    {
-                        // Unchanged: nothing to send, and the focus lands on the setting with its value.
-                        ShowSettings(settings, back: true);
-                    }
-                    else
-                    {
-                        DismissNotice(() => SendAnswer(setting.Key));
-                    }
-                }, IsDefault: true, StaysOpen: true),
-                new OverlayChoice("&Back to the settings", () => ShowSettings(settings, back: true), IsCancel: true, StaysOpen: true),
-            ])
+        ShowQuestionList(settings.Signature, name, values, null, false, chosen =>
         {
-            Question = values,
-        });
-        // Claude still waits on its list: should it go away, this notice closes too.
-        _shownWait = settings.Signature;
+            if (chosen[0].Current)
+            {
+                // Unchanged: nothing to send, and the settings come back on this one.
+                ShowSettings(settings, back: true);
+            }
+            else
+            {
+                SendAnswer(setting.Key);
+            }
+        }, () => ShowSettings(settings, back: true));
     }
 
-    /// <summary>Sends what the answer notice holds: the chosen answer's key, or the ticked keys joined with commas.</summary>
-    private void AnswerQuestion()
+    /// <summary>Sends the chosen answer's key, or the ticked keys joined with commas, and says what comes next.</summary>
+    private void AnswerQuestion(IReadOnlyList<QuestionOption> chosen)
     {
-        var chosen = _overlay.SelectedAnswers.ToList();
-        if (chosen.Count == 0)
-        {
-            return;
-        }
-
         SendAnswer(string.Join(",", chosen.Select(option => option.Key)));
         // Each answer's name without Claude's explanation after the dash.
         Announce("Answer sent: " + string.Join(", ", chosen.Select(option =>
@@ -1904,81 +1968,64 @@ internal sealed class MainForm : Form
 
     /// <summary>
     /// The follow-up of a question when Claude asks for the user's own words ("Enter text for option 4 (Other), or
-    /// Escape for the list:", also plan approval's "No, keep planning"): the question again, the answer chosen, and a
-    /// field. Enter sends the words, a keystroke each, and Escape goes back to Claude's list, whose notice opens again.
+    /// Escape for the list:", also plan approval's "No, keep planning"): a field named with the question and the
+    /// answer chosen. Enter sends the words, a keystroke each, and Escape goes back to Claude's list.
     /// </summary>
     private void ShowOwnAnswer(string prompt)
     {
         var chosen = LineClassifier.TextPromptAnswer(prompt) ?? "an answer that asks for your own words";
-        var question = _askedQuestion;
-        var text = new StringBuilder();
-        if (question is not null)
+        var name = (_askedQuestion is { } question ? QuestionName(question) + ". " : string.Empty) + $"You chose {chosen}. Your answer";
+        ShowInArea(prompt, name, Environment.TickCount64 - _answerAt > 3000, (focus, hold) => _area.ShowField(name, focus, hold, typed =>
         {
-            text.Append(question.Title).Append('\n');
-            foreach (var line in question.Text)
+            var words = typed.Trim();
+            if (words.Length == 0)
             {
-                text.Append(line).Append('\n');
+                Announce("Type your answer first, or press Escape to go back to the list.", true);
+                return;
             }
-        }
 
-        text.Append($"You chose {chosen}. Type your answer in the field and press Enter to send it.");
-        // The field is where the focus lands, so its name repeats the question, as an answer notice's first answer does.
-        var asked = question is null ? string.Empty : question.Text.Count > 0 ? $"{question.Title}. {question.Text[0]} " : $"{question.Title}. ";
-        ShowNotice(new Notice(
-            question?.Title ?? "Your own answer",
-            text.ToString(),
-            [
-                new OverlayChoice("&Send", () =>
-                {
-                    var words = _overlay.InputText.Trim();
-                    SendAnswer(words);
-                    Announce("Answer sent: " + words + NextStep(), false);
-                }, IsDefault: true),
-                new OverlayChoice("&Back to the list", () =>
-                {
-                    _answerAt = Environment.TickCount64;
-                    Write("\x1b");
-                }, IsCancel: true),
-            ])
-        {
-            Input = new OverlayInput("&Your answer:", $"{asked}You chose {chosen}. Your answer", string.Empty, "Type your answer first, or press Escape to go back to the list."),
-            Unprompted = Environment.TickCount64 - _answerAt > 3000,
-        });
-        _shownWait = prompt;
+            SendAnswer(words);
+            Announce("Answer sent: " + words + NextStep(), false);
+        }, SendEscape));
     }
 
     /// <summary>What Claude waits on now, as a signature: the question, the screen, or the row for the user's own words; null when it waits on nothing.</summary>
     private string? WaitSignature => _model.PendingQuestion?.Signature ?? _model.PendingScreen?.Signature ?? _model.TextPrompt;
 
     /// <summary>
-    /// The screen notice (D33): a screen of Claude's that waits on its hint row (/status, /tasks, /help …), with its
-    /// lines, which the conversation does not show for a tab screen, and a button for every key the hint row names.
-    /// A button sends its key and closes the notice; while Claude still waits, the screen it shows next opens a new
-    /// notice, without the chime since the user caused it. Alt+M leaves the screen to the message field.
+    /// A screen of Claude's that waits on its hint row (/status, /tasks, /help …; D33) as a list: its lines, which the
+    /// conversation does not show for a tab screen, then an item for every key the hint row names ("View (Enter)",
+    /// "Close (Escape)"). Enter on a key's item sends the key, Escape sends Escape; the screen Claude shows next takes
+    /// the list's place, without the chime since the user caused it.
     /// </summary>
     private void ShowClaudeScreen(ClaudeScreen screen)
     {
-        var choices = new List<OverlayChoice>();
-        foreach (var key in screen.Keys)
-        {
-            // "View" for Enter and "Close" for Escape read well in the key line; other keys carry their name.
-            var action = char.ToUpperInvariant(key.Action[0]) + key.Action[1..];
-            var enter = key.Send == "\r";
-            var escape = key.Send == "\x1b";
-            choices.Add(new OverlayChoice(enter || escape ? action : $"{action} ({key.Name})", () => SendScreenKey(key.Send), IsDefault: enter, IsCancel: escape));
-        }
+        var items = screen.Lines.ToList();
+        var first = items.Count;
+        items.AddRange(screen.Keys.Select(key => $"{char.ToUpperInvariant(key.Action[0])}{key.Action[1..]} ({key.Name})"));
+        var escape = screen.Keys.First(key => key.Send == "\x1b").Send;
+        ShowInArea(screen.Signature, screen.Title, Environment.TickCount64 - _screenKeyAt > 3000, (focus, hold) =>
+            _area.ShowList(screen.Title, items, 0, null, focus, hold, (index, _) =>
+            {
+                if (index < first)
+                {
+                    Announce("The keys are at the end of the list", true);
+                    return;
+                }
 
-        choices.Add(new OverlayChoice("Answer in the &message field", () =>
-        {
-            _input.Select();
-            Announce("Claude's screen is still open", false);
-        }));
-        var lines = screen.Lines.Count > 0 ? string.Join("\n", screen.Lines) : "(nothing else on the screen)";
-        ShowNotice(new Notice(screen.Title, lines, choices)
-        {
-            Unprompted = Environment.TickCount64 - _screenKeyAt > 3000,
-        });
-        _shownWait = screen.Signature;
+                SendScreenKey(screen.Keys[index - first].Send);
+            }, () => SendScreenKey(escape)));
+    }
+
+    /// <summary>
+    /// Escape from the control area: the question closes, or goes back a step. What Claude shows next is the user's
+    /// doing, and the area holds its keys until then, so that a second Escape does not reach Claude as an interrupt.
+    /// </summary>
+    private void SendEscape()
+    {
+        _answerAt = Environment.TickCount64;
+        _area.Hold(3000);
+        Write("\x1b");
     }
 
     /// <summary>Sends a screen's key. The screen that shows next opens again even when its title and keys are the same (a moved selection, another tab).</summary>
@@ -1986,13 +2033,17 @@ internal sealed class MainForm : Form
     {
         _screenKeyAt = Environment.TickCount64;
         _handledWait = null;
+        _area.Hold(3000);
         Write(key);
-        // A key that changes nothing draws no frame: the timer brings the notice back all the same.
+        // A key that changes nothing draws no frame: the timer brings the screen back all the same.
         _attention.Stop();
         _attention.Start();
     }
 
-    /// <summary>An answer through the send queue: each character as a keystroke of its own, then Enter.</summary>
+    /// <summary>
+    /// An answer through the send queue: each character as a keystroke of its own, then Enter. The control area holds
+    /// its keys meanwhile, so that a second Enter does not send it again.
+    /// </summary>
     private void SendAnswer(string key)
     {
         if (_host is null)
@@ -2011,6 +2062,7 @@ internal sealed class MainForm : Form
 
         _writes.Enqueue(("\r", 50));
         _answerAt = Environment.TickCount64;
+        _area.Hold(3000);
         if (!_writing)
         {
             PumpWrites();
@@ -2020,23 +2072,6 @@ internal sealed class MainForm : Form
         {
             Sounds.Sent();
         }
-    }
-
-    /// <summary>
-    /// The notice's text: Claude's own lines between the title and the answers, and where the rest is. The answers
-    /// are only the radio buttons and Claude's key hints stay in the conversation, so no line of the text looks like
-    /// something to choose.
-    /// </summary>
-    private static string QuestionText(Question question)
-    {
-        var text = new StringBuilder();
-        foreach (var line in question.Text)
-        {
-            text.Append(line).Append('\n');
-        }
-
-        text.Append("Claude's full question is in the conversation. Alt+M goes to the message field and leaves the question open.");
-        return text.ToString();
     }
 
     private void OnNoticeChoice(OverlayChoice choice)
@@ -2062,10 +2097,11 @@ internal sealed class MainForm : Form
         }
 
         _noticeOpen = false;
-        _shownWait = null;
         _transcript.KeepCaret = false;
         _transcript.Visible = true;
-        _input.Visible = true;
+        // The message field, or the control area when Claude asked something while the notice showed.
+        _input.Visible = _area.Current is null;
+        _area.Visible = _area.Current is not null;
         _menu.Enabled = true;
         AcceptButton = null;
         CancelButton = null;
@@ -2079,7 +2115,7 @@ internal sealed class MainForm : Form
 
         if (ActiveControl is null || _overlay.Contains(ActiveControl))
         {
-            (_focusBeforeNotice ?? _input).Select();
+            (_focusBeforeNotice ?? BottomControl).Select();
         }
 
         _overlay.Visible = false;
