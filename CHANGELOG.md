@@ -2,6 +2,7 @@
 
 ## 1.5.1 - 2026-09-25
 
+- Enter sends the message, and Shift+Enter starts a new line (Ctrl+Enter sent before). The same in New session's Custom arguments.
 - Installing and updating remove the previous AxClaude completely first, also one installed with the earlier `install.ps1`, and then install fresh. The installer says what it found. Your settings stay.
 - Removing the old installation waits a few seconds if Windows still holds the program file after AxClaude closes.
 - `/config` opens "Claude's settings": every setting with its value. Choose one and press Enter to change it. A true or false setting asks True or False; any other setting opens Claude's list of its values. The list comes back with the focus on the setting you changed. Escape saves and closes.

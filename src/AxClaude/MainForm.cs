@@ -76,7 +76,7 @@ internal sealed class MainForm : Form
     /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
     private SlashCommand? _lastCommand;
 
-    /// <summary>A message kept out of a waiting question by the guard (FR-2.10, D33), sent after all when Ctrl+Enter is pressed again with the same text.</summary>
+    /// <summary>A message kept out of a waiting question by the guard (FR-2.10, D33), sent after all when Enter is pressed again with the same text.</summary>
     private string? _keptMessage;
     private bool _readyAnnounced;
     private bool _messageSent;
@@ -299,9 +299,6 @@ internal sealed class MainForm : Form
             case Keys.Control | Keys.D2:
                 GoTo(_transcript);
                 return true;
-            case Keys.Control | Keys.Return:
-                SendInput();
-                return true;
             case Keys.Control | Keys.O:
                 // D14: Claude's detailed view redraws the conversation in screen reader mode, which doubles the
                 // transcript and speaks old replies again. The key is sent only to close the view should it be open.
@@ -371,7 +368,7 @@ internal sealed class MainForm : Form
         project.DropDownItems.Add(new ToolStripMenuItem("E&xit", null, (_, _) => Close()) { ShortcutKeyDisplayString = "Alt+F4" });
 
         var session = new ToolStripMenuItem("&Session");
-        session.DropDownItems.Add(new ToolStripMenuItem("Send &message", null, (_, _) => SendInput()) { ShortcutKeyDisplayString = "Ctrl+Enter" });
+        session.DropDownItems.Add(new ToolStripMenuItem("Send &message", null, (_, _) => SendInput()) { ShortcutKeyDisplayString = "Enter in the message field" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send the waiting message &now", null, (_, _) => SendNow()) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.S });
         session.DropDownItems.Add(new ToolStripMenuItem("&Interrupt Claude (send Escape)", null, (_, _) => Interrupt()) { ShortcutKeyDisplayString = "Shift+Esc" });
         session.DropDownItems.Add(new ToolStripMenuItem("Send Ctrl+&C", null, (_, _) => Write("\x03")) { ShortcutKeys = Keys.Control | Keys.Shift | Keys.C });
@@ -473,7 +470,7 @@ internal sealed class MainForm : Form
         _status.SizeChanged += (_, _) => StatusLayout.Fit(_status, _state, _folderLabel);
 
         _input.AccessibleName = "Message to Claude";
-        _input.AccessibleDescription = "Ctrl+Enter sends, Enter starts a new line";
+        _input.AccessibleDescription = "Enter sends, Shift+Enter starts a new line";
         _input.PlaceholderText = "Message to Claude";
         _input.Multiline = true;
         _input.AcceptsReturn = true;
@@ -550,6 +547,11 @@ internal sealed class MainForm : Form
     {
         switch (e.KeyCode)
         {
+            case Keys.Enter when e.Modifiers == Keys.None:
+                // Enter sends; Shift+Enter is the field's own new line (FR-2.1).
+                e.Handled = e.SuppressKeyPress = true;
+                SendInput();
+                break;
             case Keys.Escape when e.Modifiers == Keys.None:
                 // A guard (FR-2.3, D20): Escape is a reflex key for screen reader users, and Claude takes it as an interrupt.
                 e.SuppressKeyPress = true;
@@ -634,7 +636,7 @@ internal sealed class MainForm : Form
             _keptMessage = text;
             var about = _model.PendingQuestion is { } waiting ? $" to {waiting.Title}"
                 : _model.PendingScreen is { } screen ? $" on its screen {screen.Title}" : string.Empty;
-            Announce($"Claude is waiting for an answer{about}. Your message was not sent and is still in the field. Press Ctrl+Enter again to send it anyway.", true);
+            Announce($"Claude is waiting for an answer{about}. Your message was not sent and is still in the field. Press Enter again to send it anyway.", true);
             return;
         }
 

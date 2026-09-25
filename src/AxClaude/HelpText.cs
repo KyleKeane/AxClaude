@@ -18,7 +18,6 @@ internal static class HelpText
           Ctrl+1: go to the message field. Ctrl+2: go to the conversation. Both say where you are, also when you are there already
           Ctrl+Tab, Ctrl+Shift+Tab or F6: switch between the message field and the conversation
           Tab: from the message field to the conversation and back (Shift+Tab in the field goes to Claude instead)
-          Ctrl+Enter: send the message (an empty field sends a plain Enter)
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
           Ctrl+Shift+S: make Claude take up the waiting message now instead of after its current step
           Ctrl+F: find text in the conversation. F3 and Shift+F3: next or previous match
@@ -36,8 +35,8 @@ internal static class HelpText
           Alt+F4: close AxClaude (asks first while Claude is working)
 
         Message field
-          Enter: new line
-          Ctrl+Enter: send
+          Enter: send (an empty field sends a plain Enter to Claude)
+          Shift+Enter: new line
           Page Up, Page Down: one screen of the field up or down, or the first or last line of the message
           Escape: does nothing; a reminder says that Shift+Escape interrupts Claude
           Shift+Tab: next permission mode
@@ -70,7 +69,7 @@ internal static class HelpText
           Tab moves between the text, a field and the buttons. Enter chooses the main button. Escape closes the notice.
 
         Claude Code itself
-          Type /help in the message field and press Ctrl+Enter for Claude Code's own commands.
+          Type /help in the message field and press Enter for Claude Code's own commands.
           The Help menu opens the Claude Code documentation in your browser.
         """;
 

@@ -180,9 +180,8 @@ internal sealed class OverlayPanel : Panel
         _customRow.Margin = new Padding(0);
         _customRow.TabIndex = 2;
         _customLabel.AutoSize = true;
-        _customLabel.Text = "Arguments for Claude Code, one or more on each line. Ctrl+Enter starts the session.";
+        _customLabel.Text = "Arguments for Claude Code, one or more on each line. Enter starts the session, Shift+Enter starts a new line.";
         _customLabel.Margin = new Padding(0, 0, 0, 4);
-        // Enter is a new line in this field; Ctrl+Enter presses the default button, as in the message field.
         _custom.Multiline = true;
         _custom.AcceptsReturn = true;
         _custom.WordWrap = true;
@@ -701,7 +700,8 @@ internal sealed class OverlayPanel : Panel
 
     private void OnCustomKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Enter && e.Modifiers == Keys.Control)
+        // Enter starts the session and Shift+Enter is a new line, as in the message field.
+        if (e.KeyCode == Keys.Enter && e.Modifiers == Keys.None)
         {
             e.Handled = true;
             e.SuppressKeyPress = true;

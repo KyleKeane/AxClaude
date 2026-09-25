@@ -33,13 +33,13 @@ The first time Claude Code sees a folder it asks whether you trust it. Questions
 
 Screens that Claude shows until you press a key, such as `/status`, `/tasks` and `/help`, come up as a **screen notice**: the screen's text, and a button for every key the screen offers, for example "View" (Enter), "Close" (Escape) or "Select (Down)". A button sends its key to Claude; if the screen is still open afterwards, the notice comes back with what it shows now.
 
-While Claude waits for an answer, Ctrl+Enter only sends an answer. A message you typed stays in the field, and AxClaude says so; press Ctrl+Enter again to send it all the same. Anything else Claude asks is announced with "Claude needs your answer". Options, "Answer Claude's questions in a notice", turns the notices and this protection off: questions are then only announced, and you answer them in the message field.
+While Claude waits for an answer, Enter only sends an answer. A message you typed stays in the field, and AxClaude says so; press Enter again to send it all the same. Anything else Claude asks is announced with "Claude needs your answer". Options, "Answer Claude's questions in a notice", turns the notices and this protection off: questions are then only announced, and you answer them in the message field.
 
 ## The window
 
 From top to bottom: the menu bar (press Alt), the conversation, the message field, the status bar. Focus starts in the message field.
 
-- The **message field** is called "Message to Claude". Enter starts a new line. Ctrl+Enter sends. Ctrl+Enter on an empty field sends a plain Enter, which is how you confirm a dialog. Page Up and Page Down move one screen of the field at a time and reach the first and last line of your message; Home and End move within the line, Ctrl+Home and Ctrl+End to the start and end of the message.
+- The **message field** is called "Message to Claude". Enter sends. Shift+Enter starts a new line. Enter on an empty field sends a plain Enter, which is how you confirm a dialog. Page Up and Page Down move one screen of the field at a time and reach the first and last line of your message; Home and End move within the line, Ctrl+Home and Ctrl+End to the start and end of the message.
 - The **conversation** is a read-only text called "Conversation". Every line Claude prints is a line here. Arrow keys, Home, End, Page Up, Page Down and your screen reader's reading commands all work. Ctrl+1 goes to the message field and Ctrl+2 to the conversation; when you are there already, the key says so, which helps when you have lost track of where you are. Ctrl+Tab, Ctrl+Shift+Tab or F6 switches between the two. Escape in the conversation goes back to the message field.
 - While Claude is still writing a line and you are on it, Down Arrow reads only what has arrived since you last heard it, so you can follow a long reply as it comes without hearing anything twice. Once you move on, the line reads as one line again.
 - To copy from the conversation: Shift with the arrow keys selects text, Ctrl+C copies it and says "Copied". While text is selected, new output waits until you press a plain arrow key. Escape clears the selection; a second Escape goes to the message field.
@@ -51,7 +51,7 @@ Alt+F4 closes AxClaude and ends the Claude Code session. If Claude is still work
 
 ## Send a message
 
-When Claude has started, AxClaude says "Claude is ready" with a high ping. Type in the message field and press Ctrl+Enter. AxClaude says "Message sent" with a short low note, and "Claude is responding" with a rising chime when the reply starts. A soft tick, like a typewriter key, marks every new line that arrives from Claude, and two lower knocks mark each tool Claude starts, so you can hear Claude working without reading along. "Claude is done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude needs your answer". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
+When Claude has started, AxClaude says "Claude is ready" with a high ping. Type in the message field and press Enter. AxClaude says "Message sent" with a short low note, and "Claude is responding" with a rising chime when the reply starts. A soft tick, like a typewriter key, marks every new line that arrives from Claude, and two lower knocks mark each tool Claude starts, so you can hear Claude working without reading along. "Claude is done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude needs your answer". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
 
 You can send while Claude is still working. Claude Code keeps the message and takes it up when it can. AxClaude says "Message waiting" and the status bar counts the waiting messages. The message appears in the conversation when Claude takes it up, usually after its current step. Ctrl+Shift+S (Session, Send the waiting message now) makes Claude take it up at once.
 
@@ -66,7 +66,7 @@ Keys that go straight to Claude Code:
 
 ## Slash commands
 
-Anything that starts with a slash is a Claude Code command. Type `/help` and press Ctrl+Enter for the list. Some useful ones:
+Anything that starts with a slash is a Claude Code command. Type `/help` and press Enter for the list. Some useful ones:
 
 - `/clear` starts a new conversation. `/compact` shortens the current one to free up space.
 - `/model` picks the model. `/permissions` changes what Claude may do without asking. `/config` has the other settings.
@@ -98,7 +98,7 @@ Ctrl+S saves the conversation as a text file. Ctrl+A and Ctrl+C in the conversat
 ## Menus
 
 - **Project**: Open current folder (Ctrl+W), which names the folder and opens it in File Explorer, Change folder, New session (Ctrl+N), Recent folders, Force Claude to restart (Ctrl+Shift+R), Save conversation as (Ctrl+S), Exit.
-- **Session**: Send message (Ctrl+Enter), Send the waiting message now (Ctrl+Shift+S), and the keys sent to Claude: Interrupt Claude (Shift+Escape), Send Ctrl+C (Ctrl+Shift+C), Send Ctrl+D, Send Tab, Send Shift+Tab (Ctrl+Shift+M), Send Up, Send Down.
+- **Session**: Send message (Enter), Send the waiting message now (Ctrl+Shift+S), and the keys sent to Claude: Interrupt Claude (Shift+Escape), Send Ctrl+C (Ctrl+Shift+C), Send Ctrl+D, Send Tab, Send Shift+Tab (Ctrl+Shift+M), Send Up, Send Down.
 - **Navigate**: Go to message field (Ctrl+1), Go to conversation (Ctrl+2), Latest response (Ctrl+Shift+O), Find, Find next, Find previous, Bookmark this line, Next bookmark, Previous bookmark.
 - **Options**: Announce when Claude is done, the chimes, the tick for each new line and tool call, the taskbar flash, Speak replies as they arrive, Speak each tool call, the time in the Input and Output lines, checking for updates at startup, the font and text size, recording for a bug report, the settings file.
 - **Help**: Keyboard shortcuts (F1), this guide, the Claude Code documentation pages, the install page, the version you have, the latest release on GitHub, Update or Check for updates, Copy diagnostics, About.
@@ -121,7 +121,7 @@ The Help menu always shows the version you have ("Installed: AxClaude 1.0.0"), t
 
 - "Claude Code was not found": install it with the command in the notice, then press Ctrl+Shift+R. If it is installed somewhere unusual, use "Locate claude.exe" instead: Claude starts at once and the place is remembered.
 - An error from AxClaude is a notice inside the window and a "System:" line in the conversation. Escape closes the notice.
-- Claude stopped, or the conversation looks wrong: Ctrl+Shift+R restarts Claude in the same folder. While Claude is running it asks first, because a restart quits Claude Code at once and ends anything it runs in the background: Enter restarts, Escape keeps Claude running. Starting AxClaude again brings the conversation back. While Claude is stopped, Ctrl+Enter sends nothing and keeps your text.
+- Claude stopped, or the conversation looks wrong: Ctrl+Shift+R restarts Claude in the same folder. While Claude is running it asks first, because a restart quits Claude Code at once and ends anything it runs in the background: Enter restarts, Escape keeps Claude running. Starting AxClaude again brings the conversation back. While Claude is stopped, Enter sends nothing and keeps your text.
 - For a bug report: Help, Copy diagnostics puts the version, the paths and the last log lines on the clipboard. Options, "Record raw stream for a bug report" records everything Claude Code prints. The log is in `%LOCALAPPDATA%\AxClaude\logs`.
 - An update did not start AxClaude again: `%LOCALAPPDATA%\AxClaude\logs\update.log` says what the installer did. Start AxClaude from the Start menu; if it is still the old version, download the zip from the release page and run `install.ps1` yourself.
 
