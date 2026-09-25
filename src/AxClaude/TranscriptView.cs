@@ -135,7 +135,7 @@ internal sealed class TranscriptView : TextBox
         Focus();
         if (_mirror.LineCount == 0)
         {
-            Announce("No lines yet", true);
+            Announce("Empty", true);
             return;
         }
 
@@ -431,7 +431,7 @@ internal sealed class TranscriptView : TextBox
     {
         if (_mirror.LineCount == 0)
         {
-            Announce("No lines yet", true);
+            Announce("Empty", true);
             return;
         }
 
@@ -444,7 +444,7 @@ internal sealed class TranscriptView : TextBox
     {
         if (_mirror.LineCount == 0)
         {
-            Announce("No lines yet", true);
+            Announce("Empty", true);
             return;
         }
 
@@ -470,7 +470,7 @@ internal sealed class TranscriptView : TextBox
             }
         }
 
-        Announce("Nowhere to go back to", true);
+        Announce("Nothing to go back to", true);
     }
 
     /// <summary>Records the caret's line before a jump moves it away (FR-3.12).</summary>

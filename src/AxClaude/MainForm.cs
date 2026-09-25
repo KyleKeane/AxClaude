@@ -13,7 +13,7 @@ internal sealed class MainForm : Form
     private const string RecordItemText = "&Record raw stream for a bug report...";
 
     /// <summary>Spoken for Ctrl+O, which the app does not pass on (D14).</summary>
-    private const string CtrlOGuard = "Ctrl+O is off here: Claude's detailed view redraws the conversation in screen reader mode. For tool output, start the session with --verbose.";
+    private const string CtrlOGuard = "Ctrl+O is off. For tool output, start with --verbose";
 
     private readonly StartupOptions _options;
     private readonly AppSettings _settings;
@@ -121,7 +121,7 @@ internal sealed class MainForm : Form
         _model.Changed += OnModelChanged;
         _model.ResponseStarted += () =>
         {
-            Announce("Claude is responding", false);
+            Announce("Responding", false);
             if (_settings.SoundOnBell)
             {
                 Sounds.Responding();
@@ -493,7 +493,6 @@ internal sealed class MainForm : Form
         _status.SizeChanged += (_, _) => StatusLayout.Fit(_status, _state, _folderLabel);
 
         _input.AccessibleName = "Message to Claude";
-        _input.AccessibleDescription = "Enter sends, Shift+Enter starts a new line";
         _input.PlaceholderText = "Message to Claude";
         _input.Multiline = true;
         _input.AcceptsReturn = true;
@@ -582,7 +581,7 @@ internal sealed class MainForm : Form
             case Keys.Escape when e.Modifiers == Keys.None:
                 // A guard (FR-2.3, D20): Escape is a reflex key for screen reader users, and Claude takes it as an interrupt.
                 e.SuppressKeyPress = true;
-                Announce("Escape does nothing here. Press Shift+Escape to interrupt Claude", true);
+                Announce("Shift+Escape interrupts", true);
                 break;
             case Keys.Up when e.Control:
                 e.SuppressKeyPress = true;
@@ -618,7 +617,7 @@ internal sealed class MainForm : Form
         var quote = $"{QuoteMarker}\r\nLine {number} of {count}:\r\n{text}\r\n{CommentMarker}\r\n";
         _input.Text = existing.Length == 0 ? quote : existing + "\r\n\r\n" + quote;
         _input.Select(_input.TextLength, 0);
-        Announce($"Line {number} copied to the message", true);
+        Announce($"Line {number} copied", true);
         GoTo(BottomControl);
     }
 
@@ -639,7 +638,7 @@ internal sealed class MainForm : Form
     {
         if (_model.ToggleBookmark(line) is not ({ } bookmark, var added))
         {
-            Announce("The line is no longer in the conversation", true);
+            Announce("Line gone", true);
             return;
         }
 
@@ -651,7 +650,7 @@ internal sealed class MainForm : Form
         if (_host is null)
         {
             // The text stays in the field: nothing was sent, and it is wanted again after a restart.
-            Announce("Claude is not running. Press Ctrl+Shift+R to start it again", true);
+            Announce("Claude stopped. Ctrl+Shift+R starts it", true);
             return;
         }
 
@@ -661,9 +660,9 @@ internal sealed class MainForm : Form
             // D33: text sent into a question is lost (Claude answers "Please answer y or n." and drops it) or taken
             // as a key of the screen. It stays in the field; the same text sent again goes anyway (a typed answer).
             _keptMessage = text;
-            var about = _model.PendingQuestion is { } waiting ? $" to {waiting.Title}"
-                : _model.PendingScreen is { } screen ? $" on its screen {screen.Title}" : string.Empty;
-            Announce($"Claude is waiting for an answer{about}. Your message was not sent and is still in the field. Press Enter again to send it anyway.", true);
+            var about = _model.PendingQuestion is { } waiting ? $": {waiting.Title}"
+                : _model.PendingScreen is { } screen ? $": {screen.Title}" : string.Empty;
+            Announce($"Not sent, Claude asks{about}. Enter again sends", true);
             return;
         }
 
@@ -681,7 +680,7 @@ internal sealed class MainForm : Form
             // Typed like the control area's answers, one keystroke each ("1,3" for several answers, the words of an
             // answer of the user's own on one line).
             SendAnswer(text.Replace('\n', ' '));
-            Announce("Answer sent", false);
+            Announce("Sent", false);
             return;
         }
 
@@ -714,7 +713,7 @@ internal sealed class MainForm : Form
             PumpWrites();
         }
 
-        Announce(answer ? "Answer sent" : queued ? "Message waiting" : "Message sent", false);
+        Announce(queued && !answer ? "Queued" : "Sent", false);
         if (_settings.SoundOnBell)
         {
             Sounds.Sent();
@@ -743,7 +742,7 @@ internal sealed class MainForm : Form
     {
         if (_model.QueuedMessages == 0)
         {
-            Announce("No message waiting", false);
+            Announce("Nothing queued", false);
             return;
         }
 
@@ -855,7 +854,7 @@ internal sealed class MainForm : Form
             // Speech starts here: the replayed conversation gets its markers and is not read out.
             _arrivals.Skip(_model.Lines);
             _model.MarkReplayedExchanges();
-            Announce("Claude is ready", false);
+            Announce("Ready", false);
             if (_settings.SoundOnBell)
             {
                 Sounds.Ready();
@@ -884,7 +883,7 @@ internal sealed class MainForm : Form
                 _handledWait = waiting;
                 // Recorded for q.
                 _model.MarkQuestion();
-                Announce("Claude needs your answer", false);
+                Announce("Claude asks", false);
                 Signal(question: true);
             }
         }
@@ -898,7 +897,7 @@ internal sealed class MainForm : Form
                 CloseArea();
                 if (!byUser)
                 {
-                    Announce("The question closed", false);
+                    Announce("Question closed", false);
                 }
             }
 
@@ -906,7 +905,7 @@ internal sealed class MainForm : Form
             {
                 if (_settings.AnnounceBell)
                 {
-                    Announce("Claude is done", false);
+                    Announce("Done", false);
                 }
 
                 Signal(question: false);
@@ -1122,7 +1121,7 @@ internal sealed class MainForm : Form
         }
 
         Log.Info("Conversation saved to " + dialog.FileName);
-        Announce("Conversation saved", true);
+        Announce("Saved", true);
     }
 
     private void OpenUrl(string url)
@@ -1367,7 +1366,7 @@ internal sealed class MainForm : Form
         ]);
         if (CopyToClipboard(text))
         {
-            Announce("Diagnostics copied", true);
+            Announce("Copied", true);
         }
     }
 
@@ -1400,7 +1399,7 @@ internal sealed class MainForm : Form
 
         if (!Directory.Exists(_folder))
         {
-            Announce("The folder no longer exists", true);
+            Announce("Folder missing", true);
             return;
         }
 
@@ -1454,7 +1453,7 @@ internal sealed class MainForm : Form
         }
 
         SetFolder(folder);
-        Announce($"Project folder changed to {FolderName(folder)}", false);
+        Announce($"Folder {FolderName(folder)}", false);
         // Another folder is another conversation (FR-8.3): the window is cleared, and what Claude prints there, a
         // replay with its blocks when the folder has one, arrives as at the first start of the app.
         Relaunch($"Project folder changed to {folder}", clearConversation: true);
@@ -1564,7 +1563,7 @@ internal sealed class MainForm : Form
 
     private void ForceRestart()
     {
-        Announce("Restarting Claude", false);
+        Announce("Restarting", false);
         Relaunch("Restarting Claude");
     }
 
@@ -1712,7 +1711,7 @@ internal sealed class MainForm : Form
         {
             // The default --continue in a folder without a conversation: Claude says so and exits (FR-9.1).
             _nothingToContinue = true;
-            Announce("No conversation to continue. Starting a new one", false);
+            Announce("Nothing to continue, new conversation", false);
             Relaunch("No conversation to continue here; starting a new one");
             return;
         }
@@ -1872,7 +1871,7 @@ internal sealed class MainForm : Form
         }
         else if (!focus && unprompted)
         {
-            Announce($"Claude asks: {name}. Ctrl+Tab to answer", false);
+            Announce($"Claude asks: {name}", false);
         }
     }
 
@@ -1912,7 +1911,7 @@ internal sealed class MainForm : Form
         {
             if (several && ticks.Count == 0)
             {
-                Announce("Tick at least one answer with Space, then press Enter.", true);
+                Announce("Tick one with Space", true);
                 return;
             }
 
@@ -1961,7 +1960,7 @@ internal sealed class MainForm : Form
         ShowQuestionList(question.Signature, QuestionName(question), question, null, Environment.TickCount64 - _answerAt > 3000, AnswerQuestion, () =>
         {
             SendEscape();
-            Announce("Question cancelled", false);
+            Announce("Cancelled", false);
         });
     }
 
@@ -1988,7 +1987,7 @@ internal sealed class MainForm : Form
         {
             _settingKey = null;
             SendEscape();
-            Announce("Settings saved", false);
+            Announce("Saved", false);
         });
 
     /// <summary>A true-or-false setting of /config: True and False, the current one first in focus. Only a change sends the setting's number.</summary>
@@ -2015,19 +2014,19 @@ internal sealed class MainForm : Form
     {
         SendAnswer(string.Join(",", chosen.Select(option => option.Key)));
         // Each answer's name without Claude's explanation after the dash.
-        Announce("Answer sent: " + string.Join(", ", chosen.Select(option =>
+        Announce("Sent: " + string.Join(", ", chosen.Select(option =>
         {
             var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
             return $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
         })) + (chosen.Any(option => option.Text.Equals("Other", StringComparison.OrdinalIgnoreCase))
             // Claude asks for the words of Other next (ShowOwnAnswer).
-            ? ". Next, type your own answer"
+            ? ". Your words next"
             : NextStep()), false);
     }
 
     /// <summary>After an answer to one of several questions, what comes next, so that the gap before it does not sound like the end.</summary>
     private string NextStep() => _askedQuestion?.Step is (int number, int count)
-        ? number < count ? ". Next question coming" : ". The review of your answers is next"
+        ? number < count ? ". Next question" : ". Review next"
         : string.Empty;
 
     /// <summary>
@@ -2045,12 +2044,12 @@ internal sealed class MainForm : Form
             var words = typed.Trim();
             if (words.Length == 0)
             {
-                Announce("Type your answer first, or press Escape to go back to the list.", true);
+                Announce("Type an answer", true);
                 return;
             }
 
             SendAnswer(words);
-            Announce("Answer sent: " + words + NextStep(), false);
+            Announce("Sent: " + words + NextStep(), false);
         }, SendEscape));
     }
 
@@ -2074,7 +2073,7 @@ internal sealed class MainForm : Form
             {
                 if (index < first)
                 {
-                    Announce("The keys are at the end of the list", true);
+                    Announce("Keys are at the end", true);
                     return;
                 }
 
@@ -2284,7 +2283,7 @@ internal sealed class MainForm : Form
                 }
                 else
                 {
-                    Announce($"AxClaude {version} is available. See the Help menu", false);
+                    Announce($"Update {version} in the Help menu", false);
                 }
 
                 return;
@@ -2403,7 +2402,7 @@ internal sealed class MainForm : Form
             _updateFolder = folder;
             Log.Info($"Update {release.Tag} downloaded to {folder}");
             _model.AddSystemLine($"AxClaude {version} downloaded. AxClaude closes now, installs it and starts again.");
-            Announce($"AxClaude {version} downloaded. AxClaude closes now and starts again when the update is installed", true);
+            Announce("Downloaded. Restarting to update", true);
             Close();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException or UnauthorizedAccessException)
@@ -2439,7 +2438,7 @@ internal sealed class MainForm : Form
         }
 
         _updateFolder = null;
-        Announce("The update was not installed. Help menu, Update AxClaude, when you are ready", true);
+        Announce("Update not installed", true);
     }
 
     /// <summary>FR-1.9: where the app looked, the install command with a button that copies it, the install page, and Locate claude.exe.</summary>
@@ -2451,7 +2450,7 @@ internal sealed class MainForm : Form
             {
                 if (CopyToClipboard(ClaudeLauncher.InstallCommand))
                 {
-                    Announce("Copied. Paste it into PowerShell and press Enter", true);
+                    Announce("Copied. Paste it into PowerShell", true);
                 }
             }, StaysOpen: true),
             new OverlayChoice("&Open install instructions", () => OpenUrl(ClaudeLauncher.InstallUrl), StaysOpen: true),

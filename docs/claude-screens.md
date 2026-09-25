@@ -15,7 +15,7 @@ The app does not need to know the command: the shape of Claude's screen decides.
 
 ## Two gaps in the app today
 
-- **Screens that wait on a hint row were not noticed** (fixed: they show in the control area and count as waiting). Only the rows `Enter y/n`, `Enter selection`, `Select with numbers` and `Permission Required:` count as a question, so `/status`, `/tasks`, `/ide`, `/rewind`, `/autocompact` and the others below give no "Claude needs your answer", and a message typed then goes into the screen.
+- **Screens that wait on a hint row were not noticed** (fixed: they show in the control area and count as waiting). Only the rows `Enter y/n`, `Enter selection`, `Select with numbers` and `Permission Required:` count as a question, so `/status`, `/tasks`, `/ide`, `/rewind`, `/autocompact` and the others below give no "Claude asks", and a message typed then goes into the screen.
 - **Tab screens are hidden from the conversation** (still so; the control area lists their lines). `/status`, `/usage`, `/cost`, `/help` and `/permissions` put the cursor on the tab row at the top, and every row below the cursor is treated as chrome (FR-3.5), so their content never reaches the conversation.
 
 ## Lists of answers

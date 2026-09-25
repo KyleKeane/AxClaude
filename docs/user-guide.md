@@ -33,7 +33,7 @@ The first time Claude Code sees a folder it asks whether you trust it. Questions
 
 Screens that Claude shows until you press a key, such as `/status`, `/tasks` and `/help`, come the same way: a list of the screen's lines, then one item for every key the screen offers, for example "View (Enter)", "Close (Escape)" or "Select (Down)". Enter on a key's item sends that key to Claude, and Escape closes the screen; if the screen is still open afterwards, the list comes back with what it shows now. `/config` lists Claude's settings: Enter on one changes it (a true or false setting asks which), and Escape saves and closes.
 
-Anything Claude asks that AxClaude cannot list stays with the message field and is announced with "Claude needs your answer". Then Enter only sends an answer: a message you typed stays in the field, and AxClaude says so; press Enter again to send it all the same. Options, "Answer Claude's questions from a list", turns the lists and this protection off: questions are then only announced, and you answer them in the message field.
+Anything Claude asks that AxClaude cannot list stays with the message field and is announced with "Claude asks". Then Enter only sends an answer: a message you typed stays in the field, and AxClaude says so; press Enter again to send it all the same. Options, "Answer Claude's questions from a list", turns the lists and this protection off: questions are then only announced, and you answer them in the message field.
 
 ## The window
 
@@ -51,9 +51,9 @@ Alt+F4 closes AxClaude and ends the Claude Code session. If Claude is still work
 
 ## Send a message
 
-When Claude has started, AxClaude says "Claude is ready" with a high ping. Type in the message field and press Enter. AxClaude says "Message sent" with a short low note, and "Claude is responding" with a rising chime when the reply starts. A soft tick, like a typewriter key, marks every new line that arrives from Claude, and two lower knocks mark each tool Claude starts, so you can hear Claude working without reading along. "Claude is done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude needs your answer". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
+When Claude has started, AxClaude says "Ready" with a high ping. Type in the message field and press Enter. AxClaude says "Sent" with a short low note, and "Responding" with a rising chime when the reply starts. A soft tick, like a typewriter key, marks every new line that arrives from Claude, and two lower knocks mark each tool Claude starts, so you can hear Claude working without reading along. "Done" comes with three falling notes once the whole turn has ended, and a question from Claude with two equal notes and "Claude asks". If the window is in the background, its taskbar button flashes. The Options menu turns each of these off.
 
-You can send while Claude is still working. Claude Code keeps the message and takes it up when it can. AxClaude says "Message waiting" and the status bar counts the waiting messages. The message appears in the conversation when Claude takes it up, usually after its current step. Ctrl+Shift+S (Session, Send the waiting message now) makes Claude take it up at once.
+You can send while Claude is still working. Claude Code keeps the message and takes it up when it can. AxClaude says "Queued" and the status bar counts the waiting messages. The message appears in the conversation when Claude takes it up, usually after its current step. Ctrl+Shift+S (Session, Send the waiting message now) makes Claude take it up at once.
 
 Up and Down in the field only move through what you are typing. Messages you sent earlier are in the conversation: `i` and Shift+I jump between their `# Input` lines, and Enter on a line copies it into the message field.
 
