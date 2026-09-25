@@ -431,6 +431,7 @@ internal sealed class MainForm : Form
                 CloseArea();
             }
         }));
+        options.DropDownItems.Add(Toggle("&Go to Claude's questions at once, interrupting speech", _settings.InterruptForQuestions, v => _settings.InterruptForQuestions = v));
         options.DropDownItems.Add(new ToolStripSeparator());
         options.DropDownItems.Add(new ToolStripMenuItem("&Font...", null, (_, _) => ChooseFont()));
         options.DropDownItems.Add(new ToolStripMenuItem("&Larger text", null, (_, _) => ChangeTextSize(1)) { ShortcutKeyDisplayString = "Ctrl+Plus" });
@@ -1806,14 +1807,18 @@ internal sealed class MainForm : Form
 
     /// <summary>
     /// Shows what Claude waits on in the control area, in place of the message field (D33). <paramref name="show"/>
-    /// puts the control there, given whether it takes the focus (it does when the focus was at the bottom of the
-    /// window) and whether it holds its answering keys for a moment (when the user did not cause it, since they may be
-    /// typing). Such a control also plays the notice chime; when the focus is in the conversation, it stays there and
-    /// the question is said after whatever NVDA is reading.
+    /// puts the control there, given whether it takes the focus and whether it holds its answering keys for a moment
+    /// (when the user did not cause it, since they may be typing). Such a control also plays the notice chime. With
+    /// Interrupt speech for Claude's questions (the default) it takes the focus wherever it was, and the question
+    /// with the answer the focus is on is spoken as an interrupting notification after the focus moved: it cuts off
+    /// what NVDA was reading, a reply included, and is heard last whichever NVDA takes first (an interrupting
+    /// notification raised before the focus cut off the question instead). Without the option, the focus moves only
+    /// from the bottom of the window, and from the conversation the question is said after what NVDA is reading.
     /// </summary>
     private void ShowInArea(string signature, string name, bool unprompted, Action<bool, bool> show)
     {
-        var focus = !_noticeOpen && (_input.ContainsFocus || _area.ContainsFocus);
+        var interrupt = unprompted && !_noticeOpen && _settings.InterruptForQuestions;
+        var focus = !_noticeOpen && (interrupt || _input.ContainsFocus || _area.ContainsFocus);
         if (unprompted && _settings.SoundOnBell)
         {
             Sounds.Notice();
@@ -1823,7 +1828,11 @@ internal sealed class MainForm : Form
         _input.Visible = false;
         _area.Visible = !_noticeOpen;
         _shownWait = signature;
-        if (!focus && unprompted)
+        if (interrupt)
+        {
+            Announce($"{name}. {_area.CurrentItem}".TrimEnd(' ', '.'), true);
+        }
+        else if (!focus && unprompted)
         {
             Announce($"Claude asks: {name}. Ctrl+Tab to answer", false);
         }

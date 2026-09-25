@@ -31,6 +31,9 @@ internal sealed class ControlArea : Panel
     /// <summary>The control shown, which takes the focus; null while the message field is in its place.</summary>
     public Control? Current { get; private set; }
 
+    /// <summary>What the focus lands on: the list's focused item, or nothing for the field.</summary>
+    public string CurrentItem => Current is ListView { FocusedItem: { } item } ? item.Text : string.Empty;
+
     /// <summary>The height of the message field, which the area never goes below.</summary>
     [System.ComponentModel.DefaultValue(60)]
     public int MinimumHeight { get; set; } = 60;

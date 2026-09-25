@@ -76,10 +76,16 @@ public sealed class AppSettings
     public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>
-    /// Recognise what Claude waits on and open the answer notice or the screen notice for it, and keep messages out
-    /// of a waiting question (D33, FR-2.10). Off: questions are only announced, as before 1.4.0.
+    /// Recognise what Claude waits on and show it in the control area in the message field's place, and keep
+    /// messages out of a waiting question (D33, FR-2.10). Off: questions are only announced, as before 1.4.0.
     /// </summary>
     public bool QuestionNotices { get; set; } = true;
+
+    /// <summary>
+    /// A question Claude asks takes the focus wherever it is and cuts off what NVDA was reading, a reply included
+    /// (D33). Off: the focus moves only from the bottom of the window, and the question waits after what is read.
+    /// </summary>
+    public bool InterruptForQuestions { get; set; } = true;
 
     public int MaxTranscriptLines { get; set; } = 20000;
     public WindowPlacement? Window { get; set; }
