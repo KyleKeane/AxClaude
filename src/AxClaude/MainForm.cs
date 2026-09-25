@@ -1890,11 +1890,26 @@ internal sealed class MainForm : Form
         }, escape));
     }
 
-    /// <summary>What the list of a question is called, read each time the focus comes to it: the title (with its place among several) and the question's first line.</summary>
+    /// <summary>
+    /// What the list of a question is called, read each time the focus comes to it: the title (with its place among
+    /// several) and the question's lines while they stay short, so that the review of several answers says the
+    /// answers and "Ready to submit your answers?", and a long plan is not read out whole.
+    /// </summary>
     private static string QuestionName(Question question)
     {
-        var title = question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title;
-        return question.Text.Count > 0 ? $"{title}. {question.Text[0]}" : title;
+        var name = new StringBuilder(question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title);
+        foreach (var line in question.Text)
+        {
+            if (name.Length + line.Length > 300)
+            {
+                break;
+            }
+
+            // A line that ends in its own punctuation is followed by a space only.
+            name.Append(name[^1] is '.' or '?' or '!' or ':' ? " " : ". ").Append(line);
+        }
+
+        return name.ToString();
     }
 
     /// <summary>
