@@ -270,6 +270,8 @@ internal sealed class OverlayPanel : Panel
         {
             _text.Height = TextStripHeight();
         }
+
+        FitQuestionText();
     }
 
     /// <summary>
@@ -304,12 +306,20 @@ internal sealed class OverlayPanel : Panel
             _text.Height = TextStripHeight();
             FillSession(session);
         }
+        else if (question is not null)
+        {
+            // The answers sit right under the question: the text takes the height of its lines, the answers the rest.
+            _text.Dock = DockStyle.Top;
+            _answerRow.Dock = DockStyle.Fill;
+            _answerRow.BringToFront();
+        }
         else
         {
             _text.Dock = DockStyle.Fill;
         }
 
         SetText();
+        FitQuestionText();
         _inputRow.Visible = input is not null;
         // Find's field sits under the title; an answer notice's own-answer field under the answers, before the buttons.
         _inputRow.Dock = question is null ? DockStyle.Top : DockStyle.Bottom;
@@ -407,6 +417,7 @@ internal sealed class OverlayPanel : Panel
         base.OnSizeChanged(e);
         if (_question is not null)
         {
+            FitQuestionText();
             LayoutAnswers();
         }
     }
@@ -593,12 +604,24 @@ internal sealed class OverlayPanel : Panel
         }
 
         _answerGroup.Width = width + 16;
+        // The row fills the space under the question and scrolls a long list.
         _answerGroup.Height = _answerList.PreferredSize.Height + 26;
-        // A long list scrolls rather than squeezing out the text above it.
-        var height = Math.Min(_answerGroup.Bottom + 2, Math.Max(80, ClientSize.Height / 2));
-        if (_answerRow.Height != height)
+    }
+
+    /// <summary>An answer notice's text as tall as its lines, up to half the panel, so the answers follow it at once.</summary>
+    private void FitQuestionText()
+    {
+        if (_question is null || _sessionSpec is not null)
         {
-            _answerRow.Height = height;
+            return;
+        }
+
+        var width = Math.Max(100, ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 8);
+        var lines = TextRenderer.MeasureText(_text.Text, _text.Font, new Size(width, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
+        var height = Math.Min(lines.Height + 10, Math.Max(TextStripHeight(), ClientSize.Height / 2));
+        if (_text.Height != height)
+        {
+            _text.Height = height;
         }
     }
 
