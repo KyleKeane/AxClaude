@@ -7,6 +7,7 @@
 - `/config` opens "Claude's settings": every setting with its value. Choose one and press Enter to change it. A true or false setting asks True or False; any other setting opens Claude's list of its values. The list comes back with the focus on the setting you changed. Escape saves and closes.
 - A question that follows your answer (the next step of a list) opens without the chime.
 - Replies are not read out while one of Claude's questions is open, so nothing is read over the question; they stay in the conversation.
+- When Claude asks several questions at once, each notice says where you are ("Question 1 of 2: …"), and after your answer AxClaude says the next question or the review is coming.
 - The answer notice reads Claude's question as it opens, before the first answer. On screen the answers now follow the question directly; a long question or a long list scrolls.
 - Choosing "Other" (or any answer that asks for your own words) opens a second notice: the question again, what you chose, and a field. Enter sends your words, Escape goes back to the list. This replaces the "Your own answer" field under the answers.
 - `/mobile` opens the screen notice with all its lines.

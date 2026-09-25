@@ -75,6 +75,7 @@ public static partial class QuestionReader
         // two in a row end it, as do the rows that came before it.
         var text = new List<string>();
         var blanks = 0;
+        (int, int)? step = null;
         // The first row: the top answer until a text row above it is found.
         var first = row + 1;
         for (; row >= 0 && promptRow - row <= MaxRows; row--)
@@ -98,6 +99,7 @@ public static partial class QuestionReader
 
             if (EndsBlock(line))
             {
+                step = QuestionTabsRegex().IsMatch(line) ? Step(line) : null;
                 break;
             }
 
@@ -125,7 +127,19 @@ public static partial class QuestionReader
         title = CheckBoxRegex().Replace(title, string.Empty).TrimEnd(':', ' ');
         // "Select with numbers [1-4] (comma- or space-separated for several)": more than one answer may be given.
         var several = rows[promptRow].Contains("for several", StringComparison.Ordinal);
-        return new Question(title, text, options, hints) { AllowsSeveral = several, FirstRow = first };
+        return new Question(title, text, options, hints) { AllowsSeveral = several, FirstRow = first, Step = step };
+    }
+
+    /// <summary>
+    /// The number and count of the question under a tab row ("←   ☒ Colour   ☐ Fruit   ✔ Submit   →"): the tab row
+    /// marks answered questions ☒ and not the current one, and Claude asks them in order, so the current one is the
+    /// first ☐. Null when all are ticked: the review, under the Submit tab.
+    /// </summary>
+    private static (int, int)? Step(string tabRow)
+    {
+        var tabs = tabRow.Where(c => c is '☐' or '☒').ToList();
+        var number = tabs.IndexOf('☐') + 1;
+        return number > 0 ? (number, tabs.Count) : null;
     }
 
     /// <summary>

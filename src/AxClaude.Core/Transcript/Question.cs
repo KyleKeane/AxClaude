@@ -43,6 +43,12 @@ public sealed record Question(string Title, IReadOnlyList<string> Text, IReadOnl
     /// <summary>The screen row the question starts on (its title), where the app marks it in the conversation.</summary>
     public int FirstRow { get; init; }
 
+    /// <summary>
+    /// Where the question stands when Claude asks several in one call: its number and how many there are, read off
+    /// the tab row above it (the first tab not yet ticked); null for a single question and for the review.
+    /// </summary>
+    public (int Number, int Count)? Step { get; init; }
+
     /// <summary>/config's list of settings, waiting on "Enter a number to change [1-44], or Escape to save and close:".</summary>
     public bool IsSettings => Title.StartsWith("Enter a number to change", StringComparison.Ordinal);
 

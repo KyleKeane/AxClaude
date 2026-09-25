@@ -1768,7 +1768,8 @@ internal sealed class MainForm : Form
 
         _askedQuestion = question;
         ShowNotice(new Notice(
-            question.Title,
+            // Several questions in one call say where the user is in them.
+            question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title,
             QuestionText(question),
             [
                 new OverlayChoice("&Answer", AnswerQuestion, IsDefault: true),
@@ -1888,8 +1889,13 @@ internal sealed class MainForm : Form
         {
             var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
             return $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
-        })), false);
+        })) + NextStep(), false);
     }
+
+    /// <summary>After an answer to one of several questions, what comes next, so that the gap before it does not sound like the end.</summary>
+    private string NextStep() => _askedQuestion?.Step is (int number, int count)
+        ? number < count ? ". Next question coming" : ". The review of your answers is next"
+        : string.Empty;
 
     /// <summary>
     /// The follow-up of a question when Claude asks for the user's own words ("Enter text for option 4 (Other), or
@@ -1921,7 +1927,7 @@ internal sealed class MainForm : Form
                 {
                     var words = _overlay.InputText.Trim();
                     SendAnswer(words);
-                    Announce("Answer sent: " + words, false);
+                    Announce("Answer sent: " + words + NextStep(), false);
                 }, IsDefault: true),
                 new OverlayChoice("&Back to the list", () =>
                 {

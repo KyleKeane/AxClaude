@@ -183,6 +183,11 @@ public class QuestionTests
         var review = seen[2];
         Assert.Contains("→ Apple, Cherry", review.Text);
         Assert.Equal(["y", "n"], review.Options.Select(o => o.Key));
+
+        // The tab row ticks answered questions: the first unticked one is current, and the review has no number.
+        Assert.Equal((1, 2), colour.Step);
+        Assert.Equal((2, 2), fruit.Step);
+        Assert.Null(review.Step);
     }
 
     [Fact]
