@@ -1861,7 +1861,7 @@ internal sealed class MainForm : Form
         if (interrupt)
         {
             // After NVDA has taken the focus change, so that the question comes last: raised at once, it was cut off.
-            var question = $"{name}. {_area.CurrentItem}".TrimEnd(' ', '.');
+            var question = (_area.CurrentItem.Length == 0 ? name : name + Stop(name[^1]) + _area.CurrentItem).TrimEnd(' ', '.');
             Later(300, () =>
             {
                 if (_shownWait == signature)
