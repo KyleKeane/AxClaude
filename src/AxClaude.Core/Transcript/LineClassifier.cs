@@ -135,6 +135,13 @@ public static partial class LineClassifier
     /// <summary>The row where Claude waits for the user's own words: "Enter text for option 4 (Other), or Escape for the list:".</summary>
     public static bool IsTextPrompt(string text) => text.StartsWith("Enter text for", StringComparison.Ordinal);
 
+    /// <summary>The answer a text row asks the words for: "Other" in "Enter text for option 4 (Other), or Escape for the list:"; null when it names none.</summary>
+    public static string? TextPromptAnswer(string text) =>
+        TextPromptRegex().Match(text) is { Success: true } m ? m.Groups[1].Value : null;
+
+    [GeneratedRegex(@"^Enter text for option \d+ \((.+?)\)[,:]")]
+    private static partial Regex TextPromptRegex();
+
     public static LineKind Classify(string text, bool inPromptBlock)
     {
         if (text.StartsWith("you:", StringComparison.Ordinal)) return LineKind.UserEcho;

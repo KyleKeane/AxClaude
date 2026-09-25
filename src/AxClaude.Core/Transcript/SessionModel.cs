@@ -62,7 +62,10 @@ public sealed partial class SessionModel : ILineStore
     public Question? PendingQuestion { get; private set; }
 
     /// <summary>Claude waits for the user's own words for an answer (after "Other"), on its "Enter text for …" row.</summary>
-    public bool AwaitsText { get; private set; }
+    public bool AwaitsText => TextPrompt is not null;
+
+    /// <summary>The "Enter text for option 4 (Other), or Escape for the list:" row Claude waits on; null when it waits on none.</summary>
+    public string? TextPrompt { get; private set; }
 
     /// <summary>
     /// The screen of Claude's that waits for keys named on its hint row (<see cref="ScreenReader"/>: <c>/status</c>,
@@ -165,7 +168,7 @@ public sealed partial class SessionModel : ILineStore
         PlaceBlocksWithoutEcho();
         PromptPending = CursorWaitsForAnswer();
         PendingQuestion = PromptPending ? ReadPendingQuestion() : null;
-        AwaitsText = PromptPending && CursorOnTextPrompt();
+        TextPrompt = PromptPending ? CursorTextPrompt() : null;
         // A screen of Claude's that waits on its hint row waits for the user just as a question does (D33).
         PendingScreen = PromptPending || !DetectScreens ? null : ReadPendingScreen();
         PromptPending |= PendingScreen is not null;
@@ -475,7 +478,7 @@ public sealed partial class SessionModel : ILineStore
         Spinner = null;
         PromptPending = false;
         PendingQuestion = null;
-        AwaitsText = false;
+        TextPrompt = null;
         PendingScreen = null;
         TranscriptViewOpen = false;
         Mode = null;
@@ -1041,13 +1044,17 @@ public sealed partial class SessionModel : ILineStore
         return (line is null || line.Text.Length == 0) && cy > 0 && _screen.LineAt(cy - 1) is { } above && LineClassifier.IsPromptText(above.Text);
     }
 
-    /// <summary>The cursor row, or the row above a blank cursor row, is the "Enter text for …" row.</summary>
-    private bool CursorOnTextPrompt()
+    /// <summary>The "Enter text for …" row when it is the cursor row or the row above a blank cursor row, else null.</summary>
+    private string? CursorTextPrompt()
     {
         var cy = _screen.CursorRow;
-        var row = _screen.LineAt(cy)?.Text ?? string.Empty;
-        return LineClassifier.IsTextPrompt(row.Trim())
-            || (row.Length == 0 && cy > 0 && LineClassifier.IsTextPrompt((_screen.LineAt(cy - 1)?.Text ?? string.Empty).Trim()));
+        var row = (_screen.LineAt(cy)?.Text ?? string.Empty).Trim();
+        if (row.Length == 0 && cy > 0)
+        {
+            row = (_screen.LineAt(cy - 1)?.Text ?? string.Empty).Trim();
+        }
+
+        return LineClassifier.IsTextPrompt(row) ? row : null;
     }
 
     /// <summary>The question on the rows around the cursor: its prompt row is the cursor row or the row above a blank cursor row.</summary>

@@ -192,8 +192,8 @@ public class QuestionTests
         const string name = "other-answer-claude2.1.281-240x50.vt";
         var bytes = TestHelpers.Fixture(name);
         var model = new SessionModel(240, 50);
-        var awaited = false;
-        model.Changed += () => awaited |= model.AwaitsText && model.PromptPending && model.PendingQuestion is null;
+        string? prompt = null;
+        model.Changed += () => prompt ??= model.AwaitsText && model.PromptPending && model.PendingQuestion is null ? model.TextPrompt : null;
         // The "Enter text for" row comes without a frame bracket: the app's quiet rule ends that frame.
         var previous = 0;
         foreach (var chunk in File.ReadAllLines(Path.Combine(TestHelpers.FixtureDirectory(), name + ".chunks.txt")).Where(l => l.Length > 0 && char.IsDigit(l[0])).Select(l => l.Split(' ').Select(int.Parse).ToArray()))
@@ -208,9 +208,11 @@ public class QuestionTests
         }
 
         model.EndFrame();
-        Assert.True(awaited);
+        Assert.Equal("Enter text for option 4 (Other), or Escape for the list:", prompt);
         Assert.False(model.AwaitsText);
-        Assert.True(LineClassifier.IsTextPrompt("Enter text for option 4 (Other), or Escape for the list:"));
+        Assert.Equal("Other", LineClassifier.TextPromptAnswer(prompt));
+        Assert.Equal("No, keep planning", LineClassifier.TextPromptAnswer("Enter text for option 3 (No, keep planning), or Escape for the list:"));
+        Assert.Null(LineClassifier.TextPromptAnswer("Enter text for the name:"));
     }
 
     [Fact]

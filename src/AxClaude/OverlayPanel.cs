@@ -294,7 +294,7 @@ internal sealed class OverlayPanel : Panel
         if (question is not null)
         {
             _typedNumber = string.Empty;
-            FillAnswers(question, notice.StartAnswer);
+            FillAnswers(question, notice.StartAnswer, question.Text.Count > 0 ? $"{title}. {question.Text[0]}" : title + ".");
         }
 
         _session.Visible = session is not null;
@@ -528,7 +528,11 @@ internal sealed class OverlayPanel : Panel
         return -1;
     }
 
-    private void FillAnswers(Question question, string? startKey)
+    /// <summary>
+    /// The radio buttons or check boxes of a question. <paramref name="asked"/> is what the answer the focus starts on
+    /// says first: the notice's title and the question's first line.
+    /// </summary>
+    private void FillAnswers(Question question, string? startKey, string asked)
     {
         foreach (var old in _answers)
         {
@@ -568,11 +572,13 @@ internal sealed class OverlayPanel : Panel
                 radio.Checked = true;
             }
 
-            // How to finish is read once, with the answer the focus lands on, and not again while arrowing.
+            // The question, before the answer, and how to finish, after it, are read once with the answer the focus
+            // lands on, and not again while arrowing: the question is heard as the notice opens.
+            first.AccessibleName = $"{asked} {first.Text}";
             first.AccessibleDescription = question.AllowsSeveral
                 ? "Tick answers with Space or their numbers, then press Enter, or press Escape to cancel."
                 : "Choose an answer and press Enter, or press Escape to cancel.";
-            first.Leave += (_, _) => first.AccessibleDescription = null;
+            first.Leave += (_, _) => (first.AccessibleName, first.AccessibleDescription) = (null, null);
         }
 
         LayoutAnswers();

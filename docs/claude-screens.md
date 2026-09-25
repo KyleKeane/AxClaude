@@ -11,7 +11,7 @@ The app does not need to know the command to choose the dialog: the shape of Cla
 1. **None.** The command prints text into the conversation and Claude is back at the `$` prompt, or the session changes or ends, or another program opens. Nothing to answer.
 2. **Answer notice** (built, branch `answer-notice`). The cursor sits on `Select with numbers [1-N]. …` or `Enter y/n:` under numbered or `y.`/`n.` answers. The notice shows the title, Claude's lines, and the answers as radio buttons.
 3. **Screen notice** (built, branch `answer-notice`). The cursor sits on a key-hint row (`↑/↓ to select · Enter to view · Esc to close`) or on a tab row (`Settings  Status   Config   Usage   Stats`). The notice would show the screen's text read-only and one button per key the hint row names, with Escape for Claude's own Escape.
-4. **Typed input.** A command that wants text after it goes in the message field, guarded so that a message is not sent into a question by mistake (SPEC.md FR-2.10). "Other" is answered in the answer notice's "Your own answer" field; on an `Enter text for` row the message field sends your words without the guard, one keystroke at a time.
+4. **Typed input.** A command that wants text after it goes in the message field, guarded so that a message is not sent into a question by mistake (SPEC.md FR-2.10). An `Enter text for` row (after "Other") gets a follow-up notice with a field; the message field also sends your words there without the guard, one keystroke at a time.
 
 ## Two gaps in the app today
 
@@ -41,7 +41,7 @@ Recorded with Claude Code 2.1.281 (2026-09-24); every answer is typed one keystr
 - Workspace trust at startup: "Permission Required: Accessing workspace", y or n.
 - A tool's permission question (`--permission-mode default`): "Permission Required: Create file" or "Bash command", the command or file and a preview, "Do you want to proceed?", then Yes, Yes and always allow / switch mode, and No as the last answer. A `Tip:` row inside it is skipped. "Tab to amend" draws nothing in screen reader mode and is not offered. No returns to the prompt with "What should Claude do instead?".
 - Plan approval (`--permission-mode plan`): "Permission Required: Ready to code?", Claude's plan as text, then Yes with auto mode, Yes with manual approval, and "No, keep planning", which asks for feedback on an "Enter text for option 3" row: the message field, announced.
-- Claude's own question (AskUserQuestion): a header row (" ☐ Colour"), the question, the answers, then Other and "Chat about this". Other asks for your words on an "Enter text for option 4 (Other)" row: the notice's "Your own answer" field fills it. "Chat about this" ends the question like Escape.
+- Claude's own question (AskUserQuestion): a header row (" ☐ Colour"), the question, the answers, then Other and "Chat about this". Other asks for your words on an "Enter text for option 4 (Other)" row: a follow-up notice repeats the question and takes the words in a field (Enter sends, Escape goes back to the list). "Chat about this" ends the question like Escape.
 - Several questions in one call: a tab row ("←   ☐ Colour   ☐ Fruit   ✔ Submit   →") above each, one notice per question, then "Review your answers" with y or n.
 - Several answers allowed ("comma- or space-separated for several"): the notice has check boxes; the ticked keys go joined with commas.
 

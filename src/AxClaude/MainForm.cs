@@ -70,8 +70,8 @@ internal sealed class MainForm : Form
     /// <summary>The /config setting last chosen, where the settings notice puts the focus when Claude's list comes back.</summary>
     private string? _settingKey;
 
-    /// <summary>The words of an own answer sent with Other, typed when Claude shows its "Enter text for" row (within ten seconds).</summary>
-    private (string Text, long At)? _ownAnswer;
+    /// <summary>The question the answer notice showed last, which a follow-up for the user's own words repeats.</summary>
+    private Question? _askedQuestion;
 
     /// <summary>The slash command sent last, which the question that follows belongs to (QuestionRouter); null after a message.</summary>
     private SlashCommand? _lastCommand;
@@ -778,18 +778,6 @@ internal sealed class MainForm : Form
             Announce(speech, false);
         }
 
-        // The words of an own answer go as soon as Claude asks for them after Other.
-        if (_ownAnswer is { } own && _model.AwaitsText)
-        {
-            _ownAnswer = null;
-            if (Environment.TickCount64 - own.At < 10_000)
-            {
-                _promptAnnounced = true;
-                _handledWait = WaitSignature;
-                SendAnswer(own.Text);
-            }
-        }
-
         // What Claude waits on is acted on once the screen has settled for the attention timer (AnnounceAttention):
         // opening a notice, and closing one whose question went away, since Claude redraws a question in passing.
         var waiting = WaitSignature;
@@ -874,16 +862,17 @@ internal sealed class MainForm : Form
                 _handledWait = WaitSignature;
                 // Recorded for q (nothing for the text row after Other, which belongs to the question before).
                 _model.MarkQuestion();
-                if (_settings.QuestionNotices && _model.AwaitsText && !_noticeOpen)
+                if (_settings.QuestionNotices && _model.TextPrompt is { } prompt && !_noticeOpen)
                 {
-                    // After "Other": the answer is the user's own words, typed in the message field.
-                    _input.Select();
+                    // After "Other": the question's follow-up, a notice with a field for the user's own words.
+                    ShowOwnAnswer(prompt);
+                    Signal(question: true, chime: false);
                 }
-
-                Announce(_settings.QuestionNotices && _model.AwaitsText
-                    ? "Claude asks for your own answer. Type it in the message field and press Ctrl+Enter."
-                    : "Claude needs your answer", false);
-                Signal(question: true);
+                else
+                {
+                    Announce("Claude needs your answer", false);
+                    Signal(question: true);
+                }
             }
         }
         else if (_bellPending)
@@ -1763,8 +1752,8 @@ internal sealed class MainForm : Form
     /// The answer notice (D33): Claude's question with its title and text, and the answers as radio buttons, or check
     /// boxes when it takes several. An answer key or the arrow keys choose, Enter answers, Escape cancels the
     /// question, and Alt+M leaves it open and goes to the message field, where it does not open again while Claude
-    /// waits on it. A question with an Other answer also has the field "Your own answer": text there is the answer.
-    /// Claude's questions are not opened by the user: the notice chimes and holds.
+    /// waits on it. Other, like any answer, is sent as its key; Claude then asks for the words, and
+    /// <see cref="ShowOwnAnswer"/> follows. Claude's questions are not opened by the user: the notice chimes and holds.
     /// </summary>
     private void ShowClaudeQuestion(Question question)
     {
@@ -1774,12 +1763,12 @@ internal sealed class MainForm : Form
             return;
         }
 
-        var other = question.Options.FirstOrDefault(option => option.Text.Equals("Other", StringComparison.OrdinalIgnoreCase));
+        _askedQuestion = question;
         ShowNotice(new Notice(
             question.Title,
             QuestionText(question),
             [
-                new OverlayChoice("&Answer", () => AnswerQuestion(question, other), IsDefault: true),
+                new OverlayChoice("&Answer", AnswerQuestion, IsDefault: true),
                 new OverlayChoice("Answer in the &message field", () =>
                 {
                     _input.Select();
@@ -1795,7 +1784,6 @@ internal sealed class MainForm : Form
             ])
         {
             Question = question,
-            Input = other is null ? null : new OverlayInput("&Your own answer:", "Your own answer", string.Empty, string.Empty, Required: false),
             // The next step of a list the user just answered comes without the chime.
             Unprompted = Environment.TickCount64 - _answerAt > 3000,
         });
@@ -1882,21 +1870,10 @@ internal sealed class MainForm : Form
         _shownWait = settings.Signature;
     }
 
-    /// <summary>
-    /// Sends what the answer notice holds: the chosen answer's key, the ticked keys joined with commas, or, with text in
-    /// "Your own answer", the Other key (with the ticked ones), after which Claude asks for the words ("Enter text for
-    /// option 4 (Other)") and they follow (<see cref="_ownAnswer"/>).
-    /// </summary>
-    private void AnswerQuestion(Question question, QuestionOption? other)
+    /// <summary>Sends what the answer notice holds: the chosen answer's key, or the ticked keys joined with commas.</summary>
+    private void AnswerQuestion()
     {
-        var own = _overlay.InputText.Trim();
         var chosen = _overlay.SelectedAnswers.ToList();
-        if (other is not null && own.Length > 0)
-        {
-            chosen = question.AllowsSeveral ? [.. chosen.Where(option => option != other), other] : [other];
-            _ownAnswer = (own, Environment.TickCount64);
-        }
-
         if (chosen.Count == 0)
         {
             return;
@@ -1907,12 +1884,57 @@ internal sealed class MainForm : Form
         Announce("Answer sent: " + string.Join(", ", chosen.Select(option =>
         {
             var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
-            return option == other && own.Length > 0 ? own : $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
+            return $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
         })), false);
     }
 
-    /// <summary>What Claude waits on now, as a signature: the question, or else the screen; null when it waits on nothing.</summary>
-    private string? WaitSignature => _model.PendingQuestion?.Signature ?? _model.PendingScreen?.Signature;
+    /// <summary>
+    /// The follow-up of a question when Claude asks for the user's own words ("Enter text for option 4 (Other), or
+    /// Escape for the list:", also plan approval's "No, keep planning"): the question again, the answer chosen, and a
+    /// field. Enter sends the words, a keystroke each, and Escape goes back to Claude's list, whose notice opens again.
+    /// </summary>
+    private void ShowOwnAnswer(string prompt)
+    {
+        var chosen = LineClassifier.TextPromptAnswer(prompt) ?? "an answer that asks for your own words";
+        var question = _askedQuestion;
+        var text = new StringBuilder();
+        if (question is not null)
+        {
+            text.Append(question.Title).Append('\n');
+            foreach (var line in question.Text)
+            {
+                text.Append(line).Append('\n');
+            }
+        }
+
+        text.Append($"You chose {chosen}. Type your answer in the field and press Enter to send it.");
+        // The field is where the focus lands, so its name repeats the question, as an answer notice's first answer does.
+        var asked = question is null ? string.Empty : question.Text.Count > 0 ? $"{question.Title}. {question.Text[0]} " : $"{question.Title}. ";
+        ShowNotice(new Notice(
+            question?.Title ?? "Your own answer",
+            text.ToString(),
+            [
+                new OverlayChoice("&Send", () =>
+                {
+                    var words = _overlay.InputText.Trim();
+                    SendAnswer(words);
+                    Announce("Answer sent: " + words, false);
+                }, IsDefault: true),
+                new OverlayChoice("&Back to the list", () =>
+                {
+                    _answerAt = Environment.TickCount64;
+                    Write("\x1b");
+                }, IsCancel: true),
+            ])
+        {
+            Input = new OverlayInput("&Your answer:", $"{asked}You chose {chosen}. Your answer", string.Empty, "Type your answer first, or press Escape to go back to the list."),
+            Unprompted = Environment.TickCount64 - _answerAt > 3000,
+        });
+        _shownWait = prompt;
+    }
+
+    /// <summary>What Claude waits on now, as a signature: the question, the screen, or the row for the user's own words; null when it waits on nothing.</summary>
+    private string? WaitSignature => _model.PendingQuestion?.Signature ?? _model.PendingScreen?.Signature ?? _model.TextPrompt;
 
     /// <summary>
     /// The screen notice (D33): a screen of Claude's that waits on its hint row (/status, /tasks, /help …), with its
