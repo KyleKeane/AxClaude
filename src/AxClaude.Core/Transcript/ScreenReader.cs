@@ -57,6 +57,16 @@ public static partial class ScreenReader
             return lines.Count == 0 ? null : new ClaudeScreen(lines[0], lines.Skip(1).ToList(), keys) { FirstRow = first };
         }
 
+        // /mobile leaves the cursor on the row under its hint row ("Then run /rc to continue this session from your
+        // phone"), which belongs to the screen too. Never Claude's own prompt row.
+        if (cursorRow > 0 && cursorText.Length > 0 && !LineClassifier.IsBarePrompt(cursorText) && !LineClassifier.IsDraftRow(rows[cursorRow])
+            && Keys(rows[cursorRow - 1].Trim()) is { } keysAbove)
+        {
+            var (lines, first) = LinesAbove(rows, cursorRow - 1);
+            lines.Add(cursorText);
+            return new ClaudeScreen(lines[0], lines.Skip(1).ToList(), keysAbove) { FirstRow = lines.Count > 1 ? first : cursorRow };
+        }
+
         if (TabRowRegex().IsMatch(cursorText))
         {
             var lines = new List<string>();
@@ -77,6 +87,9 @@ public static partial class ScreenReader
 
         return null;
     }
+
+    /// <summary>A row of tab names: three or more, two spaces or more apart.</summary>
+    public static bool IsTabRow(string text) => TabRowRegex().IsMatch(text);
 
     /// <summary>The keys of a hint row that names Escape, or null when the row is no such hint row.</summary>
     public static IReadOnlyList<ScreenKey>? Keys(string text)

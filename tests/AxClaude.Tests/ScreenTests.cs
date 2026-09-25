@@ -65,5 +65,27 @@ public class ScreenTests
         Assert.Null(ScreenReader.Keys("Enter to confirm"));
         Assert.Null(ScreenReader.Keys("Showing detailed transcript · ctrl+o to toggle"));
         Assert.Null(ScreenReader.Keys("Then run /rc to continue this session from your phone"));
+
+        // A hint row above the prompt row does not make the prompt a screen.
+        Assert.Null(ScreenReader.Read(["Esc to close", "$"], 1));
+    }
+
+    [Fact]
+    public void Mobile_leaves_the_cursor_under_its_hint_row()
+    {
+        // Recorded with Claude Code 2.1.282.
+        string[] rows =
+        [
+            "you: /mobile",
+            "Get the Claude app on your phone",
+            "Visit on your phone:  claude.ai/mobile",
+            "Esc to close",
+            "Then run /rc to continue this session from your phone",
+        ];
+        var screen = ScreenReader.Read(rows, 4)!;
+        Assert.Equal("Get the Claude app on your phone", screen.Title);
+        Assert.Equal(["Visit on your phone:  claude.ai/mobile", "Then run /rc to continue this session from your phone"], screen.Lines);
+        Assert.Equal(["Escape"], screen.Keys.Select(k => k.Name));
+        Assert.Equal(1, screen.FirstRow);
     }
 }

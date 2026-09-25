@@ -100,16 +100,21 @@ public static partial class LineClassifier
     }
 
     /// <summary>
-    /// The background work a mode line counts ("1 shell", or "1 shell, 2 agents"), or null when it counts none or is
-    /// not a mode line.
+    /// The background work a mode line counts ("1 shell", or "1 shell, 2 agents"), "see /tasks" when it only says
+    /// "↓ to manage" (a background agent), or null when it shows none or is not a mode line.
     /// </summary>
     public static string? BackgroundText(string text)
     {
         var m = ModeLineRegex().Match(text);
         // Runs at every frame end: no allocation unless the line counts something.
-        if (!m.Success || !m.Groups[2].ValueSpan.ContainsAnyInRange('0', '9'))
+        if (!m.Success)
         {
             return null;
+        }
+
+        if (!m.Groups[2].ValueSpan.ContainsAnyInRange('0', '9'))
+        {
+            return m.Groups[2].ValueSpan.Contains("↓ to manage", StringComparison.Ordinal) ? "see /tasks" : null;
         }
 
         var counts = m.Groups[2].Value.Split('·', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
@@ -118,12 +123,13 @@ public static partial class LineClassifier
         return counts.Count > 0 ? string.Join(", ", counts) : null;
     }
 
-    /// <summary>A row Claude prints when it waits for an answer: a permission or trust question, a numbered menu, a yes-or-no question (§4.4).</summary>
+    /// <summary>A row Claude prints when it waits for an answer: a permission or trust question, a numbered menu, a yes-or-no question, the /config list (§4.4).</summary>
     public static bool IsPromptText(string text) =>
         text.StartsWith("Permission Required:", StringComparison.Ordinal)
         || text.StartsWith("Enter selection", StringComparison.Ordinal)
         || text.StartsWith("Enter y/n", StringComparison.Ordinal)
         || text.StartsWith("Select with numbers", StringComparison.Ordinal)
+        || text.StartsWith("Enter a number to change", StringComparison.Ordinal)
         || IsTextPrompt(text);
 
     /// <summary>The row where Claude waits for the user's own words: "Enter text for option 4 (Other), or Escape for the list:".</summary>

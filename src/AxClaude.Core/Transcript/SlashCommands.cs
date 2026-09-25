@@ -18,7 +18,7 @@ public enum CommandInteraction
     /// </summary>
     Viewer,
 
-    /// <summary>A settings or management screen with tabs, a search field or nested lists (<c>/config</c>, <c>/permissions</c>).</summary>
+    /// <summary>A settings or management screen with tabs, a search field or nested lists (<c>/permissions</c>).</summary>
     Panel,
 
     /// <summary>A yes-or-no confirmation.</summary>
@@ -37,19 +37,13 @@ public enum CommandInteraction
     Unknown,
 }
 
-/// <summary>A key a command's screen takes besides the answer keys, and what it does: <c>s</c> in <c>/model</c> uses the model for this session only.</summary>
-public sealed record CommandKey(string Send, string Label);
-
 /// <summary>
-/// A built-in slash command: its name without the slash, its aliases, what it asks of the user, the extra keys of
-/// its screen, and how the entry is known: <c>docs</c> (from the documentation only) or the Claude Code version it
-/// was recorded with.
+/// A built-in slash command: its name without the slash, its aliases, what it asks of the user, and how the entry is
+/// known: <c>docs</c> (from the documentation only) or the Claude Code version it was recorded with.
 /// </summary>
-public sealed record SlashCommand(string Name, CommandInteraction Interaction, string Source, IReadOnlyList<string>? Aliases = null, IReadOnlyList<CommandKey>? Keys = null)
+public sealed record SlashCommand(string Name, CommandInteraction Interaction, string Source, IReadOnlyList<string>? Aliases = null)
 {
     public IReadOnlyList<string> Aliases { get; init; } = Aliases ?? [];
-
-    public IReadOnlyList<CommandKey> Keys { get; init; } = Keys ?? [];
 }
 
 /// <summary>The built-in slash commands the app knows (SPEC.md D33). Skills and plugins also appear as slash commands; they are not listed and count as unknown.</summary>
@@ -65,16 +59,19 @@ public static class SlashCommands
     public static readonly IReadOnlyList<SlashCommand> All =
     [
         // Numbered lists: the answer notice.
-        new("model", CommandInteraction.Picker, Recorded, Keys: [new("s", "Use for this session only")]),
+        new("model", CommandInteraction.Picker, Recorded),
         new("effort", CommandInteraction.Picker, Recorded),
         new("advisor", CommandInteraction.Picker, Recorded),
-        new("theme", CommandInteraction.Picker, Recorded, Keys: [new("\x14", "Turn syntax highlighting off or on")]),
+        new("theme", CommandInteraction.Picker, Recorded),
         new("export", CommandInteraction.Picker, Recorded),
         new("memory", CommandInteraction.Picker, Recorded),
-        new("resume", CommandInteraction.Picker, Recorded, Keys: [new("\x01", "Show all projects"), new("\x02", "Only the current branch")]),
+        new("resume", CommandInteraction.Picker, Recorded),
         new("chrome", CommandInteraction.Picker, Recorded),
         new("mcp", CommandInteraction.Picker, Recorded),
         new("hooks", CommandInteraction.Picker, Recorded),
+        // The settings: 44 numbered rows under the tab row and "Enter a number to change [1-44], or Escape to save and
+        // close"; a number toggles its setting or opens a list of its values, and the settings list comes back.
+        new("config", CommandInteraction.Picker, "2.1.282", Aliases: ["settings"]),
 
         // Screens to read, waiting on the keys of their hint row.
         new("status", CommandInteraction.Viewer, Recorded),
@@ -82,14 +79,13 @@ public static class SlashCommands
         new("cost", CommandInteraction.Viewer, Recorded),
         new("help", CommandInteraction.Viewer, Recorded),
         new("diff", CommandInteraction.Viewer, Recorded),
-        new("tasks", CommandInteraction.Viewer, Recorded, Keys: [new("x", "Stop the task")]),
+        new("tasks", CommandInteraction.Viewer, Recorded),
         new("goal", CommandInteraction.Viewer, Recorded),
         new("mobile", CommandInteraction.Viewer, Recorded),
         new("rewind", CommandInteraction.Viewer, Recorded),
         new("ide", CommandInteraction.Viewer, Recorded),
 
         // Screens with tabs, search fields, sliders or a way on to typed text.
-        new("config", CommandInteraction.Panel, Recorded, Aliases: ["settings"]),
         new("permissions", CommandInteraction.Panel, Recorded),
         new("autocompact", CommandInteraction.Panel, Recorded),
         new("feedback", CommandInteraction.Panel, Recorded),
@@ -101,7 +97,7 @@ public static class SlashCommands
         new("agents", CommandInteraction.Text, Recorded),
         new("output-style", CommandInteraction.Text, Recorded),
         new("import", CommandInteraction.Text, Recorded),
-        new("copy", CommandInteraction.Text, Recorded, Keys: [new("w", "Write to a file instead")]),
+        new("copy", CommandInteraction.Text, Recorded),
         new("btw", CommandInteraction.Text, Recorded),
         new("context", CommandInteraction.Text, Recorded),
         new("list-agents", CommandInteraction.Text, Recorded),

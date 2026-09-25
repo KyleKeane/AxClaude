@@ -159,6 +159,7 @@ public class SessionModelTests
     [InlineData("auto mode on  ·  1 shell  ·  ↓ to manage", "auto mode on", "1 shell")]
     [InlineData("auto mode on  ·  1 shell  ·  esc to interrupt · ↓ to manage", "auto mode on", "1 shell")]
     [InlineData("manual mode on  ·  2 shells  ·  1 local agent  ·  ↓ to manage", "manual mode on", "2 shells, 1 local agent")]
+    [InlineData("auto mode on (shift+tab to cycle)  ·  ↓ to manage", "auto mode on", "see /tasks")]
     [InlineData("auto mode on  ·  see the docs", null, null)]
     public void Mode_lines_with_background_counts(string text, string? mode, string? background)
     {

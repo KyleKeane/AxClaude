@@ -354,13 +354,11 @@ public class QuestionTests
     }
 
     [Fact]
-    public void A_list_of_answers_goes_to_the_answer_notice_with_the_command_keys()
+    public void A_list_of_answers_goes_to_the_answer_notice()
     {
         var question = QuestionReader.Read(ModelRows, 9)!;
-        var route = QuestionRouter.Route(question, SlashCommands.Find("/model"));
-        Assert.Equal(QuestionDialog.AnswerNotice, route.Dialog);
-        Assert.Equal(["s"], route.ExtraKeys.Select(k => k.Send));
-
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question, SlashCommands.Find("/model")).Dialog);
+        Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question, SlashCommands.Find("/config")).Dialog);
         Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(QuestionReader.Read(TrustRows, 8)!, null).Dialog);
     }
 
@@ -368,9 +366,26 @@ public class QuestionTests
     public void A_panel_command_leaves_its_lists_to_the_message_field()
     {
         var question = QuestionReader.Read(ModelRows, 9)!;
-        var panel = new SlashCommand("config", CommandInteraction.Panel, "docs");
+        var panel = SlashCommands.Find("/permissions");
         Assert.Equal(QuestionDialog.MessageField, QuestionRouter.Route(question, panel).Dialog);
         Assert.Equal(QuestionDialog.AnswerNotice, QuestionRouter.Route(question with { AllowsSeveral = true }, null).Dialog);
+    }
+
+    [Fact]
+    public void The_config_list_is_a_question_titled_by_its_prompt_row()
+    {
+        // Recorded with Claude Code 2.1.282: 44 settings under the tab row, the cursor on the prompt row.
+        var rows = new List<string> { "you: /config", "Settings  Status   Config   Usage   Stats" };
+        rows.AddRange(Enumerable.Range(1, 44).Select(n => n == 4 ? "4. Show tips: true" : $"{n}. Setting {n}: false"));
+        rows.Add("Enter a number to change [1-44], or Escape to save and close:");
+
+        var question = QuestionReader.Read(rows, rows.Count - 1)!;
+        Assert.Equal("Enter a number to change [1-44], or Escape to save and close", question.Title);
+        Assert.Empty(question.Text);
+        Assert.Equal(44, question.Options.Count);
+        Assert.Equal("Show tips: true", question.OptionFor("4")?.Text);
+        Assert.Equal(2, question.FirstRow);
+        Assert.True(question.Accepts("44"));
     }
 
     [Fact]

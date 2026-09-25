@@ -11,8 +11,8 @@ namespace AxClaude.Core.Transcript;
 /// </summary>
 public static partial class QuestionReader
 {
-    /// <summary>More rows than any question has; a runaway block is cut here.</summary>
-    private const int MaxRows = 40;
+    /// <summary>More rows than any question has (/config lists 44 settings); a runaway block is cut here.</summary>
+    private const int MaxRows = 60;
 
     [GeneratedRegex(@"^(\d+|[yn])\. (?:(\(selected\)) )?(.*)$")]
     private static partial Regex OptionRegex();
@@ -129,12 +129,13 @@ public static partial class QuestionReader
     }
 
     /// <summary>
-    /// A row that belongs to what came before the question, or the tab row of several questions in one call. A
-    /// warning or an error belongs to the question ("You have not answered all questions" on the review screen).
+    /// A row that belongs to what came before the question, the tab row of several questions in one call, or the tab
+    /// row of /config (<c>Settings  Status   Config …</c>), whose list is then titled by its prompt row. A warning or
+    /// an error belongs to the question ("You have not answered all questions" on the review screen).
     /// </summary>
     private static bool EndsBlock(string line)
     {
-        if (QuestionTabsRegex().IsMatch(line) || LineClassifier.IsChrome(line) || LineClassifier.IsBarePrompt(line) || LineClassifier.IsDraftRow(line))
+        if (QuestionTabsRegex().IsMatch(line) || ScreenReader.IsTabRow(line) || LineClassifier.IsChrome(line) || LineClassifier.IsBarePrompt(line) || LineClassifier.IsDraftRow(line))
         {
             return true;
         }

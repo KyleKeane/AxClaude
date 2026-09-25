@@ -1065,8 +1065,12 @@ public sealed partial class SessionModel : ILineStore
     /// </summary>
     private ClaudeScreen? ReadPendingScreen()
     {
-        var text = _screen.LineAt(_screen.CursorRow)?.Text;
-        if (text is null || !(text.Contains("Esc", StringComparison.Ordinal) || text.Contains("   ", StringComparison.Ordinal)))
+        // Cheap tests first: this runs at every frame end. The hint row names Esc, a tab row has wide gaps, and /mobile
+        // leaves its hint row just above the cursor.
+        var cy = _screen.CursorRow;
+        var text = _screen.LineAt(cy)?.Text;
+        if (text is null || !(text.Contains("Esc", StringComparison.Ordinal) || text.Contains("   ", StringComparison.Ordinal)
+            || (cy > 0 && _screen.LineAt(cy - 1)?.Text.Contains("Esc", StringComparison.Ordinal) == true)))
         {
             return null;
         }
