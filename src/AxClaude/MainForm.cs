@@ -786,7 +786,9 @@ internal sealed class MainForm : Form
             }
         }
 
-        if (arrival.Speech is { } speech)
+        // The rows of a question are not read as reply lines while the control area reads the question (D33): new
+        // rows only, repeats left out, they gave "→ Tea. → Dinner" before the review was read whole.
+        if (arrival.Speech is { } speech && !(_settings.QuestionNotices && _model.PromptPending))
         {
             Announce(speech, false);
         }
@@ -1905,12 +1907,14 @@ internal sealed class MainForm : Form
                 break;
             }
 
-            // A line that ends in its own punctuation is followed by a space only.
-            name.Append(name[^1] is '.' or '?' or '!' or ':' ? " " : ". ").Append(line);
+            name.Append(Stop(name[^1])).Append(line);
         }
 
         return name.ToString();
     }
+
+    /// <summary>What goes between two sentences: a space after a line that ends in its own punctuation, else a full stop and a space.</summary>
+    private static string Stop(char last) => last is '.' or '?' or '!' or ':' ? " " : ". ";
 
     /// <summary>
     /// One of Claude's questions (D33): the answers as a list in the control area. Enter answers, Escape cancels the
@@ -2006,7 +2010,8 @@ internal sealed class MainForm : Form
     private void ShowOwnAnswer(string prompt)
     {
         var chosen = LineClassifier.TextPromptAnswer(prompt) ?? "an answer that asks for your own words";
-        var name = (_askedQuestion is { } question ? QuestionName(question) + ". " : string.Empty) + $"You chose {chosen}. Your answer";
+        var asked = _askedQuestion is { } question ? QuestionName(question) : null;
+        var name = (asked is null ? string.Empty : asked + Stop(asked[^1])) + $"You chose {chosen}. Your answer";
         ShowInArea(prompt, name, Environment.TickCount64 - _answerAt > 3000, (focus, hold) => _area.ShowField(name, focus, hold, typed =>
         {
             var words = typed.Trim();
