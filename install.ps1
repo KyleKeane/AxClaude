@@ -9,6 +9,7 @@
     - an "Open in AxClaude" entry in the right-click menu of folders in File Explorer (and of a folder's background),
     - the axclaude command for consoles, a one-line shim in %USERPROFILE%\.local\bin, the folder that Claude Code's
       installer already puts on PATH.
+  It also lists AxClaude in Settings, Apps (Add or remove programs), whose Uninstall runs install.cmd -Uninstall.
   -Uninstall removes all of that. The settings file in %APPDATA%\AxClaude and the log in %LOCALAPPDATA%\AxClaude stay.
 
 .EXAMPLE
@@ -63,9 +64,11 @@ $shellKeys = @(
     'HKCU:\Software\Classes\Directory\shell\AxClaude',
     'HKCU:\Software\Classes\Directory\Background\shell\AxClaude'
 )
+# The entry in Settings, Apps (Add or remove programs) for this user; its Uninstall runs install.cmd -Uninstall.
+$appsKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\AxClaude'
 
 if ($Uninstall) {
-    foreach ($key in $shellKeys) {
+    foreach ($key in $shellKeys + $appsKey) {
         if (Test-Path $key) { Remove-Item $key -Recurse -Force }
     }
     if (Test-Path $startMenu) { Remove-Item $startMenu -Force }
@@ -142,7 +145,26 @@ if (-not $NoContextMenu) {
     }
 }
 
+New-Item -Path $appsKey -Force | Out-Null
+$uninstallCmd = Join-Path $target 'install.cmd'
+$appsUninstall = if (Test-Path $uninstallCmd) { "`"$uninstallCmd`" -Uninstall" }
+    else { "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $target 'install.ps1')`" -Uninstall" }
+$version = (Get-Item $exe).VersionInfo.FileVersion -replace '^(\d+\.\d+\.\d+).*', '$1'
+$entries = [ordered]@{
+    DisplayName = 'AxClaude'
+    DisplayVersion = $version
+    Publisher = 'Dr. Kyle Keane'
+    DisplayIcon = "`"$exe`",0"
+    InstallLocation = $target
+    UninstallString = $appsUninstall
+    URLInfoAbout = 'https://github.com/KyleKeane/AxClaude'
+}
+foreach ($name in $entries.Keys) { Set-ItemProperty -Path $appsKey -Name $name -Value $entries[$name] }
+foreach ($name in 'NoModify', 'NoRepair') { New-ItemProperty -Path $appsKey -Name $name -Value 1 -PropertyType DWord -Force | Out-Null }
+New-ItemProperty -Path $appsKey -Name 'EstimatedSize' -Value ([int]((Get-Item $exe).Length / 1KB)) -PropertyType DWord -Force | Out-Null
+
 Say "Installed AxClaude to $target"
+Say "Settings, Apps: AxClaude, with Uninstall"
 if (-not $NoStartMenu) { Say "Start menu: AxClaude" }
 if (-not $NoContextMenu) { Say "File Explorer: right-click a folder, Open in AxClaude" }
 Say "Console: axclaude, or axclaude C:\path\to\project (shim in $shim)"

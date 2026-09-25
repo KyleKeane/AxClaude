@@ -13,11 +13,11 @@ You are talking to the real Claude Code. Slash commands, questions, permission p
 
 Download `install.cmd` from the latest release on the releases page (https://github.com/KyleKeane/AxClaude/releases) and double-click it. It fetches the latest AxClaude and installs it; press a key when it is done. If you have the zip instead, extract it and double-click the `install.cmd` inside. If Windows SmartScreen warns about an unknown publisher, choose More info, then Run anyway.
 
-This puts AxClaude in your Programs folder and adds a Start menu entry, an "Open in AxClaude" entry in the right-click menu of folders, and the `axclaude` command for consoles. No administrator rights are needed, and no PowerShell setting has to change.
+This puts AxClaude in your Programs folder and adds a Start menu entry, an "Open in AxClaude" entry in the right-click menu of folders, the `axclaude` command for consoles, and an entry in Settings, Apps. No administrator rights are needed, and no PowerShell setting has to change.
 
 To update: AxClaude offers new versions itself (Help menu). You can also run `install.cmd` again. Your settings stay.
 
-To remove: run `install.cmd -Uninstall` from a console in `%LOCALAPPDATA%\Programs\AxClaude`.
+To remove: Settings, Apps, Installed apps, AxClaude, Uninstall (or Add or remove programs in the Control Panel). A console window says what was removed; press a key to close it. Your settings stay. From a console, `"%LOCALAPPDATA%\Programs\AxClaude\install.cmd" -Uninstall` does the same.
 
 ## Start
 

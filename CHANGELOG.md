@@ -10,6 +10,7 @@
 - Fixed: choosing "Other" left you with nowhere to type.
 - A question that Claude redraws in passing no longer closes its notice or is announced again.
 - Installing is a double-click: download `install.cmd` from the release page and open it, and it fetches and installs the latest AxClaude. The zip has it too. No PowerShell setting has to change.
+- AxClaude is listed in Settings, Apps (and Add or remove programs), with its version and an Uninstall that removes everything the installer added and keeps your settings.
 
 ## 1.4.0 - 2026-09-24
 
