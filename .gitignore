@@ -22,7 +22,14 @@ TestResults/
 .claude/settings.local.json
 CLAUDE.local.md
 
-## Ad-hoc ConPTY recordings. Reviewed fixtures live under tests/fixtures and are committed.
+## Ad-hoc ConPTY recordings, which hold everything on screen (/status prints the account's e-mail address).
+## Reviewed fixtures live under tests/fixtures and are committed; PrivacyTests scans them.
 captures/
+*.vt
 *.vt.chunks.txt
+!tests/fixtures/*.vt
 !tests/fixtures/*.vt.chunks.txt
+
+## AxClaude's own saved files and logs
+axclaude-*.txt
+*.log

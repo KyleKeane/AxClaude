@@ -5,7 +5,8 @@
 //
 // Usage:
 //   PtyCapture --out <file.vt> [--cwd <dir>] [--cols N] [--rows N] [--script <file>] -- <command line>
-//   PtyCapture --dump <file.vt>            (print a human readable rendering of a recording)
+//   PtyCapture --dump <file.vt> [--raw]    (print a human readable rendering of a recording; e-mail addresses,
+//                                          the account in paths, pipe names and session ids are replaced unless --raw)
 //
 // Script commands (one per line, '#' starts a comment):
 //   send <text>        write text to the PTY input; supports \r \n \t \e \xHH escapes
@@ -18,6 +19,7 @@
 
 using System.Diagnostics;
 using System.Text;
+using AxClaude.Core.Privacy;
 using AxClaude.Core.Pty;
 
 namespace PtyCapture;
@@ -28,6 +30,7 @@ internal static class Program
     {
         string? cwd = null, outPath = null, scriptPath = null, dumpPath = null;
         int cols = 120, rows = 40;
+        var raw = false;
         var command = new List<string>();
 
         for (var i = 0; i < args.Length; i++)
@@ -38,6 +41,7 @@ internal static class Program
                 case "--out": outPath = args[++i]; break;
                 case "--script": scriptPath = args[++i]; break;
                 case "--dump": dumpPath = args[++i]; break;
+                case "--raw": raw = true; break;
                 case "--cols": cols = int.Parse(args[++i]); break;
                 case "--rows": rows = int.Parse(args[++i]); break;
                 case "--":
@@ -53,14 +57,16 @@ internal static class Program
         if (dumpPath is not null)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Out.Write(Dump.Render(ReadShared(dumpPath)));
+            // Personal data (the e-mail address /status prints, the account in paths, session ids) is replaced unless --raw.
+            var rendered = Dump.Render(ReadShared(dumpPath));
+            Console.Out.Write(raw ? rendered : Redaction.Redact(rendered));
             return 0;
         }
 
         if (outPath is null || command.Count == 0)
         {
             Console.Error.WriteLine("Usage: PtyCapture --out <file.vt> [--cwd <dir>] [--cols N] [--rows N] [--script <file>] -- <command line>");
-            Console.Error.WriteLine("       PtyCapture --dump <file.vt>");
+            Console.Error.WriteLine("       PtyCapture --dump <file.vt> [--raw]");
             return 2;
         }
 
