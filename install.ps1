@@ -74,19 +74,34 @@ $shellKeys = @(
 # The entry in Settings, Apps (Add or remove programs) for this user; its Uninstall runs install.cmd -Uninstall.
 $appsKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\AxClaude'
 
+function Test-Running {
+    [bool](Get-Process -Name AxClaude -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe })
+}
+
+# Removes everything an installation puts on the machine, whatever version made it: every installer since 1.0.0 used
+# these places, and those before 1.5.0 wrote no Apps entry. The settings and the log stay. Windows can hold the
+# executable for a moment after AxClaude exits, so the folder is tried again for a few seconds.
+function Remove-Installation {
+    for ($attempt = 1; Test-Path $target; $attempt++) {
+        try { Remove-Item $target -Recurse -Force }
+        catch {
+            if ($attempt -ge 10) { throw }
+            Start-Sleep -Seconds 1
+        }
+    }
+    foreach ($item in $shellKeys + $appsKey + $startMenu + $shim) {
+        if (Test-Path $item) { Remove-Item $item -Recurse -Force }
+    }
+}
+
 if ($Uninstall) {
     # A running AxClaude holds its folder: then nothing is removed, so the Apps entry and install.cmd stay to try again.
-    if (Get-Process -Name AxClaude -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }) {
+    if (Test-Running) {
         Say "AxClaude is still running, so nothing was removed. Close it and uninstall again."
         exit 1
     }
 
-    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
-    foreach ($key in $shellKeys + $appsKey) {
-        if (Test-Path $key) { Remove-Item $key -Recurse -Force }
-    }
-    if (Test-Path $startMenu) { Remove-Item $startMenu -Force }
-    if (Test-Path $shim) { Remove-Item $shim -Force }
+    Remove-Installation
     Say "AxClaude was removed. Settings in $env:APPDATA\AxClaude and the log in $env:LOCALAPPDATA\AxClaude were kept."
     exit 0
 }
@@ -97,27 +112,27 @@ if (-not (Test-Path $sourceExe)) {
     exit 1
 }
 
-New-Item -ItemType Directory -Force $target | Out-Null
 $sameFolder = [string]::Equals((Resolve-Path $source).Path.TrimEnd('\'), $target.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)
 if (-not $sameFolder) {
-    # Right after AxClaude exits, Windows can hold its executable for a moment: try again for a few seconds.
-    $attempt = 0
-    while ($true) {
-        try {
-            foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1', 'install.cmd') {
-                $file = Join-Path $source $name
-                if (Test-Path $file) { Copy-Item $file $target -Force }
-            }
-            break
+    # A previous installation, of any version, is removed completely first, so nothing of it stays behind; then this
+    # one is installed fresh. The updater comes here too, after the running AxClaude has closed.
+    $found = @($exe, $startMenu, $shim) + $shellKeys + $appsKey | Where-Object { Test-Path $_ }
+    if ($found) {
+        if (Test-Running) {
+            Say "AxClaude is still running, so nothing was changed. Close it and run this again."
+            exit 1
         }
-        catch {
-            $attempt++
-            if ($attempt -ge 10) {
-                Say "Could not copy into $target (is AxClaude running from there? Close it and run this again): $($_.Exception.Message)"
-                exit 1
-            }
-            Start-Sleep -Seconds 1
-        }
+
+        $what = if (Test-Path $exe) { 'AxClaude ' + ((Get-Item $exe).VersionInfo.FileVersion -replace '^(\d+\.\d+\.\d+).*', '$1') } else { 'what is left of an earlier AxClaude' }
+        $how = if (Test-Path $appsKey) { '' } else { ' (installed by the earlier installer)' }
+        Say "Removing $what$how before installing..."
+        Remove-Installation
+    }
+
+    New-Item -ItemType Directory -Force $target | Out-Null
+    foreach ($name in 'AxClaude.exe', 'README.md', 'LICENSE', 'install.ps1', 'install.cmd') {
+        $file = Join-Path $source $name
+        if (Test-Path $file) { Copy-Item $file $target -Force }
     }
 }
 

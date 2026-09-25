@@ -15,7 +15,7 @@ Download `install.cmd` from the latest release on the releases page (https://git
 
 This puts AxClaude in your Programs folder and adds a Start menu entry, an "Open in AxClaude" entry in the right-click menu of folders, the `axclaude` command for consoles, and an entry in Settings, Apps. No administrator rights are needed, and no PowerShell setting has to change.
 
-To update: AxClaude offers new versions itself (Help menu). You can also run `install.cmd` again. Your settings stay.
+To update: AxClaude offers new versions itself (Help menu). You can also run `install.cmd` again. Either way the old version is removed completely first, also one installed with the earlier `install.ps1`, and the new one is installed fresh. Your settings stay.
 
 To remove: Settings, Apps, Installed apps, AxClaude, Uninstall (or Add or remove programs in the Control Panel). Close AxClaude first: while it runs, nothing is removed and the window says so. A console window says what was removed; press a key to close it. Your settings stay. From a console, `"%LOCALAPPDATA%\Programs\AxClaude\install.cmd" -Uninstall` does the same.
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1 - 2026-09-25
+
+- Installing and updating remove the previous AxClaude completely first, also one installed with the earlier `install.ps1`, and then install fresh. The installer says what it found. Your settings stay.
+- Removing the old installation waits a few seconds if Windows still holds the program file after AxClaude closes.
+
 ## 1.5.0 - 2026-09-24
 
 - A question that offers "Other" has a field "Your own answer" in its notice (Alt+Y): type your answer there and press Enter, and AxClaude sends it when Claude asks for it. If Claude asks for your own words some other way (Other chosen from the list, or "No, keep planning" when you turn down a plan), AxClaude puts you in the message field and says so.
