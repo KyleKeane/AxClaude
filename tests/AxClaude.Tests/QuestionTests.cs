@@ -386,6 +386,23 @@ public class QuestionTests
         Assert.Equal("Show tips: true", question.OptionFor("4")?.Text);
         Assert.Equal(2, question.FirstRow);
         Assert.True(question.Accepts("44"));
+        Assert.True(question.IsSettings);
+        Assert.False(QuestionReader.Read(ModelRows, 9)!.IsSettings);
+    }
+
+    [Theory]
+    [InlineData("Show tips: true", "Show tips", "true", true)]
+    [InlineData("Reduce motion: false", "Reduce motion", "false", false)]
+    [InlineData("Fast mode (Opus 5.5): false", "Fast mode (Opus 5.5)", "false", false)]
+    [InlineData("Thinking mode: true (Thinking can't be turned off for Opus 5.5)", "Thinking mode", "true (Thinking can't be turned off for Opus 5.5)", true)]
+    [InlineData("Time format: auto", "Time format", "auto", null)]
+    [InlineData("Project instructions: claude-md-or-agents-md", "Project instructions", "claude-md-or-agents-md", null)]
+    [InlineData("Switch models when a message is flagged: Not asked yet", "Switch models when a message is flagged", "Not asked yet", null)]
+    public void A_config_row_is_a_setting_with_a_value(string text, string name, string value, bool? on)
+    {
+        var option = new QuestionOption("4", text);
+        Assert.Equal((name, value), option.Setting);
+        Assert.Equal(on, option.Switch);
     }
 
     [Fact]

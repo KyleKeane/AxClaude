@@ -4,7 +4,8 @@
 
 - Installing and updating remove the previous AxClaude completely first, also one installed with the earlier `install.ps1`, and then install fresh. The installer says what it found. Your settings stay.
 - Removing the old installation waits a few seconds if Windows still holds the program file after AxClaude closes.
-- `/config` opens the answer notice with Claude's settings: choose one to change it, and the list comes back with the new value. Escape saves and closes.
+- `/config` opens "Claude's settings": every setting with its value. Choose one and press Enter to change it. A true or false setting asks True or False; any other setting opens Claude's list of its values. The list comes back with the focus on the setting you changed. Escape saves and closes.
+- A question that follows your answer (the next step of a list) opens without the chime.
 - `/mobile` opens the screen notice with all its lines.
 - A background agent counts as background work: closing AxClaude and New session warn about it, and the status says so.
 

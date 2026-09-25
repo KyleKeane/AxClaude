@@ -64,6 +64,12 @@ internal sealed class MainForm : Form
     /// <summary>When a key was last sent from a screen notice: the screen that follows is the user's doing and opens without the chime.</summary>
     private long _screenKeyAt;
 
+    /// <summary>When an answer was last sent: the question that follows is the user's doing and opens without the chime.</summary>
+    private long _answerAt;
+
+    /// <summary>The /config setting last chosen, where the settings notice puts the focus when Claude's list comes back.</summary>
+    private string? _settingKey;
+
     /// <summary>The words of an own answer sent with Other, typed when Claude shows its "Enter text for" row (within ten seconds).</summary>
     private (string Text, long At)? _ownAnswer;
 
@@ -1762,6 +1768,12 @@ internal sealed class MainForm : Form
     /// </summary>
     private void ShowClaudeQuestion(Question question)
     {
+        if (question.IsSettings)
+        {
+            ShowSettings(question);
+            return;
+        }
+
         var other = question.Options.FirstOrDefault(option => option.Text.Equals("Other", StringComparison.OrdinalIgnoreCase));
         ShowNotice(new Notice(
             question.Title,
@@ -1775,6 +1787,8 @@ internal sealed class MainForm : Form
                 }),
                 new OverlayChoice("Cancel &question", () =>
                 {
+                    // What Claude shows next (the settings, after a list of a setting's values) is the user's doing.
+                    _answerAt = Environment.TickCount64;
                     Write("\x1b");
                     Announce("Question cancelled", false);
                 }, IsCancel: true),
@@ -1782,9 +1796,90 @@ internal sealed class MainForm : Form
         {
             Question = question,
             Input = other is null ? null : new OverlayInput("&Your own answer:", "Your own answer", string.Empty, string.Empty, Required: false),
-            Unprompted = true,
+            // The next step of a list the user just answered comes without the chime.
+            Unprompted = Environment.TickCount64 - _answerAt > 3000,
         });
         _shownWait = question.Signature;
+    }
+
+    /// <summary>
+    /// /config's list of settings (docs/claude-screens.md), read off Claude's screen each time it shows: a radio button
+    /// per setting with its value. A true-or-false setting asks for its value in a notice of its own
+    /// (<see cref="ShowSwitch"/>), since Claude flips it when its number is sent; any other setting sends its number
+    /// and Claude's list of its values opens as an answer notice. Either way the list comes back with the focus on the
+    /// setting just chosen. Escape saves and closes.
+    /// </summary>
+    private void ShowSettings(Question settings, bool back = false)
+    {
+        ShowNotice(new Notice(
+            "Claude's settings",
+            "Choose a setting and press Enter to change it. A true or false setting asks for its value; any other setting opens Claude's list of its values.",
+            [
+                new OverlayChoice("&Change", () =>
+                {
+                    if (_overlay.SelectedAnswers.FirstOrDefault() is not { } setting)
+                    {
+                        return;
+                    }
+
+                    _settingKey = setting.Key;
+                    if (setting.Switch is { } on)
+                    {
+                        ShowSwitch(settings, setting, on);
+                    }
+                    else
+                    {
+                        DismissNotice(() => SendAnswer(setting.Key));
+                    }
+                }, IsDefault: true, StaysOpen: true),
+                new OverlayChoice("Answer in the &message field", () =>
+                {
+                    _input.Select();
+                    Announce("The settings are still open", false);
+                }),
+                new OverlayChoice("&Save and close", () =>
+                {
+                    _settingKey = null;
+                    Write("\x1b");
+                    Announce("Settings saved", false);
+                }, IsCancel: true),
+            ])
+        {
+            Question = settings,
+            StartAnswer = _settingKey,
+            Unprompted = !back && Environment.TickCount64 - _answerAt > 3000,
+        });
+        _shownWait = settings.Signature;
+    }
+
+    /// <summary>A true-or-false setting of /config: True and False, the current one chosen. Only a change sends the setting's number.</summary>
+    private void ShowSwitch(Question settings, QuestionOption setting, bool on)
+    {
+        var name = setting.Setting?.Name ?? setting.Text;
+        var values = new Question(name, [], [new QuestionOption("1", "True", on), new QuestionOption("2", "False", !on)], []);
+        ShowNotice(new Notice(
+            name,
+            $"{name} is {(on ? "true" : "false")} now. Choose its value and press Enter.",
+            [
+                new OverlayChoice("&Set", () =>
+                {
+                    if (_overlay.SelectedAnswers.FirstOrDefault()?.Key == (on ? "1" : "2"))
+                    {
+                        // Unchanged: nothing to send, and the focus lands on the setting with its value.
+                        ShowSettings(settings, back: true);
+                    }
+                    else
+                    {
+                        DismissNotice(() => SendAnswer(setting.Key));
+                    }
+                }, IsDefault: true, StaysOpen: true),
+                new OverlayChoice("&Back to the settings", () => ShowSettings(settings, back: true), IsCancel: true, StaysOpen: true),
+            ])
+        {
+            Question = values,
+        });
+        // Claude still waits on its list: should it go away, this notice closes too.
+        _shownWait = settings.Signature;
     }
 
     /// <summary>
@@ -1879,6 +1974,7 @@ internal sealed class MainForm : Form
         }
 
         _writes.Enqueue(("\r", 50));
+        _answerAt = Environment.TickCount64;
         if (!_writing)
         {
             PumpWrites();

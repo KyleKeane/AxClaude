@@ -41,6 +41,9 @@ internal sealed record Notice(string Title, string Text, IReadOnlyList<OverlayCh
 
     public Question? Question { get; init; }
 
+    /// <summary>The key of the answer the focus starts on in place of the current one: the setting just changed in /config.</summary>
+    public string? StartAnswer { get; init; }
+
     /// <summary>
     /// Opened by something other than the user's own command: one of Claude's questions, an update offer or an
     /// error at startup. It plays the notice chime and ignores the answering keys for a moment, since the user may be
@@ -291,7 +294,7 @@ internal sealed class OverlayPanel : Panel
         if (question is not null)
         {
             _typedNumber = string.Empty;
-            FillAnswers(question);
+            FillAnswers(question, notice.StartAnswer);
         }
 
         _session.Visible = session is not null;
@@ -525,7 +528,7 @@ internal sealed class OverlayPanel : Panel
         return -1;
     }
 
-    private void FillAnswers(Question question)
+    private void FillAnswers(Question question, string? startKey)
     {
         foreach (var old in _answers)
         {
@@ -547,7 +550,7 @@ internal sealed class OverlayPanel : Panel
             answer.TabIndex = i;
             answer.UseMnemonic = false;
             answer.UseVisualStyleBackColor = true;
-            if (option.Current)
+            if (startKey is null ? option.Current : option.Key == startKey)
             {
                 selected = i;
             }
