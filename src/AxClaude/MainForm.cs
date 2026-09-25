@@ -1905,6 +1905,8 @@ internal sealed class MainForm : Form
     {
         var options = question.Options;
         var several = question.AllowsSeveral;
+        // A list box's items have no radio button role: the name says how the list is answered, read with it each time.
+        name += Stop(name[^1]) + (several ? "Tick any with Space, then press Enter" : "Choose one, then press Enter");
         var items = options.Select(option => $"{option.Key}. {option.Text}" + (option.Current && !several ? " (current)" : string.Empty)).ToList();
         var start = Math.Max(0, options.ToList().FindIndex(option => startKey is null ? option.Current : option.Key == startKey));
         IReadOnlyList<int>? ticked = several ? Enumerable.Range(0, options.Count).Where(i => options[i].Current).ToList() : null;
