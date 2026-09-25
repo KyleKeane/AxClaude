@@ -44,6 +44,7 @@ Recorded with Claude Code 2.1.281 (2026-09-24); every answer is typed one keystr
 - Claude's own question (AskUserQuestion): a header row (" ☐ Colour"), the question, the answers, then Other and "Chat about this". Other asks for your words on an "Enter text for option 4 (Other)" row: the control area holds a field named with the question (Enter sends, Escape goes back to the list). "Chat about this" ends the question like Escape.
 - Several questions in one call: a tab row ("←   ☐ Colour   ☐ Fruit   ✔ Submit   →") above each, one list per question ("Question 1 of 2"), then "Review your answers" with y or n.
 - Several answers allowed ("comma- or space-separated for several"): the list has check boxes; the ticked keys go joined with commas.
+- An answer longer than the console width ("1. Label — description") wraps onto the rows under it. The reader joins those rows to the answer when the numbers show they belong to it: the answer above is numbered just before the one below, or the last answer is the one the prompt row names ("[1-5]"). Recorded in `wrapped-answers`.
 
 ## Screens to read
 

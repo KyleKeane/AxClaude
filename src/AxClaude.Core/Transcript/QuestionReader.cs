@@ -49,17 +49,38 @@ public static partial class QuestionReader
             }
         }
 
+        // An answer longer than the console is wrapped onto the rows under it ("1. Claude's screens — Put the lines …"
+        // over "theme in /theme …"). Rows that are not answers are held, and joined to the answer found above them when
+        // the numbers show they belong to it; otherwise the answers end at the lowest answer row.
         var options = new List<QuestionOption>();
-        var row = promptRow - 1;
-        for (; row >= 0 && promptRow - row <= MaxRows; row--)
+        var wrapped = new List<string>();
+        var last = LastKey(rows[promptRow]);
+        var top = promptRow;
+        for (var row = promptRow - 1; row >= 0 && promptRow - row <= MaxRows; row--)
         {
-            var match = OptionRegex().Match(rows[row].Trim());
+            var line = rows[row].Trim();
+            var match = OptionRegex().Match(line);
             if (!match.Success)
+            {
+                if (line.Length == 0)
+                {
+                    break;
+                }
+
+                wrapped.Insert(0, line);
+                continue;
+            }
+
+            var key = match.Groups[1].Value;
+            if (wrapped.Count > 0 && !(options.Count == 0 ? key == last : Follows(key, options[^1].Key)))
             {
                 break;
             }
 
-            options.Add(new QuestionOption(match.Groups[1].Value, match.Groups[3].Value, match.Groups[2].Success));
+            var answer = wrapped.Count == 0 ? match.Groups[3].Value : match.Groups[3].Value + " " + string.Join(" ", wrapped);
+            options.Add(new QuestionOption(key, answer, match.Groups[2].Success));
+            wrapped.Clear();
+            top = row;
         }
 
         // No answers above the prompt row: no question. Claude also clears a question's rows for a frame while it
@@ -77,8 +98,8 @@ public static partial class QuestionReader
         var blanks = 0;
         (int, int)? step = null;
         // The first row: the top answer until a text row above it is found.
-        var first = row + 1;
-        for (; row >= 0 && promptRow - row <= MaxRows; row--)
+        var first = top;
+        for (var row = top - 1; row >= 0 && promptRow - row <= MaxRows; row--)
         {
             var line = rows[row].Trim();
             if (line.Length == 0)
@@ -129,6 +150,18 @@ public static partial class QuestionReader
         var several = rows[promptRow].Contains("for several", StringComparison.Ordinal);
         return new Question(title, text, options, hints) { AllowsSeveral = several, FirstRow = first, Step = step };
     }
+
+    /// <summary>The highest answer a prompt row names ("5" in "Select with numbers [1-5]", "n" in "Enter y/n:"), or null.</summary>
+    private static string? LastKey(string promptRow) =>
+        LastKeyRegex().Match(promptRow) is { Success: true } m ? m.Groups[1].Value
+        : promptRow.TrimStart().StartsWith("Enter y/n", StringComparison.Ordinal) ? "n" : null;
+
+    [GeneratedRegex(@"\[1-(\d+)\]")]
+    private static partial Regex LastKeyRegex();
+
+    /// <summary>True when answer <paramref name="key"/> comes just before <paramref name="below"/>: 2 before 3, y before n.</summary>
+    private static bool Follows(string key, string below) =>
+        (key, below) is ("y", "n") || (int.TryParse(key, out var a) && int.TryParse(below, out var b) && a + 1 == b);
 
     /// <summary>
     /// The number and count of the question under a tab row ("←   ☒ Colour   ☐ Fruit   ✔ Submit   →"): the tab row

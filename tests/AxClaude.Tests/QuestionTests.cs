@@ -191,6 +191,39 @@ public class QuestionTests
     }
 
     [Fact]
+    public void Answers_wrapped_over_several_rows_are_whole_answers()
+    {
+        // Answers 1 to 3 are longer than the 120-column console and wrap onto the rows under them; they used to end
+        // the answers, so the list held only 4 and Other and answer 1 was read as the question's text.
+        var (_, seen) = QuestionsIn("wrapped-answers-claude2.1.282-120x40.vt");
+        var question = Assert.Single(seen);
+        Assert.Equal("Which open items should we work on?", question.Title);
+        Assert.Empty(question.Text);
+        Assert.True(question.AllowsSeveral);
+        Assert.Equal(["1", "2", "3", "4", "5"], question.Options.Select(o => o.Key));
+        Assert.Equal("Claude's screens — Put the lines of tab screens like /status and /help in the conversation. Handle /chrome, a new "
+            + "theme in /theme and the commands not known yet. Fix screen titles that pick up a leftover line, such as \"Shell details "
+            + "dismissed. Rewind\".", question.Options[0].Text);
+        Assert.EndsWith("It works on Claude's --verbose flag.", question.Options[2].Text);
+        Assert.Equal("Other", question.Options[4].Text);
+    }
+
+    [Fact]
+    public void Rows_between_answers_join_only_an_answer_numbered_just_before()
+    {
+        // A text row above answers that skip a number is the question's text, not part of an answer.
+        string[] rows = ["Pick one", "1. Red", "Some note", "3. Blue", "Select with numbers [1-3]. Then Enter:"];
+        var question = QuestionReader.Read(rows, 4)!;
+        Assert.Equal(["3"], question.Options.Select(o => o.Key));
+
+        // The last answer's wrapped row joins it only when the prompt row names that answer as the last.
+        string[] last = ["Pick one", "1. Red", "2. A long", "answer", "Select with numbers [1-2]. Then Enter:"];
+        Assert.Equal("A long answer", QuestionReader.Read(last, 4)!.Options[1].Text);
+        string[] other = ["Pick one", "1. Red", "2. Green", "stray row", "Select with numbers [1-3]. Then Enter:"];
+        Assert.Null(QuestionReader.Read(other, 4));
+    }
+
+    [Fact]
     public void Other_asks_for_the_users_own_words()
     {
         // The recording answered 4 (Other), then typed t, u, l, i, p one keystroke each; Claude took "tulip".
