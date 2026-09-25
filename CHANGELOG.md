@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- A question whose answers are too long for one line now lists every answer. Claude wraps a long answer onto the next line, and AxClaude used to stop reading answers there, so the first answers were missing from the list and read as part of the question.
+- Claude's "Review your answers" no longer needs a y: AxClaude submits it for you after your last answer, unless a question was left without an answer. Options, "Review answers before they go to Claude", brings the review back.
+- Enter on a line of one of Claude's screens (`/status`, `/tasks`, `/help`) closes it, as Escape does, and AxClaude says "Closed". The keys listed at the end still do what they name.
+- Claude's working line ("Puzzling…") and its mode line ("auto mode on (shift+tab to cycle) · esc to interrupt") are no longer read out at the end of a reply. When the window was full, Claude left its cursor on the mode line, and AxClaude took both for part of the reply.
+- Tab and Shift+Tab now simply move between the conversation and the message field, or Claude's question in its place. Claude's permission mode, which Shift+Tab used to change, is Ctrl+Shift+M from anywhere in the window.
+- More keys in every list of Claude's answers, settings and screens: a number jumps forward through the answers starting with it (1, 10, 11), and now Shift with the number jumps back; 0 goes through the answers 1 to 9, Shift+0 back; Page Up and Page Down move ten answers; Home and End, and Ctrl+Home and Ctrl+End, go to the first and the last.
+- Your files stay out of your project's git. Save conversation and Record raw stream now offer your Documents folder, with names starting `axclaude-`, and when the project is a git repository AxClaude lists those names in its local exclude file (`.git\info\exclude`, never committed), so git ignores them wherever you save them. Options, "Keep AxClaude's recordings and saved conversations out of git", on by default, turns this off.
+- For developers: PtyCapture's `--dump` hides e-mail addresses, account paths, pipe names and session ids unless `--raw` is given, and a test fails when any file in the repository holds an e-mail address or an account path.
+
 ## 1.5.1 - 2026-09-25
 
 - Fewer words: every announcement is shorter ("Ready", "Sent", "Responding", "Done", "Claude asks"), and the message field has no description read on every arrival.

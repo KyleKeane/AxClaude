@@ -16,8 +16,7 @@ internal static class HelpText
     public const string Shortcuts = """
         Anywhere
           Ctrl+1: go to the message field. Ctrl+2: go to the conversation. Both say where you are, also when you are there already
-          Ctrl+Tab, Ctrl+Shift+Tab or F6: switch between the message field and the conversation
-          Tab: from the message field to the conversation and back (Shift+Tab in the field goes to Claude instead)
+          Tab, Shift+Tab, Ctrl+Tab or F6: switch between the message field (or Claude's question in its place) and the conversation
           Shift+Escape: interrupt Claude, or close one of Claude's dialogs
           Ctrl+Shift+S: make Claude take up the waiting message now instead of after its current step
           Ctrl+F: find text in the conversation. F3 and Shift+F3: next or previous match
@@ -39,7 +38,6 @@ internal static class HelpText
           Shift+Enter: new line
           Page Up, Page Down: one screen of the field up or down, or the first or last line of the message
           Escape: does nothing; a reminder says that Shift+Escape interrupts Claude
-          Shift+Tab: next permission mode
           Ctrl+Up, Ctrl+Down: send Up or Down to Claude
 
         Conversation
@@ -66,8 +64,9 @@ internal static class HelpText
 
         When Claude asks something
           A list of the answers takes the message field's place; the question is read each time you arrive there
-          Ctrl+Tab or F6: between the conversation and the answers
-          Up, Down, or an answer's number: choose. Space: tick, when several answers are allowed
+          Tab, Shift+Tab, Ctrl+Tab or F6: between the conversation and the answers
+          Up, Down, or an answer's number: choose (the number again: the next answer starting with it; Shift and the number: back; 0: answers 1 to 9)
+          Page Up, Page Down: ten answers. Home, End: the first or last. Space: tick, when several answers are allowed
           Enter: answer. Escape: cancel the question, or go back a step
           The message field comes back when Claude has your answer
 

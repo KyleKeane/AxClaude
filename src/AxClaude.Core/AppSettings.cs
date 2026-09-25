@@ -87,6 +87,18 @@ public sealed class AppSettings
     /// </summary>
     public bool InterruptForQuestions { get; set; } = true;
 
+    /// <summary>
+    /// Show Claude's "Review your answers" after the last of its questions (D33). Off: the app submits the review for
+    /// the user, unless it warns that a question has no answer.
+    /// </summary>
+    public bool ReviewAnswers { get; set; }
+
+    /// <summary>
+    /// AxClaude's recordings and saved conversations (<c>axclaude-…</c>) are listed in the project repository's local
+    /// exclude file, so git never offers them for a commit (D34). Off removes the lines.
+    /// </summary>
+    public bool KeepFilesOutOfGit { get; set; } = true;
+
     public int MaxTranscriptLines { get; set; } = 20000;
     public WindowPlacement? Window { get; set; }
 

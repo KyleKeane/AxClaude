@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using AxClaude.Core;
+using AxClaude.Core.Privacy;
 using AxClaude.Core.Pty;
 using AxClaude.Core.Transcript;
 using AxClaude.Core.Updates;
@@ -297,9 +298,14 @@ internal sealed class MainForm : Form
 
         switch (keyData)
         {
+            case Keys.Tab:
+            case Keys.Shift | Keys.Tab:
             case Keys.Control | Keys.Tab:
             case Keys.Control | Keys.Shift | Keys.Tab:
             case Keys.F6:
+                // The window has two places, the conversation and the control at the bottom (the message field, or
+                // the control area in its place): every one of these keys moves between them, so a hidden control
+                // never takes the focus.
                 if (_transcript.Focused)
                 {
                     BottomControl.Focus();
@@ -344,11 +350,6 @@ internal sealed class MainForm : Form
             case Keys.Shift | Keys.Escape:
                 // The interrupt key (FR-2.3). Ctrl+Escape opens the Start menu and never reaches the app.
                 Interrupt();
-                return true;
-            case Keys.Shift | Keys.Tab when BottomControl.Focused:
-                // What a Claude Code user expects Shift+Tab to do: cycle the permission mode. The same in the control
-                // area, so the key never changes its meaning at the bottom of the window.
-                Write("\x1b[Z");
                 return true;
             case Keys.Control | Keys.Oemplus:
             case Keys.Control | Keys.Add:
@@ -448,6 +449,12 @@ internal sealed class MainForm : Form
             }
         }));
         options.DropDownItems.Add(Toggle("&Go to Claude's questions at once, interrupting speech", _settings.InterruptForQuestions, v => _settings.InterruptForQuestions = v));
+        options.DropDownItems.Add(Toggle("Re&view answers before they go to Claude", _settings.ReviewAnswers, v => _settings.ReviewAnswers = v));
+        options.DropDownItems.Add(Toggle("&Keep AxClaude's recordings and saved conversations out of git", _settings.KeepFilesOutOfGit, v =>
+        {
+            _settings.KeepFilesOutOfGit = v;
+            KeepFilesOutOfGit();
+        }));
         options.DropDownItems.Add(new ToolStripSeparator());
         options.DropDownItems.Add(new ToolStripMenuItem("&Font...", null, (_, _) => ChooseFont()));
         options.DropDownItems.Add(new ToolStripMenuItem("&Larger text", null, (_, _) => ChangeTextSize(1)) { ShortcutKeyDisplayString = "Ctrl+Plus" });
@@ -1093,6 +1100,30 @@ internal sealed class MainForm : Form
         _transcript.Find(_findText, backward);
     }
 
+    /// <summary>
+    /// Adds AxClaude's patterns to the local exclude file of the project's git repository, or removes them, as the
+    /// option says (D34). A failure is logged and changes nothing else.
+    /// </summary>
+    private void KeepFilesOutOfGit()
+    {
+        if (_folder is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (GitExclude.Update(_folder, _settings.KeepFilesOutOfGit) is { } path)
+            {
+                Log.Info($"{(_settings.KeepFilesOutOfGit ? "Added AxClaude's patterns to" : "Removed AxClaude's patterns from")} {path}");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error($"Could not update the git exclude file: {ex.Message}");
+        }
+    }
+
     /// <summary>Writes the conversation as the reader sees it (hidden rows left out) to a UTF-8 text file (FR-3.8).</summary>
     private void SaveConversation()
     {
@@ -1100,10 +1131,11 @@ internal sealed class MainForm : Form
         {
             Title = "Save the conversation as text",
             Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
-            FileName = $"{(_folder is null ? "conversation" : FolderName(_folder))}-{DateTime.Now:yyyyMMdd-HHmm}.txt",
+            // Outside the project, and named axclaude-… so the exclude patterns catch it wherever it goes (D34).
+            FileName = $"axclaude-{(_folder is null ? "conversation" : FolderName(_folder))}-{DateTime.Now:yyyyMMdd-HHmm}.txt",
             AddExtension = true,
             DefaultExt = "txt",
-            InitialDirectory = _folder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
@@ -1290,6 +1322,8 @@ internal sealed class MainForm : Form
             FileName = $"axclaude-{DateTime.Now:yyyyMMdd-HHmm}.vt",
             AddExtension = true,
             DefaultExt = "vt",
+            // A recording holds everything on screen, /status's account details included: outside the project (D34).
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
@@ -1595,6 +1629,7 @@ internal sealed class MainForm : Form
 
         arguments.AddRange(ClaudeArgs);
         _launchedFolder = _folder;
+        KeepFilesOutOfGit();
 
         PtyHost host;
         try
@@ -1956,6 +1991,13 @@ internal sealed class MainForm : Form
             return;
         }
 
+        if (SubmitsReview(question))
+        {
+            // The last answer's "Sent" said nothing about a review; y goes as the user's own answer would.
+            SendAnswer("y");
+            return;
+        }
+
         _askedQuestion = question;
         ShowQuestionList(question.Signature, QuestionName(question), question, null, Environment.TickCount64 - _answerAt > 3000, AnswerQuestion, () =>
         {
@@ -2026,8 +2068,21 @@ internal sealed class MainForm : Form
 
     /// <summary>After an answer to one of several questions, what comes next, so that the gap before it does not sound like the end.</summary>
     private string NextStep() => _askedQuestion?.Step is (int number, int count)
-        ? number < count ? ". Next question" : ". Review next"
+        ? number < count ? ". Next question" : _settings.ReviewAnswers ? ". Review next" : string.Empty
         : string.Empty;
+
+    /// <summary>
+    /// Claude's "Review your answers" right after the user answered the last of its questions, which the app answers y
+    /// itself unless Review answers is on (D33). Not when it warns that a question has no answer, and not a review the
+    /// user came back to by some other way.
+    /// </summary>
+    private bool SubmitsReview(Question question) =>
+        !_settings.ReviewAnswers
+        && question.Title == "Review your answers"
+        && question.OptionFor("y") is not null
+        && !question.Text.Any(line => line.StartsWith("warning:", StringComparison.Ordinal))
+        && _askedQuestion?.Step is (int number, int count) && number == count
+        && Environment.TickCount64 - _answerAt < 3000;
 
     /// <summary>
     /// The follow-up of a question when Claude asks for the user's own words ("Enter text for option 4 (Other), or
@@ -2067,18 +2122,28 @@ internal sealed class MainForm : Form
         var items = screen.Lines.ToList();
         var first = items.Count;
         items.AddRange(screen.Keys.Select(key => $"{char.ToUpperInvariant(key.Action[0])}{key.Action[1..]} ({key.Name})"));
-        var escape = screen.Keys.First(key => key.Send == "\x1b").Send;
+        var escape = screen.Keys.First(key => key.Send == "\x1b");
+        // Enter on one of the screen's lines, which only inform, does what Escape does: most often it closes the screen.
+        void Leave()
+        {
+            SendScreenKey(escape.Send);
+            if (escape.Action.ToLowerInvariant() is "close" or "dismiss" or "cancel" or "exit")
+            {
+                Announce("Closed", false);
+            }
+        }
+
         ShowInArea(screen.Signature, screen.Title, Environment.TickCount64 - _screenKeyAt > 3000, (focus, hold) =>
             _area.ShowList(screen.Title, items, 0, null, focus, hold, (index, _) =>
             {
                 if (index < first)
                 {
-                    Announce("Keys are at the end", true);
+                    Leave();
                     return;
                 }
 
                 SendScreenKey(screen.Keys[index - first].Send);
-            }, () => SendScreenKey(escape)));
+            }, Leave));
     }
 
     /// <summary>

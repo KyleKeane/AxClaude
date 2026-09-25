@@ -6,7 +6,7 @@ namespace AxClaude;
 /// /config's settings; a screen's lines and keys) or a one-line field for the user's own words. Every question gets a
 /// new control, so the focus lands on a new control and NVDA reads its name, the question, before the item, as it
 /// does whenever the focus comes back from the conversation. Enter chooses and Escape goes back; Tab and Shift+Tab
-/// keep the meaning they have in the message field (MainForm). A line over the control shows the name on screen.
+/// move to the conversation, as from the message field (MainForm). A line over the control shows the name on screen.
 /// For a moment after a control appears, and after an answer goes, Enter, Space, Escape and typed keys do nothing:
 /// they were meant for the message field, or the answer is on its way.
 /// </summary>
@@ -75,6 +75,11 @@ internal sealed class ControlArea : Panel
             else if (Answering(e) && e.KeyCode == Keys.Escape)
             {
                 escape();
+            }
+            else if (!e.Handled)
+            {
+                // Not while the area holds typed keys (Answering): they were meant for the message field.
+                ListKeys.Handle(list, e);
             }
         };
         var old = Place(list, name);
