@@ -215,7 +215,7 @@ public class QuestionTests
         model.EndFrame();
         Assert.Equal("Enter text for option 4 (Other), or Escape for the list:", prompt);
         Assert.False(model.AwaitsText);
-        Assert.Equal("Other", LineClassifier.TextPromptAnswer(prompt));
+        Assert.Equal("Other", LineClassifier.TextPromptAnswer(prompt!));
         Assert.Equal("No, keep planning", LineClassifier.TextPromptAnswer("Enter text for option 3 (No, keep planning), or Escape for the list:"));
         Assert.Null(LineClassifier.TextPromptAnswer("Enter text for the name:"));
     }
