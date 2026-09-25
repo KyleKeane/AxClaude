@@ -31,8 +31,8 @@ internal sealed class ControlArea : Panel
     /// <summary>The control shown, which takes the focus; null while the message field is in its place.</summary>
     public Control? Current { get; private set; }
 
-    /// <summary>What the focus lands on: the list's focused item, or nothing for the field.</summary>
-    public string CurrentItem => Current is ListView { FocusedItem: { } item } ? item.Text : string.Empty;
+    /// <summary>What the focus lands on: the list's selected item, or nothing for the field.</summary>
+    public string CurrentItem => Current is ListBox { SelectedItem: string item } ? item : string.Empty;
 
     /// <summary>The height of the message field, which the area never goes below.</summary>
     [System.ComponentModel.DefaultValue(60)]
@@ -47,36 +47,30 @@ internal sealed class ControlArea : Panel
     public void ShowList(string name, IReadOnlyList<string> items, int start, IReadOnlyList<int>? ticked, bool focus, bool hold,
         Action<int, IReadOnlyList<int>> choose, Action escape)
     {
-        var list = new ListView
+        // A plain list box, a checked one for several answers: NVDA reads either as a list, the answer and its place.
+        var list = ticked is null ? new ListBox() : new CheckedListBox();
+        list.IntegralHeight = false;
+        list.AccessibleName = name;
+        list.Dock = DockStyle.Fill;
+        list.Items.AddRange([.. items]);
+        if (list is CheckedListBox boxes)
         {
-            View = View.Details,
-            HeaderStyle = ColumnHeaderStyle.None,
-            FullRowSelect = true,
-            MultiSelect = false,
-            HideSelection = false,
-            CheckBoxes = ticked is not null,
-            AccessibleName = name,
-            Dock = DockStyle.Fill,
-        };
-        list.Columns.Add(string.Empty);
-        for (var i = 0; i < items.Count; i++)
-        {
-            list.Items.Add(new ListViewItem(items[i]) { Checked = ticked?.Contains(i) == true });
+            foreach (var i in ticked!)
+            {
+                boxes.SetItemChecked(i, true);
+            }
         }
 
-        // One column as wide as the list; while the list is being disposed it has none.
-        list.Resize += (_, _) =>
+        if (items.Count > 0)
         {
-            if (list.Columns.Count > 0)
-            {
-                list.Columns[0].Width = list.ClientSize.Width;
-            }
-        };
+            list.SelectedIndex = Math.Clamp(start, 0, items.Count - 1);
+        }
+
         list.KeyDown += (_, e) =>
         {
-            if (Answering(e) && e.KeyCode == Keys.Enter && list.FocusedItem is { } item)
+            if (Answering(e) && e.KeyCode == Keys.Enter && list.SelectedIndex >= 0)
             {
-                choose(item.Index, list.CheckedIndices.Cast<int>().ToList());
+                choose(list.SelectedIndex, list is CheckedListBox checkedList ? checkedList.CheckedIndices.Cast<int>().ToList() : []);
             }
             else if (Answering(e) && e.KeyCode == Keys.Escape)
             {
@@ -84,15 +78,6 @@ internal sealed class ControlArea : Panel
             }
         };
         var old = Place(list, name);
-        list.Columns[0].Width = list.ClientSize.Width;
-        if (items.Count > 0)
-        {
-            // Only once the list has its window: before, the focused item is not kept.
-            var first = list.Items[Math.Clamp(start, 0, items.Count - 1)];
-            first.Selected = first.Focused = true;
-            first.EnsureVisible();
-        }
-
         Finish(list, old, focus, hold);
     }
 
@@ -134,7 +119,7 @@ internal sealed class ControlArea : Panel
         }
 
         var row = TextRenderer.MeasureText("Wg", Font).Height + 6;
-        var rows = Current is ListView list ? list.Items.Count : 1;
+        var rows = Current is ListBox list ? list.Items.Count : 1;
         _name.Height = row;
         Height = Math.Clamp(row * (rows + 1) + 8, MinimumHeight, Math.Max(MinimumHeight, Parent.ClientSize.Height / 2));
     }
@@ -160,7 +145,7 @@ internal sealed class ControlArea : Panel
         return answering;
     }
 
-    /// <summary>Puts the new control over the old one, with its window created; returns the old one.</summary>
+    /// <summary>Puts the new control over the old one; returns the old one.</summary>
     private Control? Place(Control control, string name)
     {
         // Enter and Escape reach the control's KeyDown rather than the window's default and cancel buttons.
@@ -170,8 +155,6 @@ internal sealed class ControlArea : Panel
         Visible = true;
         Controls.Add(control);
         control.BringToFront();
-        // Its window now, even while the area is hidden behind a notice: a list keeps its focused item only then.
-        _ = control.Handle;
         Current = control;
         FitHeight();
         return old;
