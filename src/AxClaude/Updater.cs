@@ -43,6 +43,22 @@ internal static class Updater
         }
 
         Directory.CreateDirectory(Folder);
+        // Only the version being installed is kept: earlier downloads are about 45 MB each.
+        foreach (var old in Directory.GetDirectories(Folder).Where(path => !string.Equals(path, folder, StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                Directory.Delete(old, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Still in use; the next update tries again.
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
         var zip = Path.Combine(Folder, $"AxClaude-{version}{UpdateCheck.ZipSuffix}");
         using (var response = await Http.GetAsync(release.ZipUrl, HttpCompletionOption.ResponseHeadersRead, cancellation).ConfigureAwait(false))
         {

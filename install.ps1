@@ -45,6 +45,13 @@ function Say([string]$text) {
     }
 }
 
+# Any error that nothing below handles is said and logged: the updater runs this script without a window, so the
+# log is the only place it would show.
+trap {
+    Say "AxClaude was not installed: $($_.Exception.Message)"
+    exit 1
+}
+
 if ($WaitForProcess) {
     Say "Waiting for AxClaude (process $WaitForProcess) to close..."
     try { Wait-Process -Id $WaitForProcess -Timeout 120 -ErrorAction Stop } catch { }
@@ -68,20 +75,18 @@ $shellKeys = @(
 $appsKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\AxClaude'
 
 if ($Uninstall) {
+    # A running AxClaude holds its folder: then nothing is removed, so the Apps entry and install.cmd stay to try again.
+    if (Get-Process -Name AxClaude -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }) {
+        Say "AxClaude is still running, so nothing was removed. Close it and uninstall again."
+        exit 1
+    }
+
+    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
     foreach ($key in $shellKeys + $appsKey) {
         if (Test-Path $key) { Remove-Item $key -Recurse -Force }
     }
     if (Test-Path $startMenu) { Remove-Item $startMenu -Force }
     if (Test-Path $shim) { Remove-Item $shim -Force }
-    if (Test-Path $target) {
-        try {
-            Remove-Item $target -Recurse -Force
-        }
-        catch {
-            Say "Could not remove $target (is AxClaude running?): $($_.Exception.Message)"
-            exit 1
-        }
-    }
     Say "AxClaude was removed. Settings in $env:APPDATA\AxClaude and the log in $env:LOCALAPPDATA\AxClaude were kept."
     exit 0
 }

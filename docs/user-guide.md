@@ -17,7 +17,7 @@ This puts AxClaude in your Programs folder and adds a Start menu entry, an "Open
 
 To update: AxClaude offers new versions itself (Help menu). You can also run `install.cmd` again. Your settings stay.
 
-To remove: Settings, Apps, Installed apps, AxClaude, Uninstall (or Add or remove programs in the Control Panel). A console window says what was removed; press a key to close it. Your settings stay. From a console, `"%LOCALAPPDATA%\Programs\AxClaude\install.cmd" -Uninstall` does the same.
+To remove: Settings, Apps, Installed apps, AxClaude, Uninstall (or Add or remove programs in the Control Panel). Close AxClaude first: while it runs, nothing is removed and the window says so. A console window says what was removed; press a key to close it. Your settings stay. From a console, `"%LOCALAPPDATA%\Programs\AxClaude\install.cmd" -Uninstall` does the same.
 
 ## Start
 
