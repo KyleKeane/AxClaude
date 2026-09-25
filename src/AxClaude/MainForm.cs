@@ -1900,7 +1900,7 @@ internal sealed class MainForm : Form
         var name = new StringBuilder(question.Step is (int number, int count) ? $"Question {number} of {count}: {question.Title}" : question.Title);
         foreach (var line in question.Text)
         {
-            if (name.Length + line.Length > 300)
+            if (name.Length + line.Length > 1000)
             {
                 break;
             }
