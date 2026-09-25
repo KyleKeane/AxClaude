@@ -36,6 +36,12 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _quiet = new() { Interval = 100 };
     private readonly System.Windows.Forms.Timer _attention = new() { Interval = 400 };
     private readonly System.Windows.Forms.Timer _exitSettle = new() { Interval = 300 };
+
+    /// <summary>How long reply speech waits for Claude's prompt row, which comes after a question's rows (D33).</summary>
+    private readonly System.Windows.Forms.Timer _speechHold = new() { Interval = 250 };
+
+    /// <summary>Reply speech waiting for <see cref="_speechHold"/>; dropped when it turns out to be a question's rows.</summary>
+    private string? _heldSpeech;
     private readonly Queue<(string Text, int DelayAfter)> _writes = new();
     /// <summary>The per-frame pass behind the tick and the spoken replies (FR-7.8, FR-7.4).</summary>
     private readonly Arrivals _arrivals = new();
@@ -142,6 +148,16 @@ internal sealed class MainForm : Form
         {
             _exitSettle.Stop();
             FinishExit();
+        };
+        _speechHold.Tick += (_, _) =>
+        {
+            _speechHold.Stop();
+            if (_heldSpeech is { } speech && !QuestionShown)
+            {
+                Announce(speech, false);
+            }
+
+            _heldSpeech = null;
         };
         BuildUi();
         ApplyTextFont();
@@ -787,10 +803,19 @@ internal sealed class MainForm : Form
         }
 
         // The rows of a question are not read as reply lines while the control area reads the question (D33): new
-        // rows only, repeats left out, they gave "→ Tea. → Dinner" before the review was read whole.
-        if (arrival.Speech is { } speech && !(_settings.QuestionNotices && _model.PromptPending))
+        // rows only, repeats left out, they gave "→ Tea. → Dinner" before the review was read whole. Claude draws a
+        // question's rows before its prompt row, so reply speech waits a moment (_speechHold) and goes only when
+        // Claude has not turned out to be waiting.
+        if (arrival.Speech is { } speech)
         {
-            Announce(speech, false);
+            _heldSpeech = _heldSpeech is null ? speech : _heldSpeech + " " + speech;
+            _speechHold.Stop();
+            _speechHold.Start();
+        }
+
+        if (QuestionShown)
+        {
+            _heldSpeech = null;
         }
 
         // What Claude waits on is acted on once the screen has settled for the attention timer (AnnounceAttention):
@@ -1803,6 +1828,9 @@ internal sealed class MainForm : Form
     }
 
     // ---- the control area: what Claude waits on, in the message field's place (D33) ----
+
+    /// <summary>Claude waits on something the control area reads, so its rows are not read as reply lines too.</summary>
+    private bool QuestionShown => _settings.QuestionNotices && _model.PromptPending;
 
     /// <summary>The control at the bottom of the window: the message field, or the control area's list or field in its place.</summary>
     private Control BottomControl => _area.Current ?? _input;
