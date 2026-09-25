@@ -1889,7 +1889,10 @@ internal sealed class MainForm : Form
         {
             var dash = option.Text.IndexOf(" — ", StringComparison.Ordinal);
             return $"{option.Key}, {(dash > 0 ? option.Text[..dash] : option.Text)}";
-        })) + NextStep(), false);
+        })) + (chosen.Any(option => option.Text.Equals("Other", StringComparison.OrdinalIgnoreCase))
+            // Claude asks for the words of Other next (ShowOwnAnswer).
+            ? ". Next, type your own answer"
+            : NextStep()), false);
     }
 
     /// <summary>After an answer to one of several questions, what comes next, so that the gap before it does not sound like the end.</summary>
